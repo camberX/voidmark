@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.26.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.27.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -23,7 +23,7 @@ Java **25** is required.
 - The gear opens **Theme**: **Accent** (highlights, toggles, icons) and **Pane** (main window background) are separate colors. Animation toggle is there too.
 - The bell toggles the **watermark** overlay (FPS, ping, clock, name).
 - Search (`Ctrl+F` or the magnifier) jumps to a setting.
-- The sidebar **Cape** slot previews a custom cape. Paste a PNG URL or click **Local file...** to pick one in Explorer. It is client-side on you only.
+- The **Cape** tab previews a custom cape. Paste a PNG URL or click **Local file...** for a native file picker. It is client-side on you only.
 - **Nick** replaces your username in chat, tab, the scoreboard, and nametags. `&6` `&l` `&r` (and the rest of the legacy codes) work in the input; the preview under it is what other HUD text will look like.
 
 ### Visuals → World
@@ -53,6 +53,7 @@ Markers only run in Skyblock by default. Enable **Force enable** to test in sing
 | Display | Node HUD, watermark, boxes, tracers, marker color |
 | Status | Hypixel / Skyblock / The End, live FPS and ping |
 | Nick | Hide/replace your username with `&` color codes |
+| Cape | Custom cape from a PNG URL or a local file |
 
 Config is saved to `.minecraft/config/voidmark.json`.
 

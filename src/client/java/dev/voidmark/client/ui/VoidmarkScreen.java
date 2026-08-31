@@ -31,9 +31,9 @@ import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 
 public class VoidmarkScreen extends Screen {
-	private static final float MENU_W = 410;
-	private static final float MENU_H = 316;
-	private static final float SIDEBAR_W = 92;
+	private static final float MENU_W = 400;
+	private static final float MENU_H = 256;
+	private static final float SIDEBAR_W = 88;
 	private static final float TOOLBAR_H = 22;
 	private static final float ROW = 16;
 	private static final float COL_GAP = 10;
@@ -67,7 +67,8 @@ public class VoidmarkScreen extends Screen {
 		MARKERS("Markers", Group.NODES),
 		DISPLAY("Display", Group.NODES),
 		STATUS("Status", Group.MISC),
-		NICK("Nick", Group.MISC);
+		NICK("Nick", Group.MISC),
+		CAPE("Cape", Group.MISC);
 
 		final String label;
 		final Group group;
@@ -98,7 +99,8 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("FPS", Tab.STATUS, "Stats"),
 		new SearchEntry("Ping", Tab.STATUS, "Stats"),
 		new SearchEntry("Hypixel", Tab.STATUS, "Server"),
-		new SearchEntry("Nick hider", Tab.NICK, "Name")
+		new SearchEntry("Nick hider", Tab.NICK, "Name"),
+		new SearchEntry("Cape", Tab.CAPE, "Texture")
 	};
 
 	private final List<Hit> hits = new ArrayList<>();
@@ -305,8 +307,6 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.icon(graphics, font, tabGlyph(tab), windowX + 11, labelY, Theme.TEXT);
 		GuiDraw.menu(graphics, font, tab.label, windowX + 24, labelY, Theme.TEXT);
 
-		drawCapeSection(graphics, font, mouseX, mouseY);
-
 		float footY = windowY + windowH - 20;
 		int face = 14;
 		int faceX = Math.round(windowX + 10);
@@ -325,18 +325,20 @@ public class VoidmarkScreen extends Screen {
 		tab = value;
 		pickerTarget = null;
 		searchOpen = false;
-		capeFocused = false;
+		capeFocused = tab == Tab.CAPE;
 		nickFocused = tab == Tab.NICK;
 		commitCapeUrl();
 	}
 
-	private void drawCapeSection(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
-		float x = windowX + 8;
-		float w = SIDEBAR_W - 16;
-		float previewH = 44;
-		float fieldH = 14;
-		float blockH = 12 + previewH + 4 + fieldH + 4 + fieldH;
-		float y = windowY + windowH - 24 - blockH;
+	private void drawCapeTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
+		float left = contentX();
+		float top = windowY + TOOLBAR_H + 6;
+		float col = colW();
+		float right = left + col + COL_GAP;
+		float ix = innerX(left);
+		float rx = innerX(right);
+		float iw = innerW(col);
+
 		if (!capeFocused) {
 			VoidmarkConfig config = VoidmarkConfig.get();
 			if (config.capeUrl != null && !config.capeUrl.isBlank()) {
@@ -347,42 +349,43 @@ public class VoidmarkScreen extends Screen {
 				capeUrlDraft = "";
 			}
 		}
-		GuiDraw.small(graphics, font, "CAPE", x, y, Theme.HEADER);
-		y += 11;
 
-		GuiDraw.panel(graphics, x, y, w, previewH, 6, Theme.CARD, Theme.LINE);
-		drawCapePreview(graphics, x + 4, y + 3, w - 8, previewH - 6);
-		if (CustomCape.status() != CustomCape.Status.READY) {
-			GuiDraw.small(graphics, font, clip(font, CustomCape.statusLabel(), (int) w - 10), x + 5, y + previewH - 11, CustomCape.status() == CustomCape.Status.ERROR ? Theme.WARN : Theme.MUTED);
-		}
-		y += previewH + 4;
+		featureCard(graphics, font, left, top, col, CARD_HEAD + 118 + CARD_PAD, "Preview");
+		drawCapePreview(graphics, ix + 8, top + CARD_HEAD + 4, iw - 16, 110);
 
-		capeFieldX = x;
+		float y = featureCard(graphics, font, right, top, col, cardHeight(5), "Source");
+		GuiDraw.small(graphics, font, CustomCape.statusLabel(), rx, y + 2, CustomCape.status() == CustomCape.Status.ERROR ? Theme.WARN : Theme.MUTED);
+		y += ROW;
+
+		capeFieldX = rx;
 		capeFieldY = y;
-		capeFieldW = w;
-		boolean hoverField = GuiDraw.hovered(mouseX, mouseY, x, y, w, fieldH);
-		GuiDraw.panel(graphics, x, y, w, fieldH, 4, capeFocused || hoverField ? Theme.CARD_HOVER : Theme.CARD, capeFocused ? Theme.ACCENT : Theme.LINE);
+		capeFieldW = iw;
+		boolean hoverField = GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
+		GuiDraw.panel(graphics, rx, y, iw, ROW, 4, capeFocused || hoverField ? Theme.CARD_HOVER : Theme.CARD, capeFocused ? Theme.ACCENT : Theme.LINE);
 		NickHider.suppress();
-		String shown;
-		if (capeUrlDraft.isEmpty() && !capeFocused) {
-			shown = "Texture URL...";
-		} else {
-			shown = capeUrlDraft + (capeFocused ? "|" : "");
-		}
-		int color = capeUrlDraft.isEmpty() && !capeFocused ? Theme.MUTED : Theme.TEXT;
-		GuiDraw.small(graphics, font, clip(font, shown, (int) w - 8), x + 4, GuiDraw.middle(y, fieldH) + 1, color);
+		String shown = capeUrlDraft.isEmpty() && !capeFocused ? "https://...png" : capeUrlDraft + (capeFocused ? "|" : "");
+		GuiDraw.menu(graphics, font, clip(font, shown, (int) iw - 10), rx + 5, GuiDraw.middle(y, ROW), capeUrlDraft.isEmpty() && !capeFocused ? Theme.MUTED : Theme.TEXT);
 		NickHider.resume();
-		hits.add(new Hit(x, y, w, fieldH, () -> {
+		hits.add(new Hit(rx, y, iw, ROW, () -> {
 			capeFocused = true;
 			nickFocused = false;
 			searchOpen = false;
 		}));
-		y += fieldH + 4;
+		y += ROW;
 
-		boolean hoverFile = GuiDraw.hovered(mouseX, mouseY, x, y, w, fieldH);
-		GuiDraw.panel(graphics, x, y, w, fieldH, 4, hoverFile ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
-		GuiDraw.small(graphics, font, "Local file...", x + 4, GuiDraw.middle(y, fieldH) + 1, Theme.TEXT);
-		hits.add(new Hit(x, y, w, fieldH, CustomCape::pickLocal));
+		boolean hoverFile = GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
+		GuiDraw.panel(graphics, rx, y + 1, iw, ROW - 2, 5, hoverFile ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
+		GuiDraw.menu(graphics, font, "Local file...", rx + 5, GuiDraw.middle(y, ROW), Theme.TEXT);
+		hits.add(new Hit(rx, y, iw, ROW, CustomCape::pickLocal));
+		y += ROW;
+
+		boolean hoverClear = GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
+		GuiDraw.panel(graphics, rx, y + 1, iw, ROW - 2, 5, hoverClear ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
+		GuiDraw.menu(graphics, font, "Remove cape", rx + 5, GuiDraw.middle(y, ROW), Theme.TEXT);
+		hits.add(new Hit(rx, y, iw, ROW, () -> {
+			capeUrlDraft = "";
+			CustomCape.clear();
+		}));
 	}
 
 	private void drawCapePreview(GuiGraphicsExtractor graphics, float x, float y, float w, float h) {
@@ -393,8 +396,8 @@ public class VoidmarkScreen extends Screen {
 		}
 		int tw = CustomCape.width();
 		int th = CustomCape.height();
-		float capeW = Math.min(w - 4, 22);
-		float capeH = Math.min(h - 4, capeW * 1.7f);
+		float capeW = Math.min(w - 8, 48);
+		float capeH = Math.min(h - 8, capeW * 1.7f);
 		float px = x + (w - capeW) * 0.5f;
 		float py = y + (h - capeH) * 0.5f;
 		if (tw >= 64 && th >= 32) {
@@ -463,6 +466,7 @@ public class VoidmarkScreen extends Screen {
 			case DISPLAY -> MenuFont.MONITOR;
 			case STATUS -> MenuFont.SIGNAL;
 			case NICK -> MenuFont.PERSON;
+			case CAPE -> MenuFont.FLAG;
 		};
 	}
 
@@ -595,6 +599,10 @@ public class VoidmarkScreen extends Screen {
 			case NICK -> {
 				config.nickEnabled = false;
 				config.nick = "";
+			}
+			case CAPE -> {
+				capeUrlDraft = "";
+				CustomCape.clear();
 			}
 		}
 		WorldTint.syncChunkMeshes(minecraft);
@@ -831,6 +839,7 @@ public class VoidmarkScreen extends Screen {
 				}
 				NickHider.resume();
 			}
+			case CAPE -> drawCapeTab(graphics, font, mouseX, mouseY);
 		}
 	}
 
@@ -1084,7 +1093,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.26");
+			.orElse("1.1.27");
 	}
 
 	@Override
@@ -1094,7 +1103,7 @@ public class VoidmarkScreen extends Screen {
 		}
 		lastClickY = event.y();
 		dragging = false;
-		boolean onCape = GuiDraw.hovered(event.x(), event.y(), capeFieldX, capeFieldY, capeFieldW, 14);
+		boolean onCape = GuiDraw.hovered(event.x(), event.y(), capeFieldX, capeFieldY, capeFieldW, ROW);
 		boolean onNick = GuiDraw.hovered(event.x(), event.y(), nickFieldX, nickFieldY, nickFieldW, 18);
 		if (capeFocused && !onCape) {
 			capeFocused = false;

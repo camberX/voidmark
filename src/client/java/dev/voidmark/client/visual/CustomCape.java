@@ -9,10 +9,13 @@ import net.minecraft.core.ClientAsset;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.PlayerSkin;
+import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
-import java.awt.EventQueue;
 import java.awt.FileDialog;
 import java.awt.Frame;
+import java.util.concurrent.atomic.AtomicReference;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -99,28 +102,76 @@ public final class CustomCape {
 	}
 
 	public static void pickLocal() {
+		Minecraft client = Minecraft.getInstance();
 		try {
-			EventQueue.invokeLater(() -> {
-				try {
-					FileDialog dialog = new FileDialog((Frame) null, "Select cape texture", FileDialog.LOAD);
-					dialog.setFile("*.png");
-					dialog.setFilenameFilter((dir, name) -> name.toLowerCase().endsWith(".png"));
-					dialog.setVisible(true);
-					String file = dialog.getFile();
-					String dir = dialog.getDirectory();
-					dialog.dispose();
-					if (file == null || dir == null) {
-						return;
-					}
-					Path path = Path.of(dir, file);
-					Minecraft.getInstance().execute(() -> loadPath(path, true));
-				} catch (Throwable exception) {
-					Minecraft.getInstance().execute(() -> fail("Can't open explorer"));
-				}
-			});
-		} catch (Throwable exception) {
-			fail("Can't open explorer");
+			client.mouseHandler.releaseMouse();
+		} catch (Exception ignored) {
 		}
+		String selected = null;
+		boolean nativeOk = false;
+		try {
+			selected = tinyFdPick();
+			nativeOk = true;
+		} catch (Throwable exception) {
+			Voidmark.LOGGER.warn("Native cape picker failed, trying Explorer", exception);
+		}
+		if (!nativeOk) {
+			try {
+				selected = awtPick();
+			} catch (Throwable exception) {
+				Voidmark.LOGGER.warn("Explorer cape picker failed", exception);
+				fail("Can't open explorer");
+				return;
+			}
+		}
+		if (selected == null || selected.isBlank()) {
+			return;
+		}
+		loadPath(Path.of(selected), true);
+	}
+
+	private static String tinyFdPick() {
+		try (MemoryStack stack = MemoryStack.stackPush()) {
+			PointerBuffer filters = stack.mallocPointer(1);
+			filters.put(stack.UTF8("*.png"));
+			filters.flip();
+			return TinyFileDialogs.tinyfd_openFileDialog(
+				"Select cape texture",
+				System.getProperty("user.home", ""),
+				filters,
+				"PNG image",
+				false
+			);
+		}
+	}
+
+	private static String awtPick() throws Exception {
+		AtomicReference<String> selected = new AtomicReference<>();
+		AtomicReference<Exception> failure = new AtomicReference<>();
+		Thread thread = new Thread(() -> {
+			try {
+				FileDialog dialog = new FileDialog((Frame) null, "Select cape texture", FileDialog.LOAD);
+				dialog.setAlwaysOnTop(true);
+				dialog.setFile("*.png");
+				dialog.setFilenameFilter((dir, name) -> name.toLowerCase().endsWith(".png"));
+				dialog.setVisible(true);
+				String file = dialog.getFile();
+				String dir = dialog.getDirectory();
+				dialog.dispose();
+				if (file != null && dir != null) {
+					selected.set(Path.of(dir, file).toString());
+				}
+			} catch (Exception exception) {
+				failure.set(exception);
+			}
+		}, "voidmark-cape-dialog");
+		thread.setDaemon(true);
+		thread.start();
+		thread.join();
+		if (failure.get() != null) {
+			throw failure.get();
+		}
+		return selected.get();
 	}
 
 	public static void clear() {
