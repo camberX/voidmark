@@ -140,6 +140,10 @@ public final class GuiDraw {
 		text(graphics, font, MenuFont.icon(glyph), x, y, color, false);
 	}
 
+	public static float middle(float y, float height) {
+		return y + height * 0.5f - 2.0f;
+	}
+
 	public static int iconWidth(Font font, String glyph) {
 		return font.width(MenuFont.icon(glyph));
 	}
