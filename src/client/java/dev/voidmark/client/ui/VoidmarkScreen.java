@@ -29,6 +29,8 @@ public class VoidmarkScreen extends Screen {
 	private static final float ROW = 16;
 	private static final float COL_GAP = 10;
 	private static final float PAD = 8;
+	private static final float CARD_PAD = 8;
+	private static final float CARD_HEAD = 20;
 	private static final float SAVE_W = 42;
 	private static final float ICON_SLOT = 14;
 	private static final float PICKER_W = 132;
@@ -300,74 +302,90 @@ public class VoidmarkScreen extends Screen {
 		float left = contentX();
 		float top = windowY + TOOLBAR_H + 6;
 		float col = colW();
+		float right = left + col + COL_GAP;
+		float ix = innerX(left);
+		float rx = innerX(right);
+		float iw = innerW(col);
 		VoidmarkConfig config = VoidmarkConfig.get();
 
 		switch (tab) {
 			case WORLD -> {
-				float y = group(graphics, font, left, top, col, "Main");
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "World tint", config.worldTintEnabled, v -> config.worldTintEnabled = v);
-				y = colorRow(graphics, font, left, y, col, mouseX, mouseY, "Color", config.worldTintRgb, PickerTarget.WORLD);
-				slider(graphics, font, left, y, col, "Strength", String.format(Locale.ROOT, "%.0f", config.worldTintStrength * 100), config.worldTintStrength, v -> config.worldTintStrength = v);
+				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Main");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "World tint", config.worldTintEnabled, v -> config.worldTintEnabled = v);
+				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.worldTintRgb, PickerTarget.WORLD);
+				slider(graphics, font, ix, y, iw, "Strength", String.format(Locale.ROOT, "%.0f", config.worldTintStrength * 100), config.worldTintStrength, v -> config.worldTintStrength = v);
 
-				y = group(graphics, font, left + col + COL_GAP, top, col, "Skybox");
-				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Skybox tint", config.skyTintEnabled, v -> config.skyTintEnabled = v);
-				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Match world", config.matchSkyToWorld, v -> config.matchSkyToWorld = v);
+				y = featureCard(graphics, font, right, top, col, cardHeight(4), "Skybox");
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Skybox tint", config.skyTintEnabled, v -> config.skyTintEnabled = v);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Match world", config.matchSkyToWorld, v -> config.matchSkyToWorld = v);
 				int skyPreview = config.matchSkyToWorld ? config.worldTintRgb : config.skyTintRgb;
-				y = colorRow(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Color", skyPreview, PickerTarget.SKY);
-				slider(graphics, font, left + col + COL_GAP, y, col, "Strength", String.format(Locale.ROOT, "%.0f", config.skyTintStrength * 100), config.skyTintStrength, v -> config.skyTintStrength = v);
+				y = colorRow(graphics, font, rx, y, iw, mouseX, mouseY, "Color", skyPreview, PickerTarget.SKY);
+				slider(graphics, font, rx, y, iw, "Strength", String.format(Locale.ROOT, "%.0f", config.skyTintStrength * 100), config.skyTintStrength, v -> config.skyTintStrength = v);
 			}
 			case VIEW -> {
-				float y = group(graphics, font, left, top, col, "Camera");
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v);
-				slider(graphics, font, left, y, col, "Aspect", aspectLabel(config.aspectRatio), (config.aspectRatio - 0.50f) / 0.70f, v -> config.aspectRatio = VoidmarkConfig.clamp(0.50f + v * 0.70f, 0.50f, 1.20f));
+				float y = featureCard(graphics, font, left, top, col, cardHeight(2), "Camera");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v);
+				slider(graphics, font, ix, y, iw, "Aspect", aspectLabel(config.aspectRatio), (config.aspectRatio - 0.50f) / 0.70f, v -> config.aspectRatio = VoidmarkConfig.clamp(0.50f + v * 0.70f, 0.50f, 1.20f));
 
-				y = group(graphics, font, left + col + COL_GAP, top, col, "Info");
-				GuiDraw.menu(graphics, font, "Below Native stretches", left + col + COL_GAP + 2, y + 2, Theme.MUTED);
-				GuiDraw.menu(graphics, font, "horizontally, like 4:3.", left + col + COL_GAP + 2, y + 14, Theme.MUTED);
+				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 32 + CARD_PAD, "Info");
+				GuiDraw.menu(graphics, font, "Below Native stretches", rx, y + 2, Theme.MUTED);
+				GuiDraw.menu(graphics, font, "horizontally, like 4:3.", rx, y + 14, Theme.MUTED);
 			}
 			case MARKERS -> {
-				float y = group(graphics, font, left, top, col, "Main");
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Enable", config.markersEnabled, v -> config.markersEnabled = v);
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Only in The End", config.onlyInTheEnd, v -> config.onlyInTheEnd = v);
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Force enable", config.forceEnable, v -> config.forceEnable = v);
-				slider(graphics, font, left, y, col, "Scan radius", config.scanRadius + "m", (config.scanRadius - 16) / 64f, v -> config.scanRadius = VoidmarkConfig.clamp(16 + Math.round(v * 64f), 16, 80));
+				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Main");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.markersEnabled, v -> config.markersEnabled = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Only in The End", config.onlyInTheEnd, v -> config.onlyInTheEnd = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Force enable", config.forceEnable, v -> config.forceEnable = v);
+				slider(graphics, font, ix, y, iw, "Scan radius", config.scanRadius + "m", (config.scanRadius - 16) / 64f, v -> config.scanRadius = VoidmarkConfig.clamp(16 + Math.round(v * 64f), 16, 80));
 
-				y = group(graphics, font, left + col + COL_GAP, top, col, "Detection");
-				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Block scan", config.blockScan, v -> config.blockScan = v);
-				toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Particle hints", config.particleDetection, v -> config.particleDetection = v);
+				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Detection");
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Block scan", config.blockScan, v -> config.blockScan = v);
+				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Particle hints", config.particleDetection, v -> config.particleDetection = v);
 			}
 			case DISPLAY -> {
-				float y = group(graphics, font, left, top, col, "Esp");
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Filled box", config.boxFill, v -> config.boxFill = v);
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v);
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Tracer", config.tracersEnabled, v -> config.tracersEnabled = v);
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Through walls", config.throughWalls, v -> config.throughWalls = v);
-				slider(graphics, font, left, y, col, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
+				float y = featureCard(graphics, font, left, top, col, cardHeight(5), "Esp");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Filled box", config.boxFill, v -> config.boxFill = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Tracer", config.tracersEnabled, v -> config.tracersEnabled = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.throughWalls, v -> config.throughWalls = v);
+				slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
 
-				y = group(graphics, font, left + col + COL_GAP, top, col, "Hud");
-				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "HUD", config.hudEnabled, v -> config.hudEnabled = v);
-				colorRow(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
+				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Hud");
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "HUD", config.hudEnabled, v -> config.hudEnabled = v);
+				colorRow(graphics, font, rx, y, iw, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
 			}
 			case STATUS -> {
-				float y = group(graphics, font, left, top, col, "Server");
-				y = readout(graphics, font, left, y, col, "Hypixel", SkyblockLocation.onHypixel);
-				y = readout(graphics, font, left, y, col, "Skyblock", SkyblockLocation.inSkyblock);
-				readout(graphics, font, left, y, col, "The End", SkyblockLocation.inTheEnd);
+				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Server");
+				y = readout(graphics, font, ix, y, iw, "Hypixel", SkyblockLocation.onHypixel);
+				y = readout(graphics, font, ix, y, iw, "Skyblock", SkyblockLocation.inSkyblock);
+				readout(graphics, font, ix, y, iw, "The End", SkyblockLocation.inTheEnd);
 
-				y = group(graphics, font, left + col + COL_GAP, top, col, "Nodes");
+				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 42 + CARD_PAD, "Nodes");
 				String area = SkyblockLocation.area.isEmpty() ? "Unknown" : SkyblockLocation.area;
-				GuiDraw.menu(graphics, font, area, left + col + COL_GAP + 2, y + 2, Theme.TEXT);
-				GuiDraw.menu(graphics, font, EnderNodeTracker.get().count() + " tracked", left + col + COL_GAP + 2, y + 14, Theme.MUTED);
-				GuiDraw.menu(graphics, font, "Right Shift", left + col + COL_GAP + 2, y + 28, Theme.HEADER);
+				GuiDraw.menu(graphics, font, area, rx, y + 2, Theme.TEXT);
+				GuiDraw.menu(graphics, font, EnderNodeTracker.get().count() + " tracked", rx, y + 14, Theme.MUTED);
+				GuiDraw.menu(graphics, font, "Right Shift", rx, y + 28, Theme.HEADER);
 			}
 		}
 	}
 
-	private float group(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, String title) {
-		GuiDraw.small(graphics, font, title, x, y, Theme.HEADER);
-		float tw = GuiDraw.smallWidth(font, title) + 5;
-		GuiDraw.rounded(graphics, x + tw, y + 4, Math.max(8, w - tw), 1, 1, 0xFF243444);
-		return y + 13;
+	private static float innerX(float cardX) {
+		return cardX + CARD_PAD;
+	}
+
+	private static float innerW(float cardW) {
+		return cardW - CARD_PAD * 2;
+	}
+
+	private static float cardHeight(int rows) {
+		return CARD_HEAD + rows * ROW + CARD_PAD;
+	}
+
+	private float featureCard(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, float h, String title) {
+		GuiDraw.panel(graphics, x, y, w, h, Math.min(14f, h / 2f), Theme.CARD, Theme.LINE);
+		GuiDraw.small(graphics, font, title, x + CARD_PAD, y + 5, Theme.HEADER);
+		GuiDraw.hline(graphics, x + CARD_PAD, y + 16, w - CARD_PAD * 2, Theme.LINE);
+		return y + CARD_HEAD;
 	}
 
 	private float toggle(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String label, boolean value, Consumer<Boolean> setter) {
@@ -528,7 +546,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.14");
+			.orElse("1.1.15");
 	}
 
 	@Override
