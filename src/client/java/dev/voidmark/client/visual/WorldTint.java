@@ -1,7 +1,9 @@
 package dev.voidmark.client.visual;
 
 import com.mojang.blaze3d.vertex.QuadInstance;
+import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.state.LightmapRenderState;
 import net.minecraft.util.ARGB;
@@ -11,8 +13,45 @@ import org.joml.Vector3fc;
 
 public final class WorldTint {
 	private static int lastMeshKey = Integer.MIN_VALUE;
+	private static Boolean sodiumLoaded;
 
 	private WorldTint() {
+	}
+
+	public static boolean sodiumTerrainTint() {
+		if (sodiumLoaded == null) {
+			sodiumLoaded = FabricLoader.getInstance().isModLoaded("sodium");
+		}
+		return sodiumLoaded;
+	}
+
+	public static int shaderRgb() {
+		return VoidmarkConfig.get().worldTintRgb;
+	}
+
+	public static float shaderStrength() {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		if (!config.worldTintEnabled) {
+			return 0f;
+		}
+		return Mth.clamp(config.worldTintStrength, 0f, 1f);
+	}
+
+	public static String injectTerrainFragmentSource(String src) {
+		if (src == null || src.contains("u_WorldTint")) {
+			return src;
+		}
+		String withUniform = src.contains("uniform sampler2D u_BlockTex; // The block texture")
+			? src.replace("uniform sampler2D u_BlockTex; // The block texture", "uniform sampler2D u_BlockTex; // The block texture\nuniform vec4 u_WorldTint;")
+			: src.replace("uniform sampler2D u_BlockTex;", "uniform sampler2D u_BlockTex;\nuniform vec4 u_WorldTint;");
+		String tinted = withUniform.contains("color *= v_Color;")
+			? withUniform.replace("color *= v_Color;", "color *= v_Color;\n    color.rgb = mix(color.rgb, u_WorldTint.rgb, u_WorldTint.a);")
+			: withUniform;
+		if (!tinted.contains("mix(color.rgb, u_WorldTint.rgb, u_WorldTint.a)")) {
+			Voidmark.LOGGER.warn("Could not inject world tint into Sodium terrain shader");
+			return src;
+		}
+		return tinted;
 	}
 
 	public static boolean skyTintActive() {
@@ -40,6 +79,9 @@ public final class WorldTint {
 	}
 
 	public static void tintLightmap(LightmapRenderState state) {
+		if (sodiumTerrainTint()) {
+			return;
+		}
 		VoidmarkConfig config = VoidmarkConfig.get();
 		if (!config.worldTintEnabled) {
 			return;
@@ -53,6 +95,9 @@ public final class WorldTint {
 	}
 
 	public static void tintQuad(QuadInstance quad) {
+		if (sodiumTerrainTint()) {
+			return;
+		}
 		VoidmarkConfig config = VoidmarkConfig.get();
 		if (!config.worldTintEnabled || quad == null) {
 			return;
@@ -73,6 +118,9 @@ public final class WorldTint {
 			return;
 		}
 		lastMeshKey = key;
+		if (sodiumTerrainTint()) {
+			return;
+		}
 		if (client != null && client.levelRenderer != null) {
 			client.levelRenderer.allChanged();
 		}

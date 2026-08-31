@@ -21,3 +21,4 @@ replay_*.log
 .kotlin/
 /logs
 agent-tools/
+libs/

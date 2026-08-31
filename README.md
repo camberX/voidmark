@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.17.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.18.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -21,7 +21,7 @@ Java **25** is required.
 
 ### Visuals → World
 
-Recolors every block currently on screen toward a color you pick. Strength goes from a light wash to a full client-style paint. Skybox can match the world color or use its own. This does not change fog.
+Recolors terrain toward a color you pick. Strength goes from a light wash to a full client-style paint. With Sodium this runs in the chunk shader, so **fullbright does not cancel it**. Without Sodium it falls back to lightmap tint, which fullbright will overwrite. Skybox can match the world color or use its own. This does not change fog.
 
 ### Visuals → Fog
 

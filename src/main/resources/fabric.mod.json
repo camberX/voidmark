@@ -25,6 +25,10 @@
 		{
 			"config": "voidmark.client.mixins.json",
 			"environment": "client"
+		},
+		{
+			"config": "voidmark.sodium.mixins.json",
+			"environment": "client"
 		}
 	],
 	"depends": {

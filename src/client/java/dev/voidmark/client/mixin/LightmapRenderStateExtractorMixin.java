@@ -17,7 +17,7 @@ public class LightmapRenderStateExtractorMixin {
 
 	@Inject(method = "extract", at = @At("HEAD"))
 	private void voidmark$refreshTintedLightmap(LightmapRenderState state, float partialTick, CallbackInfo ci) {
-		if (VoidmarkConfig.get().worldTintEnabled) {
+		if (VoidmarkConfig.get().worldTintEnabled && !WorldTint.sodiumTerrainTint()) {
 			this.needsUpdate = true;
 		}
 	}
