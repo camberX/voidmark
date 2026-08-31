@@ -75,6 +75,14 @@ public final class GuiDraw {
 		circle(graphics, x + r, y + h - r, r, color);
 	}
 
+	public static void roundRight(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
+		float r = Math.min(radius, Math.min(w, h) / 2f);
+		fill(graphics, x, y, w - r, h, color);
+		fill(graphics, x + w - r, y + r, r, h - 2f * r, color);
+		circle(graphics, x + w - r, y + r, r, color);
+		circle(graphics, x + w - r, y + h - r, r, color);
+	}
+
 	public static void panel(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int fill, int outline) {
 		rounded(graphics, x, y, w, h, radius, outline);
 		rounded(graphics, x + 1, y + 1, w - 2, h - 2, Math.max(0.5f, radius - 1f), fill);
@@ -105,12 +113,24 @@ public final class GuiDraw {
 		text(graphics, font, MenuFont.body(value), x, y, color, false);
 	}
 
+	public static void small(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
+		text(graphics, font, MenuFont.small(value), x, y, color, false);
+	}
+
 	public static void title(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
 		text(graphics, font, MenuFont.title(value), x, y, color, false);
 	}
 
+	public static void icon(GuiGraphicsExtractor graphics, Font font, String glyph, float x, float y, int color) {
+		text(graphics, font, MenuFont.icon(glyph), x, y, color, false);
+	}
+
 	public static int menuWidth(Font font, String value) {
 		return font.width(MenuFont.body(value));
+	}
+
+	public static int smallWidth(Font font, String value) {
+		return font.width(MenuFont.small(value));
 	}
 
 	public static int titleWidth(Font font, String value) {
@@ -161,67 +181,5 @@ public final class GuiDraw {
 
 	public static void hline(GuiGraphicsExtractor graphics, float x, float y, float w, int color) {
 		fill(graphics, x, y, w, 1, color);
-	}
-
-	public static void palette(GuiGraphicsExtractor graphics, float x, float y, int rgb) {
-		circle(graphics, x + 4, y + 5, 4.2f, 0xFF2FB5FF);
-		circle(graphics, x + 8, y + 4, 3.6f, 0xFF34D399);
-		circle(graphics, x + 6.5f, y + 8, 3.2f, 0xFF000000 | rgb);
-	}
-
-	public static void chevron(GuiGraphicsExtractor graphics, float x, float y, int color) {
-		fill(graphics, x, y, 5, 1, color);
-		fill(graphics, x + 1, y + 1, 3, 1, color);
-		fill(graphics, x + 2, y + 2, 1, 1, color);
-	}
-
-	public static void floppy(GuiGraphicsExtractor graphics, float x, float y, int color) {
-		rounded(graphics, x, y, 8, 8, 1.5f, color);
-		fill(graphics, x + 2, y + 1, 4, 3, 0xFF0B0D11);
-		fill(graphics, x + 1, y + 5, 6, 2, 0xFF0B0D11);
-	}
-
-	public static void gear(GuiGraphicsExtractor graphics, float x, float y, int color) {
-		circle(graphics, x + 4, y + 4, 3.4f, color);
-		fill(graphics, x + 3, y, 2, 8, color);
-		fill(graphics, x, y + 3, 8, 2, color);
-	}
-
-	public static void bell(GuiGraphicsExtractor graphics, float x, float y, int color) {
-		circle(graphics, x + 4, y + 3, 3, color);
-		fill(graphics, x + 1, y + 4, 6, 2, color);
-		fill(graphics, x + 3, y + 7, 2, 1, color);
-	}
-
-	public static void search(GuiGraphicsExtractor graphics, float x, float y, int color) {
-		circle(graphics, x + 3.2f, y + 3.2f, 3, color);
-		fill(graphics, x + 2.2f, y + 2.2f, 2, 2, 0xFF0B0D11);
-		fill(graphics, x + 5, y + 5, 3, 2, color);
-	}
-
-	public static void iconWorld(GuiGraphicsExtractor graphics, float x, float y, int color) {
-		circle(graphics, x + 4, y + 4, 4, color);
-		fill(graphics, x + 3, y + 1, 2, 6, 0xFF0A0C10);
-	}
-
-	public static void iconView(GuiGraphicsExtractor graphics, float x, float y, int color) {
-		rounded(graphics, x + 1, y + 2, 7, 5, 1.5f, color);
-		fill(graphics, x + 2, y + 3, 5, 3, 0xFF0A0C10);
-	}
-
-	public static void iconBox(GuiGraphicsExtractor graphics, float x, float y, int color) {
-		panel(graphics, x + 1, y + 1, 7, 7, 1.4f, 0x00000000, color);
-	}
-
-	public static void iconHud(GuiGraphicsExtractor graphics, float x, float y, int color) {
-		fill(graphics, x + 1, y + 6, 7, 1, color);
-		circle(graphics, x + 4, y + 3, 2.6f, color);
-	}
-
-	public static void iconStatus(GuiGraphicsExtractor graphics, float x, float y, int color) {
-		fill(graphics, x + 1, y + 6, 1, 1, color);
-		fill(graphics, x + 3, y + 4, 1, 3, color);
-		fill(graphics, x + 5, y + 2, 1, 5, color);
-		fill(graphics, x + 7, y + 1, 1, 6, color);
 	}
 }

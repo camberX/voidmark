@@ -2,9 +2,9 @@
 	"providers": [
 		{
 			"type": "ttf",
-			"file": "voidmark:nunitosans.ttf",
+			"file": "voidmark:icons.ttf",
 			"shift": [0, 1.0],
-			"size": 6.5,
+			"size": 9.0,
 			"oversample": 12.0
 		},
 		{
