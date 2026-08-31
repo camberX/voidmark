@@ -1,24 +1,18 @@
 package dev.voidmark.client.visual;
 
+import com.mojang.blaze3d.vertex.QuadInstance;
 import dev.voidmark.client.config.VoidmarkConfig;
-import net.minecraft.client.renderer.fog.FogData;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.state.LightmapRenderState;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
-import org.joml.Vector4f;
 
 public final class WorldTint {
-	private WorldTint() {
-	}
+	private static int lastMeshKey = Integer.MIN_VALUE;
 
-	public static void tintFog(FogData data) {
-		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.worldTintEnabled || data == null || data.color == null) {
-			return;
-		}
-		mix(data.color, config.worldTintRgb, config.worldTintStrength);
+	private WorldTint() {
 	}
 
 	public static boolean skyTintActive() {
@@ -50,10 +44,34 @@ public final class WorldTint {
 		if (!config.worldTintEnabled) {
 			return;
 		}
+		state.needsUpdate = true;
 		float strength = config.worldTintStrength;
-		state.skyLightColor = mix(state.skyLightColor, config.worldTintRgb, strength);
-		state.ambientColor = mix(state.ambientColor, config.worldTintRgb, strength * 0.85f);
-		state.blockLightTint = mix(state.blockLightTint, config.worldTintRgb, strength * 0.45f);
+		int rgb = config.worldTintRgb;
+		state.skyLightColor = mix(state.skyLightColor, rgb, strength);
+		state.ambientColor = mix(state.ambientColor, rgb, strength);
+		state.blockLightTint = mix(state.blockLightTint, rgb, strength);
+	}
+
+	public static void tintQuad(QuadInstance quad) {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		if (!config.worldTintEnabled || quad == null) {
+			return;
+		}
+		quad.multiplyColor(0xFF000000 | (mixArgb(0xFFFFFF, config.worldTintRgb, config.worldTintStrength) & 0xFFFFFF));
+	}
+
+	public static void syncChunkMeshes(Minecraft client) {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		int key = config.worldTintEnabled
+			? (1 << 24) | (config.worldTintRgb & 0xFFFFFF) | (Math.round(config.worldTintStrength * 127f) << 25)
+			: 0;
+		if (key == lastMeshKey) {
+			return;
+		}
+		lastMeshKey = key;
+		if (client != null && client.levelRenderer != null) {
+			client.levelRenderer.allChanged();
+		}
 	}
 
 	public static int mixArgb(int from, int toRgb, float strength) {
@@ -63,13 +81,6 @@ public final class WorldTint {
 		int g = lerpChannel(ARGB.green(from), (toRgb >> 8) & 0xFF, t);
 		int b = lerpChannel(ARGB.blue(from), toRgb & 0xFF, t);
 		return ARGB.color(a == 0 ? 255 : a, r, g, b);
-	}
-
-	private static void mix(Vector4f color, int rgb, float strength) {
-		float t = Mth.clamp(strength, 0f, 1f);
-		color.x = color.x * (1f - t) + ((rgb >> 16) & 0xFF) / 255f * t;
-		color.y = color.y * (1f - t) + ((rgb >> 8) & 0xFF) / 255f * t;
-		color.z = color.z * (1f - t) + (rgb & 0xFF) / 255f * t;
 	}
 
 	private static Vector3f mix(Vector3fc original, int rgb, float strength) {

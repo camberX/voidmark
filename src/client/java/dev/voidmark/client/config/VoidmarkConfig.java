@@ -36,6 +36,12 @@ public final class VoidmarkConfig {
 	public int skyTintRgb = 0x1B4F8A;
 	public float skyTintStrength = 0.70f;
 	public boolean matchSkyToWorld = true;
+	public boolean fogEnabled = false;
+	public int fogRgb = 0x8EC8FF;
+	public float fogStart = 0.12f;
+	public float fogEnd = 0.72f;
+	public float fogDensity = 1.0f;
+	public boolean matchFogToWorld = false;
 	public boolean aspectEnabled = false;
 	public float aspectRatio = 1.0f;
 
@@ -59,6 +65,9 @@ public final class VoidmarkConfig {
 				loaded.fillOpacity = clamp(loaded.fillOpacity, 0.08f, 0.85f);
 				loaded.worldTintStrength = clamp(loaded.worldTintStrength, 0f, 1f);
 				loaded.skyTintStrength = clamp(loaded.skyTintStrength, 0f, 1f);
+				loaded.fogStart = clamp(loaded.fogStart, 0f, 0.95f);
+				loaded.fogEnd = clamp(loaded.fogEnd, 0.05f, 1f);
+				loaded.fogDensity = clamp(loaded.fogDensity, 0f, 1f);
 				loaded.aspectRatio = clamp(loaded.aspectRatio, 0.50f, 1.20f);
 				instance = loaded;
 			}

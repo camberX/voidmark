@@ -51,6 +51,7 @@ public class VoidmarkScreen extends Screen {
 	private enum Tab {
 		WORLD("World", Group.VISUALS),
 		VIEW("View", Group.VISUALS),
+		FOG("Fog", Group.VISUALS),
 		MARKERS("Markers", Group.NODES),
 		DISPLAY("Display", Group.NODES),
 		STATUS("Status", Group.MISC);
@@ -65,7 +66,7 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private enum PickerTarget {
-		WORLD, SKY, NODE
+		WORLD, SKY, FOG, NODE
 	}
 
 	private final List<Hit> hits = new ArrayList<>();
@@ -232,6 +233,7 @@ public class VoidmarkScreen extends Screen {
 		return switch (value) {
 			case WORLD -> MenuFont.GLOBE;
 			case VIEW -> MenuFont.EYE;
+			case FOG -> MenuFont.CLOUD;
 			case MARKERS -> MenuFont.CUBE;
 			case DISPLAY -> MenuFont.MONITOR;
 			case STATUS -> MenuFont.SIGNAL;
@@ -310,7 +312,7 @@ public class VoidmarkScreen extends Screen {
 
 		switch (tab) {
 			case WORLD -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Main");
+				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Blocks");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "World tint", config.worldTintEnabled, v -> config.worldTintEnabled = v);
 				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.worldTintRgb, PickerTarget.WORLD);
 				slider(graphics, font, ix, y, iw, "Strength", String.format(Locale.ROOT, "%.0f", config.worldTintStrength * 100), config.worldTintStrength, v -> config.worldTintStrength = v);
@@ -330,6 +332,18 @@ public class VoidmarkScreen extends Screen {
 				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 32 + CARD_PAD, "Info");
 				GuiDraw.menu(graphics, font, "Below Native stretches", rx, y + 2, Theme.MUTED);
 				GuiDraw.menu(graphics, font, "horizontally, like 4:3.", rx, y + 14, Theme.MUTED);
+			}
+			case FOG -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Main");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Custom fog", config.fogEnabled, v -> config.fogEnabled = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Match world", config.matchFogToWorld, v -> config.matchFogToWorld = v);
+				int fogPreview = config.matchFogToWorld ? config.worldTintRgb : config.fogRgb;
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", fogPreview, PickerTarget.FOG);
+
+				y = featureCard(graphics, font, right, top, col, cardHeight(3), "Distance");
+				y = slider(graphics, font, rx, y, iw, "Start", String.format(Locale.ROOT, "%.0f%%", config.fogStart * 100), config.fogStart / 0.95f, v -> config.fogStart = VoidmarkConfig.clamp(v * 0.95f, 0f, 0.95f));
+				y = slider(graphics, font, rx, y, iw, "End", String.format(Locale.ROOT, "%.0f%%", config.fogEnd * 100), (config.fogEnd - 0.05f) / 0.95f, v -> config.fogEnd = VoidmarkConfig.clamp(0.05f + v * 0.95f, 0.05f, 1f));
+				slider(graphics, font, rx, y, iw, "Density", String.format(Locale.ROOT, "%.0f", config.fogDensity * 100), config.fogDensity, v -> config.fogDensity = v);
 			}
 			case MARKERS -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Main");
@@ -437,6 +451,9 @@ public class VoidmarkScreen extends Screen {
 			if (target == PickerTarget.SKY) {
 				VoidmarkConfig.get().matchSkyToWorld = false;
 			}
+			if (target == PickerTarget.FOG) {
+				VoidmarkConfig.get().matchFogToWorld = false;
+			}
 			openPicker(target, rgb, px - PICKER_W + pw, y + ROW + 2);
 		}));
 		return y + ROW;
@@ -512,6 +529,7 @@ public class VoidmarkScreen extends Screen {
 		switch (target) {
 			case WORLD -> config.worldTintRgb = packed;
 			case SKY -> config.skyTintRgb = packed;
+			case FOG -> config.fogRgb = packed;
 			case NODE -> config.colorRgb = packed;
 		}
 	}
@@ -546,7 +564,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.15");
+			.orElse("1.1.16");
 	}
 
 	@Override
@@ -599,12 +617,14 @@ public class VoidmarkScreen extends Screen {
 	public boolean mouseReleased(MouseButtonEvent event) {
 		dragging = false;
 		VoidmarkConfig.get().save();
+		WorldTint.syncChunkMeshes(minecraft);
 		return super.mouseReleased(event);
 	}
 
 	@Override
 	public void onClose() {
 		VoidmarkConfig.get().save();
+		WorldTint.syncChunkMeshes(minecraft);
 		super.onClose();
 	}
 

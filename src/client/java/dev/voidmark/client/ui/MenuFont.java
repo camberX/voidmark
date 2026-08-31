@@ -22,6 +22,7 @@ public final class MenuFont {
 	public static final String CUBE = "\uE1BD";
 	public static final String MONITOR = "\uE30C";
 	public static final String SIGNAL = "\uE01D";
+	public static final String CLOUD = "\uE2BD";
 	public static final String SAVE = "\uE161";
 	public static final String SETTINGS = "\uE8B8";
 	public static final String BELL = "\uE7F4";
