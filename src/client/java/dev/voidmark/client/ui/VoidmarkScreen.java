@@ -102,8 +102,8 @@ public class VoidmarkScreen extends Screen {
 		layout();
 
 		GuiDraw.fill(graphics, 0, 0, width, height, 0x42000000);
-		GuiDraw.rounded(graphics, windowX, windowY, windowW, windowH, Theme.WINDOW);
-		GuiDraw.border(graphics, windowX, windowY, windowW, windowH, 0xFF141C26, 1);
+		GuiDraw.rounded(graphics, windowX + 1, windowY + 2, windowW, windowH, Theme.WINDOW_RADIUS, 0x66000000);
+		GuiDraw.panel(graphics, windowX, windowY, windowW, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW, 0xFF151A22);
 
 		drawSidebar(graphics, font, mouseX, mouseY);
 		drawToolbar(graphics, font, mouseX, mouseY);
@@ -141,11 +141,11 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private void drawSidebar(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
-		GuiDraw.fill(graphics, windowX, windowY, SIDEBAR_W, windowH, Theme.SIDEBAR);
-		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY, 1, windowH, Theme.LINE);
+		GuiDraw.roundLeft(graphics, windowX, windowY, SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.SIDEBAR);
+		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY + 8, 1, windowH - 16, Theme.LINE);
 
-		GuiDraw.text(graphics, font, "VOIDMARK", windowX + 10, windowY + 8, Theme.TEXT, false);
-		GuiDraw.fill(graphics, windowX + 10, windowY + 20, 22, 1, Theme.ACCENT);
+		GuiDraw.title(graphics, font, "VOIDMARK", windowX + 10, windowY + 7, Theme.TEXT);
+		GuiDraw.rounded(graphics, windowX + 10, windowY + 20, 18, 2, 1, Theme.ACCENT);
 		hits.add(new Hit(windowX, windowY, SIDEBAR_W, 26, mx -> startDrag(mx, lastClickY), true));
 
 		float y = windowY + 28;
@@ -153,7 +153,7 @@ public class VoidmarkScreen extends Screen {
 		for (Tab value : Tab.values()) {
 			if (value.group != last) {
 				y += 4;
-				GuiDraw.text(graphics, font, value.group.label, windowX + 10, y, Theme.HEADER, false);
+				GuiDraw.menu(graphics, font, value.group.label, windowX + 10, y, Theme.HEADER);
 				y += 11;
 				last = value.group;
 			}
@@ -161,14 +161,14 @@ public class VoidmarkScreen extends Screen {
 			boolean active = tab == value;
 			boolean hovered = GuiDraw.hovered(mouseX, mouseY, windowX + 6, y, SIDEBAR_W - 12, 16);
 			if (active) {
-				GuiDraw.rounded(graphics, windowX + 6, y, SIDEBAR_W - 12, 16, Theme.withAlpha(Theme.ACCENT, 36));
-				GuiDraw.border(graphics, windowX + 6, y, SIDEBAR_W - 12, 16, Theme.withAlpha(Theme.ACCENT, 90), 1);
+				GuiDraw.rounded(graphics, windowX + 6, y, SIDEBAR_W - 12, 16, 8, Theme.withAlpha(Theme.ACCENT, 22));
+				GuiDraw.panel(graphics, windowX + 6, y, SIDEBAR_W - 12, 16, 8, Theme.withAlpha(Theme.ACCENT, 38), Theme.withAlpha(Theme.ACCENT, 110));
 			} else if (hovered) {
-				GuiDraw.rounded(graphics, windowX + 6, y, SIDEBAR_W - 12, 16, 0x10FFFFFF);
+				GuiDraw.rounded(graphics, windowX + 6, y, SIDEBAR_W - 12, 16, 8, 0x12FFFFFF);
 			}
 			int color = active ? Theme.ACCENT : Theme.MUTED;
 			drawTabIcon(graphics, value, windowX + 10, y + 4, color);
-			GuiDraw.text(graphics, font, value.label, windowX + 22, y + 4, active ? Theme.ACCENT : Theme.TEXT, false);
+			GuiDraw.menu(graphics, font, value.label, windowX + 22, y + 4, active ? Theme.ACCENT : Theme.TEXT);
 			hits.add(new Hit(windowX + 6, y, SIDEBAR_W - 12, 16, () -> {
 				tab = value;
 				pickerTarget = null;
@@ -177,9 +177,9 @@ public class VoidmarkScreen extends Screen {
 			y += 17;
 		}
 
-		GuiDraw.knob(graphics, windowX + 16, windowY + windowH - 16, 5, Theme.ACCENT);
-		GuiDraw.text(graphics, font, "VOIDMARK", windowX + 24, windowY + windowH - 22, Theme.TEXT, false);
-		GuiDraw.text(graphics, font, "v" + modVersion(), windowX + 24, windowY + windowH - 12, Theme.ACCENT, false);
+		GuiDraw.circle(graphics, windowX + 16, windowY + windowH - 16, 5, Theme.ACCENT);
+		GuiDraw.menu(graphics, font, "VOIDMARK", windowX + 24, windowY + windowH - 22, Theme.TEXT);
+		GuiDraw.menu(graphics, font, "v" + modVersion(), windowX + 24, windowY + windowH - 12, Theme.ACCENT);
 	}
 
 	private void drawTabIcon(GuiGraphicsExtractor graphics, Tab value, float x, float y, int color) {
@@ -201,7 +201,7 @@ public class VoidmarkScreen extends Screen {
 
 		float saveW = 18;
 		boolean saveHover = GuiDraw.hovered(mouseX, mouseY, x, y, saveW, 14);
-		GuiDraw.rounded(graphics, x, y, saveW, 14, savedFlash || saveHover ? Theme.withAlpha(Theme.ACCENT, 40) : Theme.CARD);
+		GuiDraw.rounded(graphics, x, y, saveW, 14, 5, savedFlash || saveHover ? Theme.withAlpha(Theme.ACCENT, 40) : Theme.CARD);
 		GuiDraw.floppy(graphics, x + 5, y + 3, Theme.ACCENT);
 		hits.add(new Hit(x, y, saveW, 14, () -> {
 			VoidmarkConfig.get().save();
@@ -212,9 +212,8 @@ public class VoidmarkScreen extends Screen {
 		float comboW = Math.min(92, w * 0.42f);
 		String comboLabel = tab == Tab.VIEW ? aspectLabel(VoidmarkConfig.get().aspectRatio) : "Global";
 		boolean comboHover = GuiDraw.hovered(mouseX, mouseY, comboX, y, comboW, 14);
-		GuiDraw.rounded(graphics, comboX, y, comboW, 14, comboHover || dropdownOpen ? Theme.CARD_HOVER : Theme.CARD);
-		GuiDraw.border(graphics, comboX, y, comboW, 14, Theme.LINE, 1);
-		GuiDraw.text(graphics, font, comboLabel, comboX + 6, y + 3, Theme.TEXT, false);
+		GuiDraw.panel(graphics, comboX, y, comboW, 14, 5, comboHover || dropdownOpen ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
+		GuiDraw.menu(graphics, font, comboLabel, comboX + 6, y + 3, Theme.TEXT);
 		GuiDraw.chevron(graphics, comboX + comboW - 10, y + 6, Theme.MUTED);
 		hits.add(new Hit(comboX, y, comboW, 14, () -> dropdownOpen = !dropdownOpen));
 
@@ -230,16 +229,15 @@ public class VoidmarkScreen extends Screen {
 		float y = windowY + 20;
 		String[] items = tab == Tab.VIEW ? new String[]{"Native", "16:10", "4:3", "5:4"} : new String[]{"Global"};
 		float h = items.length * 14 + 4;
-		GuiDraw.fill(graphics, comboX, y, comboW, h, 0xFF0B1118);
-		GuiDraw.border(graphics, comboX, y, comboW, h, Theme.LINE, 1);
+		GuiDraw.panel(graphics, comboX, y, comboW, h, 6, 0xFF0B1118, Theme.LINE);
 		for (int i = 0; i < items.length; i++) {
 			float iy = y + 2 + i * 14;
 			boolean active = items[i].equals(tab == Tab.VIEW ? aspectLabel(VoidmarkConfig.get().aspectRatio) : "Global");
 			if (active) {
-				GuiDraw.fill(graphics, comboX + 1, iy, comboW - 2, 14, Theme.withAlpha(Theme.ACCENT, 28));
+				GuiDraw.rounded(graphics, comboX + 2, iy, comboW - 4, 14, 4, Theme.withAlpha(Theme.ACCENT, 28));
 			}
-			GuiDraw.knob(graphics, comboX + 8, iy + 7, 2.4f, active ? Theme.ACCENT : Theme.OFF);
-			GuiDraw.text(graphics, font, items[i], comboX + 14, iy + 3, active ? Theme.ACCENT : Theme.TEXT, false);
+			GuiDraw.circle(graphics, comboX + 8, iy + 7, 2.4f, active ? Theme.ACCENT : Theme.OFF);
+			GuiDraw.menu(graphics, font, items[i], comboX + 14, iy + 3, active ? Theme.ACCENT : Theme.TEXT);
 			int index = i;
 			hits.add(new Hit(comboX, iy, comboW, 14, () -> {
 				if (tab == Tab.VIEW) {
@@ -276,8 +274,8 @@ public class VoidmarkScreen extends Screen {
 				slider(graphics, font, left, y, col, "Aspect", aspectLabel(config.aspectRatio), (config.aspectRatio - 0.50f) / 0.70f, v -> config.aspectRatio = VoidmarkConfig.clamp(0.50f + v * 0.70f, 0.50f, 1.20f));
 
 				y = group(graphics, font, left + col + COL_GAP, top, col, "Info");
-				GuiDraw.text(graphics, font, "Below Native stretches", left + col + COL_GAP + 2, y + 2, Theme.MUTED, false);
-				GuiDraw.text(graphics, font, "horizontally, like 4:3.", left + col + COL_GAP + 2, y + 14, Theme.MUTED, false);
+				GuiDraw.menu(graphics, font, "Below Native stretches", left + col + COL_GAP + 2, y + 2, Theme.MUTED);
+				GuiDraw.menu(graphics, font, "horizontally, like 4:3.", left + col + COL_GAP + 2, y + 14, Theme.MUTED);
 			}
 			case MARKERS -> {
 				float y = group(graphics, font, left, top, col, "Main");
@@ -310,17 +308,17 @@ public class VoidmarkScreen extends Screen {
 
 				y = group(graphics, font, left + col + COL_GAP, top, col, "Nodes");
 				String area = SkyblockLocation.area.isEmpty() ? "Unknown" : SkyblockLocation.area;
-				GuiDraw.text(graphics, font, area, left + col + COL_GAP + 2, y + 2, Theme.TEXT, false);
-				GuiDraw.text(graphics, font, EnderNodeTracker.get().count() + " tracked", left + col + COL_GAP + 2, y + 14, Theme.MUTED, false);
-				GuiDraw.text(graphics, font, "Right Shift", left + col + COL_GAP + 2, y + 28, Theme.HEADER, false);
+				GuiDraw.menu(graphics, font, area, left + col + COL_GAP + 2, y + 2, Theme.TEXT);
+				GuiDraw.menu(graphics, font, EnderNodeTracker.get().count() + " tracked", left + col + COL_GAP + 2, y + 14, Theme.MUTED);
+				GuiDraw.menu(graphics, font, "Right Shift", left + col + COL_GAP + 2, y + 28, Theme.HEADER);
 			}
 		}
 	}
 
 	private float group(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, String title) {
-		GuiDraw.text(graphics, font, title, x, y, Theme.HEADER, false);
-		float tw = font.width(title) + 5;
-		GuiDraw.fill(graphics, x + tw, y + 4, Math.max(8, w - tw), 1, 0xFF1B3A4E);
+		GuiDraw.menu(graphics, font, title, x, y, Theme.HEADER);
+		float tw = GuiDraw.menuWidth(font, title) + 5;
+		GuiDraw.rounded(graphics, x + tw, y + 4, Math.max(8, w - tw), 2, 1, 0xFF1B3A4E);
 		return y + 13;
 	}
 
@@ -329,50 +327,49 @@ public class VoidmarkScreen extends Screen {
 		if (hovered) {
 			GuiDraw.fill(graphics, x - 2, y, w + 2, ROW, 0x08FFFFFF);
 		}
-		GuiDraw.text(graphics, font, label, x + 1, y + 4, Theme.TEXT, false);
+		GuiDraw.menu(graphics, font, label, x + 1, y + 4, Theme.TEXT);
 
 		float trackW = 22;
-		float trackH = 10;
+		float trackH = 11;
 		float tx = x + w - trackW;
-		float ty = y + 3;
+		float ty = y + 2.5f;
 		if (colorTarget != null && rgb >= 0) {
 			GuiDraw.palette(graphics, tx - 16, y + 2, rgb);
 			hits.add(new Hit(tx - 18, y + 1, 14, 14, () -> openPicker(colorTarget, rgb, tx - 18, y + 16)));
 		}
 		GuiDraw.pill(graphics, tx, ty, trackW, trackH, value ? Theme.ACCENT : Theme.TRACK);
 		float knob = value ? tx + trackW - 6 : tx + 6;
-		GuiDraw.knob(graphics, knob, ty + trackH / 2f, 4.4f, value ? Theme.TEXT : Theme.OFF);
+		GuiDraw.circle(graphics, knob, ty + trackH / 2f, 4.6f, value ? Theme.TEXT : Theme.OFF);
 		hits.add(new Hit(x, y, w - (colorTarget != null ? 20 : 0), ROW, () -> setter.accept(!value)));
 		return y + ROW;
 	}
 
 	private float slider(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, String label, String valueText, float progress, Consumer<Float> setter) {
-		GuiDraw.text(graphics, font, label, x + 1, y + 4, Theme.TEXT, false);
-		int valueWidth = font.width(valueText);
-		GuiDraw.text(graphics, font, valueText, x + w - valueWidth, y + 4, Theme.ACCENT, false);
-		float barX = x + font.width(label) + 8;
-		float barW = Math.max(24, w - font.width(label) - valueWidth - 16);
-		float barY = y + 8;
+		GuiDraw.menu(graphics, font, label, x + 1, y + 4, Theme.TEXT);
+		int valueWidth = GuiDraw.menuWidth(font, valueText);
+		GuiDraw.menu(graphics, font, valueText, x + w - valueWidth, y + 4, Theme.ACCENT);
+		float barX = x + GuiDraw.menuWidth(font, label) + 8;
+		float barW = Math.max(24, w - GuiDraw.menuWidth(font, label) - valueWidth - 16);
+		float barY = y + 7;
 		float t = Mth.clamp(progress, 0f, 1f);
-		GuiDraw.fill(graphics, barX, barY, barW, 2, Theme.TRACK);
-		GuiDraw.fill(graphics, barX, barY, barW * t, 2, Theme.ACCENT);
-		GuiDraw.knob(graphics, barX + barW * t, barY + 1, 3.4f, Theme.TEXT);
+		GuiDraw.pill(graphics, barX, barY, barW, 3, Theme.TRACK);
+		GuiDraw.pill(graphics, barX, barY, Math.max(3, barW * t), 3, Theme.ACCENT);
+		GuiDraw.circle(graphics, barX + barW * t, barY + 1.5f, 3.6f, Theme.TEXT);
 		hits.add(new Hit(barX - 2, y, barW + 4, ROW, mx -> setter.accept(Mth.clamp((float) ((mx - barX) / barW), 0f, 1f)), true));
 		return y + ROW;
 	}
 
 	private float colorRow(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, String label, int rgb, PickerTarget target) {
-		GuiDraw.text(graphics, font, label, x + 1, y + 4, Theme.TEXT, false);
-		GuiDraw.fill(graphics, x + w - 28, y + 3, 10, 10, 0xFF000000 | rgb);
-		GuiDraw.border(graphics, x + w - 28, y + 3, 10, 10, Theme.LINE, 1);
+		GuiDraw.menu(graphics, font, label, x + 1, y + 4, Theme.TEXT);
+		GuiDraw.rounded(graphics, x + w - 28, y + 3, 10, 10, 3, 0xFF000000 | rgb);
 		GuiDraw.palette(graphics, x + w - 14, y + 2, rgb);
 		hits.add(new Hit(x + w - 32, y, 32, ROW, () -> openPicker(target, rgb, x + w - 118, y + ROW)));
 		return y + ROW;
 	}
 
 	private float readout(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, String label, boolean on) {
-		GuiDraw.text(graphics, font, label, x + 1, y + 4, Theme.TEXT, false);
-		GuiDraw.text(graphics, font, on ? "ON" : "OFF", x + w - font.width(on ? "ON" : "OFF"), y + 4, on ? Theme.ACCENT : Theme.MUTED, false);
+		GuiDraw.menu(graphics, font, label, x + 1, y + 4, Theme.TEXT);
+		GuiDraw.menu(graphics, font, on ? "ON" : "OFF", x + w - GuiDraw.menuWidth(font, on ? "ON" : "OFF"), y + 4, on ? Theme.ACCENT : Theme.MUTED);
 		return y + ROW;
 	}
 
@@ -381,9 +378,8 @@ public class VoidmarkScreen extends Screen {
 		float y = pickerY;
 		float w = 118;
 		float h = 108;
-		GuiDraw.fill(graphics, x, y, w, h, 0xFF0B1118);
-		GuiDraw.border(graphics, x, y, w, h, Theme.ACCENT, 1);
-		GuiDraw.text(graphics, font, "Color", x + 6, y + 4, Theme.MUTED, false);
+		GuiDraw.panel(graphics, x, y, w, h, 8, 0xFF0B1118, Theme.ACCENT);
+		GuiDraw.menu(graphics, font, "Color", x + 6, y + 4, Theme.MUTED);
 
 		float svX = x + 6;
 		float svY = y + 16;
@@ -412,8 +408,8 @@ public class VoidmarkScreen extends Screen {
 		}, true));
 
 		int current = WorldTint.hsvToRgb(pickerHue, pickerSat, pickerVal);
-		GuiDraw.fill(graphics, x + w - 14, y + 5, 8, 8, 0xFF000000 | current);
-		GuiDraw.text(graphics, font, hex(current), x + 6, y + h - 12, Theme.MUTED, false);
+		GuiDraw.rounded(graphics, x + w - 14, y + 5, 8, 8, 3, 0xFF000000 | current);
+		GuiDraw.menu(graphics, font, hex(current), x + 6, y + h - 12, Theme.MUTED);
 	}
 
 	private void openPicker(PickerTarget target, int rgb, float x, float y) {
@@ -471,7 +467,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.1");
+			.orElse("1.1.2");
 	}
 
 	@Override

@@ -1,6 +1,6 @@
 # Voidmark
 
-Fabric 26.1.2 QoL for Hypixel Skyblock. Marks **Ender Nodes** on the End Island, tints the world and skybox, and stretches aspect ratio. The config menu is a compact NEVERLOSE-style click GUI (`/voidmark`): sidebar, two-column group boxes, pill toggles, and inline sliders. It floats in the center of the screen instead of filling it.
+Fabric 26.1.2 QoL for Hypixel Skyblock. Marks **Ender Nodes** on the End Island, tints the world and skybox, and stretches aspect ratio. The config menu is a compact NEVERLOSE-style click GUI (`/voidmark`): rounded chrome, Nunito Sans (the closest OFL match to Museo Sans), sidebar, two-column group boxes, pill toggles, and inline sliders. It floats in the center of the screen instead of filling it.
 
 Ender Nodes look like purple stained clay (magenta terracotta on modern versions) and spit portal-colored dust. Voidmark scans loaded chunks, listens for those particles, then draws through-wall boxes, an outline, and a tracer to the nearest node.
 
@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.1.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.2.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.

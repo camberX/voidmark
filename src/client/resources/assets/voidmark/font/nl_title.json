@@ -1,0 +1,15 @@
+{
+	"providers": [
+		{
+			"type": "ttf",
+			"file": "voidmark:nunitosans_bold.ttf",
+			"shift": [0, 0.5],
+			"size": 10.5,
+			"oversample": 10.0
+		},
+		{
+			"type": "reference",
+			"id": "minecraft:include/space"
+		}
+	]
+}
