@@ -15,6 +15,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 public final class NodeHudRenderer {
+	public static final float WIDTH = 168;
+	public static final float HEIGHT_EMPTY = 42;
+	public static final float HEIGHT_TRACK = 58;
+
 	private NodeHudRenderer() {
 	}
 
@@ -26,6 +30,19 @@ public final class NodeHudRenderer {
 		);
 	}
 
+	public static float drawWidth() {
+		return WIDTH;
+	}
+
+	public static float drawHeight() {
+		return tracking() ? HEIGHT_TRACK : HEIGHT_EMPTY;
+	}
+
+	private static boolean tracking() {
+		Minecraft client = Minecraft.getInstance();
+		return client.player != null && SkyblockLocation.shouldMarkNodes() && EnderNodeTracker.get().count() > 0;
+	}
+
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.player == null || client.options.hideGui) {
@@ -33,40 +50,48 @@ public final class NodeHudRenderer {
 		}
 
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.hudEnabled || !SkyblockLocation.shouldMarkNodes()) {
+		boolean editor = HudLayout.editorOpen();
+		if (!config.hudEnabled) {
+			return;
+		}
+		if (!editor && !SkyblockLocation.shouldMarkNodes()) {
 			return;
 		}
 
 		Font font = client.font;
+		HudLayout.Box box = HudLayout.box(HudLayout.Id.NODES, font, graphics.guiWidth(), graphics.guiHeight());
+		draw(graphics, client, font, box.x(), box.y(), deltaTracker);
+	}
+
+	public static void draw(GuiGraphicsExtractor graphics, Minecraft client, Font font, float x, float y, DeltaTracker deltaTracker) {
 		int count = EnderNodeTracker.get().count();
-		Vec3 eyes = client.player.getEyePosition(deltaTracker.getGameTimeDeltaPartialTick(false));
-		EnderNodeTracker.TrackedNode nearest = EnderNodeTracker.get().nearest(eyes);
+		EnderNodeTracker.TrackedNode nearest = null;
+		if (client.player != null) {
+			Vec3 eyes = client.player.getEyePosition(deltaTracker.getGameTimeDeltaPartialTick(false));
+			nearest = EnderNodeTracker.get().nearest(eyes);
+		}
+		float width = WIDTH;
+		float height = nearest == null ? HEIGHT_EMPTY : HEIGHT_TRACK;
 
-		float x = 8;
-		float y = 8 + WatermarkRenderer.occupiedHeight();
-		float width = 168;
-		float height = nearest == null ? 42 : 58;
+		GuiDraw.panel(graphics, x, y, width, height, 6, Theme.WINDOW, Theme.LINE);
+		GuiDraw.rounded(graphics, x + 1, y + 1, 3, height - 2, 1.5f, Theme.ACCENT);
 
-		int accent = Theme.ACCENT;
-		GuiDraw.fill(graphics, x, y, width, height, 0xE0080C12);
-		GuiDraw.fill(graphics, x, y, 2, height, accent);
-		GuiDraw.fill(graphics, x + 2, y, width - 2, 1, 0x22FFFFFF);
-
-		GuiDraw.text(graphics, font, "VOIDMARK", x + 12, y + 7, 0xFF6B7A8A, false);
+		GuiDraw.small(graphics, font, "NODES", x + 10, y + 5, Theme.ACCENT);
 		String headline = count == 0 ? "No nodes in range" : count == 1 ? "1 ender node" : count + " ender nodes";
-		GuiDraw.text(graphics, font, headline, x + 12, y + 19, 0xFFF4F4F5, false);
+		GuiDraw.menu(graphics, font, headline, x + 10, y + 18, Theme.TEXT);
 
-		if (nearest != null) {
+		if (nearest != null && client.player != null) {
+			Vec3 eyes = client.player.getEyePosition(deltaTracker.getGameTimeDeltaPartialTick(false));
 			double distance = nearest.distanceTo(eyes);
 			float yaw = nearest.yawTo(eyes);
 			float delta = GuiDraw.wrapDegrees(yaw - client.player.getYRot());
 			String detail = GuiDraw.meters(distance) + "  ·  " + GuiDraw.compass(delta);
-			GuiDraw.text(graphics, font, detail, x + 12, y + 33, 0xFFD4D4D8, false);
+			GuiDraw.menu(graphics, font, detail, x + 10, y + 32, Theme.MUTED);
 
 			float barWidth = width - 24;
 			float needle = Mth.clamp((delta + 180.0f) / 360.0f, 0.0f, 1.0f);
-			GuiDraw.fill(graphics, x + 12, y + 47, barWidth, 2, 0x33FFFFFF);
-			GuiDraw.fill(graphics, x + 12 + needle * (barWidth - 4), y + 45, 4, 6, accent);
+			GuiDraw.fill(graphics, x + 12, y + 47, barWidth, 2, Theme.TRACK);
+			GuiDraw.fill(graphics, x + 12 + needle * (barWidth - 4), y + 45, 4, 6, Theme.ACCENT);
 		}
 	}
 }

@@ -11,6 +11,7 @@ import dev.voidmark.client.render.NodeHudRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.InventoryHudRenderer;
 import dev.voidmark.client.render.WatermarkRenderer;
+import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.ui.VoidmarkScreen;
 import dev.voidmark.client.visual.CustomCape;
@@ -66,7 +67,9 @@ public final class VoidmarkClient implements ClientModInitializer {
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (openGui.consumeClick()) {
-				if (client.screen instanceof VoidmarkScreen screen) {
+				if (client.screen instanceof HudEditorScreen) {
+					client.setScreen(new VoidmarkScreen());
+				} else if (client.screen instanceof VoidmarkScreen screen) {
 					screen.requestClose();
 				} else {
 					openScreen();

@@ -41,7 +41,8 @@ public final class WatermarkRenderer {
 		if (!config.watermarkEnabled) {
 			return;
 		}
-		draw(graphics, client.font, 8, 8);
+		HudLayout.Box box = HudLayout.box(HudLayout.Id.WATERMARK, client.font, graphics.guiWidth(), graphics.guiHeight());
+		draw(graphics, client.font, box.x(), box.y());
 	}
 
 	public static void draw(GuiGraphicsExtractor graphics, Font font, float x, float y) {
@@ -71,7 +72,7 @@ public final class WatermarkRenderer {
 			}
 		}
 
-		GuiDraw.panel(graphics, x, y, w, HEIGHT, 5, Theme.withAlpha(Theme.WINDOW, 230), Theme.LINE);
+		GuiDraw.panel(graphics, x, y, w, HEIGHT, 5, Theme.WINDOW, Theme.LINE);
 		GuiDraw.rounded(graphics, x + 1, y + 1, 3, HEIGHT - 2, 1.5f, Theme.ACCENT);
 
 		float cx = x + pad + 2;

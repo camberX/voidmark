@@ -40,22 +40,49 @@ public final class InventoryHudRenderer {
 		);
 	}
 
+	public static float drawWidth() {
+		return (PAD * 2 + COLS * SLOT + (COLS - 1) * GAP) * VoidmarkConfig.get().inventoryHudScale;
+	}
+
+	public static float drawHeight() {
+		return metrics().panelH * VoidmarkConfig.get().inventoryHudScale;
+	}
+
+	public static float defaultX(int guiW, float drawW, String anchor) {
+		float margin = HudLayout.MARGIN;
+		return switch (anchor) {
+			case "top_left", "bottom_left" -> margin;
+			default -> guiW - drawW - margin;
+		};
+	}
+
+	public static float defaultY(int guiH, float drawH, String anchor) {
+		float margin = HudLayout.MARGIN;
+		float hotbar = 24;
+		return switch (anchor) {
+			case "top_left" -> margin + (VoidmarkConfig.get().watermarkEnabled ? WatermarkRenderer.HEIGHT + 8 : 0);
+			case "top_right" -> margin;
+			default -> guiH - drawH - hotbar;
+		};
+	}
+
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.player == null || client.options.hideGui) {
 			return;
 		}
-		if (client.screen instanceof AbstractContainerScreen<?>) {
+		if (client.screen instanceof AbstractContainerScreen<?> && !HudLayout.editorOpen()) {
 			return;
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
 		if (!config.inventoryHudEnabled) {
 			return;
 		}
-		draw(graphics, client, config);
+		HudLayout.Box box = HudLayout.box(HudLayout.Id.INVENTORY, client.font, graphics.guiWidth(), graphics.guiHeight());
+		draw(graphics, client, config, box.x(), box.y());
 	}
 
-	private static void draw(GuiGraphicsExtractor graphics, Minecraft client, VoidmarkConfig config) {
+	private static void draw(GuiGraphicsExtractor graphics, Minecraft client, VoidmarkConfig config, float x, float y) {
 		LocalPlayer player = client.player;
 		if (player == null) {
 			return;
@@ -63,16 +90,7 @@ public final class InventoryHudRenderer {
 		Inventory inventory = player.getInventory();
 		Font font = client.font;
 		float scale = config.inventoryHudScale;
-		int gridW = COLS * SLOT + (COLS - 1) * GAP;
-		int panelW = PAD * 2 + gridW;
-		int armorY = PAD + HEAD;
-		int mainY = armorY + SLOT + 5;
-		int hotbarY = mainY + 3 * (SLOT + GAP) - GAP + 5;
-		int panelH = hotbarY + SLOT + PAD;
-		float drawW = panelW * scale;
-		float drawH = panelH * scale;
-		float x = originX(graphics.guiWidth(), drawW, config.inventoryHudAnchor);
-		float y = originY(graphics.guiHeight(), drawH, config.inventoryHudAnchor);
+		Metrics layout = metrics();
 
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(x, y);
@@ -80,33 +98,59 @@ public final class InventoryHudRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		GuiDraw.panel(graphics, 0, 0, panelW, panelH, 6, Theme.withAlpha(Theme.WINDOW, 230), Theme.LINE);
-		GuiDraw.rounded(graphics, 1, 1, 3, panelH - 2, 1.5f, Theme.ACCENT);
+		GuiDraw.panel(graphics, 0, 0, layout.panelW, layout.panelH, 6, Theme.WINDOW, Theme.LINE);
+		GuiDraw.rounded(graphics, 1, 1, 3, layout.panelH - 2, 1.5f, Theme.ACCENT);
 		GuiDraw.small(graphics, font, "INVENTORY", PAD + 4, PAD + 1, Theme.ACCENT);
-		String filled = filledLabel(player, inventory);
-		GuiDraw.small(graphics, font, filled, panelW - PAD - GuiDraw.smallWidth(font, filled), PAD + 1, Theme.MUTED);
+		if (config.inventoryHudCount) {
+			String filled = filledLabel(player, inventory);
+			GuiDraw.small(graphics, font, filled, layout.panelW - PAD - GuiDraw.smallWidth(font, filled), PAD + 1, Theme.MUTED);
+		}
 
 		int gridX = PAD;
-		for (int i = 0; i < ARMOR.length; i++) {
-			ItemStack stack = player.getItemBySlot(ARMOR[i]);
-			slot(graphics, font, player, stack, gridX + i * (SLOT + GAP), armorY, 100 + i, ARMOR_MARK[i], false);
+		if (config.inventoryHudArmor) {
+			for (int i = 0; i < ARMOR.length; i++) {
+				ItemStack stack = player.getItemBySlot(ARMOR[i]);
+				slot(graphics, font, player, stack, gridX + i * (SLOT + GAP), layout.armorY, 100 + i, ARMOR_MARK[i], false);
+			}
+			slot(graphics, font, player, player.getItemBySlot(EquipmentSlot.OFFHAND), gridX + 5 * (SLOT + GAP), layout.armorY, 104, "O", false);
 		}
-		slot(graphics, font, player, player.getItemBySlot(EquipmentSlot.OFFHAND), gridX + 5 * (SLOT + GAP), armorY, 104, "O", false);
 
 		for (int row = 0; row < 3; row++) {
 			for (int col = 0; col < COLS; col++) {
 				int index = 9 + row * COLS + col;
-				slot(graphics, font, player, inventory.getItem(index), gridX + col * (SLOT + GAP), mainY + row * (SLOT + GAP), index, null, false);
+				slot(graphics, font, player, inventory.getItem(index), gridX + col * (SLOT + GAP), layout.mainY + row * (SLOT + GAP), index, null, false);
 			}
 		}
 
-		GuiDraw.hline(graphics, gridX, hotbarY - 3, gridW, Theme.LINE);
-		int selected = inventory.getSelectedSlot();
-		for (int col = 0; col < COLS; col++) {
-			slot(graphics, font, player, inventory.getItem(col), gridX + col * (SLOT + GAP), hotbarY, col, null, col == selected);
+		if (config.inventoryHudHotbar) {
+			GuiDraw.hline(graphics, gridX, layout.hotbarY - 3, layout.gridW, Theme.LINE);
+			int selected = inventory.getSelectedSlot();
+			for (int col = 0; col < COLS; col++) {
+				slot(graphics, font, player, inventory.getItem(col), gridX + col * (SLOT + GAP), layout.hotbarY, col, null, col == selected);
+			}
 		}
 
 		graphics.pose().popMatrix();
+	}
+
+	private static Metrics metrics() {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		int gridW = COLS * SLOT + (COLS - 1) * GAP;
+		int panelW = PAD * 2 + gridW;
+		int y = PAD + HEAD;
+		int armorY = y;
+		if (config.inventoryHudArmor) {
+			y += SLOT + 5;
+		}
+		int mainY = y;
+		y += 3 * (SLOT + GAP) - GAP;
+		int hotbarY = y;
+		if (config.inventoryHudHotbar) {
+			y += 5 + SLOT;
+			hotbarY = y - SLOT;
+		}
+		int panelH = y + PAD;
+		return new Metrics(panelW, panelH, gridW, armorY, mainY, hotbarY);
 	}
 
 	private static void slot(
@@ -144,40 +188,22 @@ public final class InventoryHudRenderer {
 
 	private static String filledLabel(LocalPlayer player, Inventory inventory) {
 		int filled = 0;
-		int total = 36;
 		for (int i = 0; i < 36; i++) {
 			if (!inventory.getItem(i).isEmpty()) {
 				filled++;
 			}
 		}
 		for (EquipmentSlot slot : ARMOR) {
-			total++;
 			if (!player.getItemBySlot(slot).isEmpty()) {
 				filled++;
 			}
 		}
-		total++;
 		if (!player.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
 			filled++;
 		}
-		return filled + "/" + total;
+		return filled + "/41";
 	}
 
-	private static float originX(int guiW, float drawW, String anchor) {
-		float margin = 8;
-		return switch (anchor) {
-			case "top_left", "bottom_left" -> margin;
-			default -> guiW - drawW - margin;
-		};
-	}
-
-	private static float originY(int guiH, float drawH, String anchor) {
-		float margin = 8;
-		float hotbar = 24;
-		return switch (anchor) {
-			case "top_left" -> margin + WatermarkRenderer.occupiedHeight();
-			case "top_right" -> margin;
-			default -> guiH - drawH - hotbar;
-		};
+	private record Metrics(int panelW, int panelH, int gridW, int armorY, int mainY, int hotbarY) {
 	}
 }

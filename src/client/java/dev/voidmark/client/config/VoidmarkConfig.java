@@ -55,8 +55,18 @@ public final class VoidmarkConfig {
 	public boolean watermarkTime = true;
 	public boolean watermarkName = false;
 	public boolean inventoryHudEnabled = true;
+	public boolean inventoryHudHotbar = true;
+	public boolean inventoryHudArmor = true;
+	public boolean inventoryHudCount = true;
 	public String inventoryHudAnchor = "bottom_right";
 	public float inventoryHudScale = 1.0f;
+	public float hudInventoryX = -1f;
+	public float hudInventoryY = -1f;
+	public float hudWatermarkX = -1f;
+	public float hudWatermarkY = -1f;
+	public float hudNodesX = -1f;
+	public float hudNodesY = -1f;
+	public float themePaneOpacity = 0.90f;
 	public String capeUrl = "";
 	public String capePath = "";
 	public boolean nickEnabled = false;
@@ -118,6 +128,9 @@ public final class VoidmarkConfig {
 				}
 				loaded.inventoryHudAnchor = normalizeInventoryHudAnchor(loaded.inventoryHudAnchor);
 				loaded.inventoryHudScale = clamp(loaded.inventoryHudScale, 0.70f, 1.40f);
+				loaded.themePaneOpacity = loaded.themePaneOpacity <= 0f
+					? 0.90f
+					: clamp(loaded.themePaneOpacity, 0.20f, 1f);
 				instance = loaded;
 			}
 		} catch (Exception exception) {

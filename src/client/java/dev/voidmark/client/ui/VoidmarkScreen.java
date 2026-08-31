@@ -46,7 +46,7 @@ public class VoidmarkScreen extends Screen {
 	private static final float PICKER_W = 132;
 	private static final float PICKER_H = 122;
 	private static final float PANEL_W = 168;
-	private static final float SETTINGS_H = 154;
+	private static final float SETTINGS_H = 176;
 
 	private enum Group {
 		VISUALS("VISUALS"),
@@ -97,6 +97,10 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Filled box", Tab.DISPLAY, "ESP"),
 		new SearchEntry("Watermark", Tab.DISPLAY, "HUD"),
 		new SearchEntry("Inventory HUD", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Hotbar", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Armor", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Item count", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Pane opacity", Tab.DISPLAY, "Theme"),
 		new SearchEntry("FPS", Tab.STATUS, "Stats"),
 		new SearchEntry("Ping", Tab.STATUS, "Stats"),
 		new SearchEntry("Hypixel", Tab.STATUS, "Server"),
@@ -492,14 +496,10 @@ public class VoidmarkScreen extends Screen {
 		hits.add(new Hit(windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, TOOLBAR_H, mx -> startDrag(mx, lastClickY), true));
 
 		float labelY = GuiDraw.middle(y, 14);
-		boolean unloaded = UnloadState.isUnloaded();
-		boolean actionHover = GuiDraw.hovered(mouseX, mouseY, x, y, ACTION_W, 14);
-		GuiDraw.panel(graphics, x, y, ACTION_W, 14, 5, actionHover ? Theme.CARD_HOVER : Theme.CARD, unloaded ? Theme.WARN : Theme.LINE);
-		GuiDraw.menu(graphics, font, unloaded ? "Load" : "Unload", x + (ACTION_W - GuiDraw.menuWidth(font, unloaded ? "Load" : "Unload")) / 2f, labelY, unloaded ? Theme.WARN : Theme.TEXT);
-		hits.add(new Hit(x, y, ACTION_W, 14, () -> {
-			UnloadState.toggle();
-			WorldTint.syncChunkMeshes(minecraft);
-		}));
+		boolean hudHover = GuiDraw.hovered(mouseX, mouseY, x, y, ACTION_W, 14);
+		GuiDraw.panel(graphics, x, y, ACTION_W, 14, 5, hudHover ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
+		GuiDraw.menu(graphics, font, "HUD", x + (ACTION_W - GuiDraw.menuWidth(font, "HUD")) / 2f, labelY, Theme.TEXT);
+		hits.add(new Hit(x, y, ACTION_W, 14, () -> minecraft.setScreen(new HudEditorScreen())));
 
 		float resetX = x + ACTION_W + 4;
 		boolean resetHover = GuiDraw.hovered(mouseX, mouseY, resetX, y, RESET_W, 14);
@@ -607,8 +607,17 @@ public class VoidmarkScreen extends Screen {
 				config.hudEnabled = true;
 				config.watermarkEnabled = true;
 				config.inventoryHudEnabled = true;
+				config.inventoryHudHotbar = true;
+				config.inventoryHudArmor = true;
+				config.inventoryHudCount = true;
 				config.inventoryHudAnchor = "bottom_right";
 				config.inventoryHudScale = 1.0f;
+				config.hudInventoryX = -1f;
+				config.hudInventoryY = -1f;
+				config.hudWatermarkX = -1f;
+				config.hudWatermarkY = -1f;
+				config.hudNodesX = -1f;
+				config.hudNodesY = -1f;
 				config.colorRgb = 0x2FB5FF;
 			}
 			case STATUS -> {
@@ -678,6 +687,10 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.small(graphics, font, "Pane", settingsX + 8, y + 1, Theme.MUTED);
 		y = swatchRow(graphics, mouseX, mouseY, settingsX + 10, y + 12, Theme.PANE_PRESETS, false);
 		y = colorRow(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Custom", VoidmarkConfig.get().themePaneRgb, PickerTarget.PANE);
+		y = slider(graphics, font, settingsX + 8, y, PANEL_W - 16, "Opacity", Math.round(VoidmarkConfig.get().themePaneOpacity * 100) + "%", (VoidmarkConfig.get().themePaneOpacity - 0.20f) / 0.80f, v -> {
+			VoidmarkConfig.get().themePaneOpacity = VoidmarkConfig.clamp(0.20f + v * 0.80f, 0.20f, 1f);
+			Theme.refresh();
+		});
 		toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Animations", VoidmarkConfig.get().uiAnimations, v -> VoidmarkConfig.get().uiAnimations = v);
 	}
 
@@ -798,11 +811,13 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(5), "Hud");
+				y = featureCard(graphics, font, right, top, col, cardHeight(7), "Hud");
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Inventory", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v);
-				y = cycle(graphics, font, rx, y, iw, mouseX, mouseY, "Position", config.inventoryHudAnchorLabel(), config::cycleInventoryHudAnchor);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Hotbar", config.inventoryHudHotbar, v -> config.inventoryHudHotbar = v);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Armor", config.inventoryHudArmor, v -> config.inventoryHudArmor = v);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Item count", config.inventoryHudCount, v -> config.inventoryHudCount = v);
 				slider(graphics, font, rx, y, iw, "Scale", Math.round(config.inventoryHudScale * 100) + "%", (config.inventoryHudScale - 0.70f) / 0.70f, v -> config.inventoryHudScale = VoidmarkConfig.clamp(0.70f + v * 0.70f, 0.70f, 1.40f));
 			}
 			case STATUS -> {
@@ -931,7 +946,7 @@ public class VoidmarkScreen extends Screen {
 			boolean on = i == selected;
 			boolean hover = GuiDraw.hovered(mouseX, mouseY, cx, y + 1, cw, ROW - 2);
 			GuiDraw.panel(graphics, cx, y + 1, cw, ROW - 2, 5, on ? Theme.ACCENT : hover ? Theme.CARD_HOVER : Theme.CARD, on ? Theme.ACCENT : Theme.LINE);
-			GuiDraw.menu(graphics, font, labels[i], cx + 5, GuiDraw.middle(y, ROW), on ? Theme.WINDOW : Theme.TEXT);
+			GuiDraw.menu(graphics, font, labels[i], cx + 5, GuiDraw.middle(y, ROW), on ? Theme.WINDOW_SOLID : Theme.TEXT);
 			int index = i;
 			hits.add(new Hit(cx, y, cw, ROW, () -> pick.accept(index)));
 			cx += cw + 4;
@@ -1114,7 +1129,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.29");
+			.orElse("1.1.30");
 	}
 
 	@Override
@@ -1148,7 +1163,7 @@ public class VoidmarkScreen extends Screen {
 			settingsOpen = false;
 			return true;
 		}
-		if (bellOpen && !GuiDraw.hovered(event.x(), event.y(), bellX, bellY, PANEL_W, 128)) {
+		if (bellOpen && !GuiDraw.hovered(event.x(), event.y(), bellX, bellY, PANEL_W, 144)) {
 			bellOpen = false;
 			return true;
 		}

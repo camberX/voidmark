@@ -6,6 +6,7 @@ public final class Theme {
 	public static int ACCENT = 0xFF2FB5FF;
 	public static int ACCENT_DIM = 0xFF1A6FA8;
 	public static int WINDOW = 0xFF0B0E14;
+	public static int WINDOW_SOLID = 0xFF0B0E14;
 	public static int SIDEBAR = 0xB3142032;
 	public static int NAV_PILL = 0xE01E5F8C;
 	public static int CARD = 0xFF12151C;
@@ -54,18 +55,22 @@ public final class Theme {
 			pane = 0x0B0E14;
 		}
 
+		float opacity = VoidmarkConfig.clamp(VoidmarkConfig.get().themePaneOpacity, 0.20f, 1f);
+		int paneA = Math.round(opacity * 255);
+
 		ACCENT = 0xFF000000 | accent;
 		ACCENT_DIM = 0xFF000000 | mix(accent, pane, 0.42f);
-		WINDOW = 0xFF000000 | pane;
-		CARD = 0xFF000000 | mix(pane, 0xFFFFFF, 0.055f);
-		CARD_HOVER = 0xFF000000 | mix(pane, 0xFFFFFF, 0.10f);
-		LINE = 0xFF000000 | mix(pane, 0xFFFFFF, 0.14f);
-		TRACK = 0xFF000000 | mix(pane, 0xFFFFFF, 0.08f);
-		PANEL = 0xFF000000 | mix(pane, 0x000000, 0.18f);
-		OFF = 0xFF000000 | mix(pane, 0xFFFFFF, 0.22f);
+		WINDOW_SOLID = 0xFF000000 | pane;
+		WINDOW = withAlpha(pane, paneA);
+		CARD = withAlpha(mix(pane, 0xFFFFFF, 0.055f), paneA);
+		CARD_HOVER = withAlpha(mix(pane, 0xFFFFFF, 0.10f), paneA);
+		LINE = withAlpha(mix(pane, 0xFFFFFF, 0.14f), Math.max(paneA, 90));
+		TRACK = withAlpha(mix(pane, 0xFFFFFF, 0.08f), paneA);
+		PANEL = withAlpha(mix(pane, 0x000000, 0.18f), paneA);
+		OFF = withAlpha(mix(pane, 0xFFFFFF, 0.22f), paneA);
 		HEADER = 0xFF000000 | mix(0xC4CED8, pane, 0.10f);
-		NAV_PILL = withAlpha(mix(pane, accent, 0.55f), 230);
-		SIDEBAR = withAlpha(mix(0x101820, pane, 0.45f), 185);
+		NAV_PILL = withAlpha(mix(pane, accent, 0.55f), Math.round(230 * opacity));
+		SIDEBAR = withAlpha(mix(0x101820, pane, 0.45f), Math.round(185 * opacity));
 	}
 
 	public static void applyPreset(Swatch swatch) {
