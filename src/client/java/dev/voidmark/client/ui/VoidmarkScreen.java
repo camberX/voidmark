@@ -312,8 +312,9 @@ public class VoidmarkScreen extends Screen {
 
 		switch (tab) {
 			case WORLD -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Blocks");
+				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Blocks");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "World tint", config.worldTintEnabled, v -> config.worldTintEnabled = v);
+				y = cycle(graphics, font, ix, y, iw, mouseX, mouseY, "Mode", config.worldTintModeLabel(), config::cycleWorldTintMode);
 				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.worldTintRgb, PickerTarget.WORLD);
 				slider(graphics, font, ix, y, iw, "Strength", String.format(Locale.ROOT, "%.0f", config.worldTintStrength * 100), config.worldTintStrength, v -> config.worldTintStrength = v);
 
@@ -418,6 +419,19 @@ public class VoidmarkScreen extends Screen {
 		float knob = value ? tx + trackW - 6 : tx + 6;
 		GuiDraw.circle(graphics, knob, ty + trackH / 2f, 4.6f, value ? Theme.TEXT : Theme.OFF);
 		hits.add(new Hit(x, y, w, ROW, () -> setter.accept(!value)));
+		return y + ROW;
+	}
+
+	private float cycle(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String label, String value, Runnable next) {
+		boolean hovered = GuiDraw.hovered(mouseX, mouseY, x, y, w, ROW);
+		if (hovered) {
+			GuiDraw.rounded(graphics, x - 3, y, w + 6, ROW, 6, 0x08FFFFFF);
+		}
+		float labelY = GuiDraw.middle(y, ROW);
+		GuiDraw.menu(graphics, font, label, x + 1, labelY, Theme.TEXT);
+		int valueWidth = GuiDraw.menuWidth(font, value);
+		GuiDraw.menu(graphics, font, value, x + w - valueWidth, labelY, Theme.ACCENT);
+		hits.add(new Hit(x, y, w, ROW, next));
 		return y + ROW;
 	}
 
@@ -564,7 +578,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.18");
+			.orElse("1.1.19");
 	}
 
 	@Override

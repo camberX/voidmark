@@ -32,6 +32,7 @@ public final class VoidmarkConfig {
 	public boolean worldTintEnabled = false;
 	public int worldTintRgb = 0x2FB5FF;
 	public float worldTintStrength = 0.70f;
+	public String worldTintMode = "shader";
 	public boolean skyTintEnabled = false;
 	public int skyTintRgb = 0x1B4F8A;
 	public float skyTintStrength = 0.70f;
@@ -64,6 +65,7 @@ public final class VoidmarkConfig {
 				loaded.scanRadius = clamp(loaded.scanRadius, 16, 80);
 				loaded.fillOpacity = clamp(loaded.fillOpacity, 0.08f, 0.85f);
 				loaded.worldTintStrength = clamp(loaded.worldTintStrength, 0f, 1f);
+				loaded.worldTintMode = normalizeWorldTintMode(loaded.worldTintMode);
 				loaded.skyTintStrength = clamp(loaded.skyTintStrength, 0f, 1f);
 				loaded.fogStart = clamp(loaded.fogStart, 0f, 0.95f);
 				loaded.fogEnd = clamp(loaded.fogEnd, 0.05f, 1f);
@@ -95,6 +97,22 @@ public final class VoidmarkConfig {
 
 	public int lineColor() {
 		return 0xFF000000 | (colorRgb & 0xFFFFFF);
+	}
+
+	public boolean worldTintUsesLightmap() {
+		return "lightmap".equalsIgnoreCase(worldTintMode);
+	}
+
+	public void cycleWorldTintMode() {
+		worldTintMode = worldTintUsesLightmap() ? "shader" : "lightmap";
+	}
+
+	public String worldTintModeLabel() {
+		return worldTintUsesLightmap() ? "Lightmap" : "Shader";
+	}
+
+	public static String normalizeWorldTintMode(String mode) {
+		return "lightmap".equalsIgnoreCase(mode) ? "lightmap" : "shader";
 	}
 
 	public static int clamp(int value, int min, int max) {

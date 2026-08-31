@@ -14,15 +14,36 @@ import org.joml.Vector3fc;
 public final class WorldTint {
 	private static int lastMeshKey = Integer.MIN_VALUE;
 	private static Boolean sodiumLoaded;
+	private static boolean lastLightmapActive;
 
 	private WorldTint() {
 	}
 
-	public static boolean sodiumTerrainTint() {
+	public static boolean sodiumLoaded() {
 		if (sodiumLoaded == null) {
 			sodiumLoaded = FabricLoader.getInstance().isModLoaded("sodium");
 		}
 		return sodiumLoaded;
+	}
+
+	public static boolean shaderTintActive() {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		return config.worldTintEnabled && sodiumLoaded() && !config.worldTintUsesLightmap();
+	}
+
+	public static boolean lightmapTintActive() {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		if (!config.worldTintEnabled) {
+			return false;
+		}
+		return config.worldTintUsesLightmap() || !sodiumLoaded();
+	}
+
+	public static boolean shouldRefreshLightmap() {
+		boolean active = lightmapTintActive();
+		boolean leaving = lastLightmapActive && !active;
+		lastLightmapActive = active;
+		return active || leaving;
 	}
 
 	public static int shaderRgb() {
@@ -30,11 +51,10 @@ public final class WorldTint {
 	}
 
 	public static float shaderStrength() {
-		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.worldTintEnabled) {
+		if (!shaderTintActive()) {
 			return 0f;
 		}
-		return Mth.clamp(config.worldTintStrength, 0f, 1f);
+		return Mth.clamp(VoidmarkConfig.get().worldTintStrength, 0f, 1f);
 	}
 
 	public static String injectTerrainFragmentSource(String src) {
@@ -79,13 +99,10 @@ public final class WorldTint {
 	}
 
 	public static void tintLightmap(LightmapRenderState state) {
-		if (sodiumTerrainTint()) {
+		if (!lightmapTintActive()) {
 			return;
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.worldTintEnabled) {
-			return;
-		}
 		state.needsUpdate = true;
 		float strength = config.worldTintStrength;
 		int rgb = config.worldTintRgb;
@@ -95,11 +112,11 @@ public final class WorldTint {
 	}
 
 	public static void tintQuad(QuadInstance quad) {
-		if (sodiumTerrainTint()) {
+		if (sodiumLoaded() || !lightmapTintActive()) {
 			return;
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.worldTintEnabled || quad == null) {
+		if (quad == null) {
 			return;
 		}
 		float strength = config.worldTintStrength;
@@ -112,13 +129,13 @@ public final class WorldTint {
 	public static void syncChunkMeshes(Minecraft client) {
 		VoidmarkConfig config = VoidmarkConfig.get();
 		int key = config.worldTintEnabled
-			? (1 << 24) | (config.worldTintRgb & 0xFFFFFF) | (Math.round(config.worldTintStrength * 127f) << 25)
+			? (1 << 24) | (config.worldTintRgb & 0xFFFFFF) | (Math.round(config.worldTintStrength * 127f) << 25) | (config.worldTintUsesLightmap() ? (1 << 31) : 0)
 			: 0;
 		if (key == lastMeshKey) {
 			return;
 		}
 		lastMeshKey = key;
-		if (sodiumTerrainTint()) {
+		if (sodiumLoaded()) {
 			return;
 		}
 		if (client != null && client.levelRenderer != null) {

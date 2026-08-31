@@ -1,6 +1,5 @@
 package dev.voidmark.client.mixin;
 
-import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.visual.WorldTint;
 import net.minecraft.client.renderer.LightmapRenderStateExtractor;
 import net.minecraft.client.renderer.state.LightmapRenderState;
@@ -17,7 +16,7 @@ public class LightmapRenderStateExtractorMixin {
 
 	@Inject(method = "extract", at = @At("HEAD"))
 	private void voidmark$refreshTintedLightmap(LightmapRenderState state, float partialTick, CallbackInfo ci) {
-		if (VoidmarkConfig.get().worldTintEnabled && !WorldTint.sodiumTerrainTint()) {
+		if (WorldTint.shouldRefreshLightmap()) {
 			this.needsUpdate = true;
 		}
 	}
