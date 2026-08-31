@@ -26,7 +26,6 @@ public final class MenuFont {
 	public static final String SETTINGS = "\uE8B8";
 	public static final String BELL = "\uE7F4";
 	public static final String SEARCH = "\uE8B6";
-	public static final String PALETTE = "\uE40A";
 	public static final String CHEVRON = "\uE5CF";
 
 	private MenuFont() {

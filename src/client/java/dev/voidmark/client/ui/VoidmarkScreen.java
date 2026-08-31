@@ -29,6 +29,8 @@ public class VoidmarkScreen extends Screen {
 	private static final float PAD = 8;
 	private static final float SAVE_W = 42;
 	private static final float ICON_SLOT = 14;
+	private static final float PICKER_W = 132;
+	private static final float PICKER_H = 122;
 
 	private enum Group {
 		VISUALS("VISUALS"),
@@ -266,17 +268,20 @@ public class VoidmarkScreen extends Screen {
 		switch (tab) {
 			case WORLD -> {
 				float y = group(graphics, font, left, top, col, "Main");
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "World tint", config.worldTintEnabled, v -> config.worldTintEnabled = v, config.worldTintRgb, PickerTarget.WORLD);
+				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "World tint", config.worldTintEnabled, v -> config.worldTintEnabled = v);
+				y = colorRow(graphics, font, left, y, col, mouseX, mouseY, "Color", config.worldTintRgb, PickerTarget.WORLD);
 				slider(graphics, font, left, y, col, "Strength", String.format(Locale.ROOT, "%.0f", config.worldTintStrength * 100), config.worldTintStrength, v -> config.worldTintStrength = v);
 
 				y = group(graphics, font, left + col + COL_GAP, top, col, "Skybox");
-				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Skybox tint", config.skyTintEnabled, v -> config.skyTintEnabled = v, config.matchSkyToWorld ? -1 : config.skyTintRgb, config.matchSkyToWorld ? null : PickerTarget.SKY);
-				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Match world", config.matchSkyToWorld, v -> config.matchSkyToWorld = v, -1, null);
+				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Skybox tint", config.skyTintEnabled, v -> config.skyTintEnabled = v);
+				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Match world", config.matchSkyToWorld, v -> config.matchSkyToWorld = v);
+				int skyPreview = config.matchSkyToWorld ? config.worldTintRgb : config.skyTintRgb;
+				y = colorRow(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Color", skyPreview, PickerTarget.SKY);
 				slider(graphics, font, left + col + COL_GAP, y, col, "Strength", String.format(Locale.ROOT, "%.0f", config.skyTintStrength * 100), config.skyTintStrength, v -> config.skyTintStrength = v);
 			}
 			case VIEW -> {
 				float y = group(graphics, font, left, top, col, "Camera");
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v, -1, null);
+				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v);
 				slider(graphics, font, left, y, col, "Aspect", aspectLabel(config.aspectRatio), (config.aspectRatio - 0.50f) / 0.70f, v -> config.aspectRatio = VoidmarkConfig.clamp(0.50f + v * 0.70f, 0.50f, 1.20f));
 
 				y = group(graphics, font, left + col + COL_GAP, top, col, "Info");
@@ -285,26 +290,26 @@ public class VoidmarkScreen extends Screen {
 			}
 			case MARKERS -> {
 				float y = group(graphics, font, left, top, col, "Main");
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Enable", config.markersEnabled, v -> config.markersEnabled = v, -1, null);
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Only in The End", config.onlyInTheEnd, v -> config.onlyInTheEnd = v, -1, null);
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Force enable", config.forceEnable, v -> config.forceEnable = v, -1, null);
+				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Enable", config.markersEnabled, v -> config.markersEnabled = v);
+				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Only in The End", config.onlyInTheEnd, v -> config.onlyInTheEnd = v);
+				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Force enable", config.forceEnable, v -> config.forceEnable = v);
 				slider(graphics, font, left, y, col, "Scan radius", config.scanRadius + "m", (config.scanRadius - 16) / 64f, v -> config.scanRadius = VoidmarkConfig.clamp(16 + Math.round(v * 64f), 16, 80));
 
 				y = group(graphics, font, left + col + COL_GAP, top, col, "Detection");
-				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Block scan", config.blockScan, v -> config.blockScan = v, -1, null);
-				toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Particle hints", config.particleDetection, v -> config.particleDetection = v, -1, null);
+				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Block scan", config.blockScan, v -> config.blockScan = v);
+				toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Particle hints", config.particleDetection, v -> config.particleDetection = v);
 			}
 			case DISPLAY -> {
 				float y = group(graphics, font, left, top, col, "Esp");
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Filled box", config.boxFill, v -> config.boxFill = v, -1, null);
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v, -1, null);
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Tracer", config.tracersEnabled, v -> config.tracersEnabled = v, -1, null);
-				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Through walls", config.throughWalls, v -> config.throughWalls = v, -1, null);
+				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Filled box", config.boxFill, v -> config.boxFill = v);
+				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v);
+				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Tracer", config.tracersEnabled, v -> config.tracersEnabled = v);
+				y = toggle(graphics, font, left, y, col, mouseX, mouseY, "Through walls", config.throughWalls, v -> config.throughWalls = v);
 				slider(graphics, font, left, y, col, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
 
 				y = group(graphics, font, left + col + COL_GAP, top, col, "Hud");
-				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "HUD", config.hudEnabled, v -> config.hudEnabled = v, -1, null);
-				colorRow(graphics, font, left + col + COL_GAP, y, col, "Marker color", config.colorRgb, PickerTarget.NODE);
+				y = toggle(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "HUD", config.hudEnabled, v -> config.hudEnabled = v);
+				colorRow(graphics, font, left + col + COL_GAP, y, col, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
 			}
 			case STATUS -> {
 				float y = group(graphics, font, left, top, col, "Server");
@@ -328,7 +333,7 @@ public class VoidmarkScreen extends Screen {
 		return y + 13;
 	}
 
-	private float toggle(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String label, boolean value, Consumer<Boolean> setter, int rgb, PickerTarget colorTarget) {
+	private float toggle(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String label, boolean value, Consumer<Boolean> setter) {
 		boolean hovered = GuiDraw.hovered(mouseX, mouseY, x, y, w, ROW);
 		if (hovered) {
 			GuiDraw.fill(graphics, x - 2, y, w + 2, ROW, 0x08FFFFFF);
@@ -340,14 +345,10 @@ public class VoidmarkScreen extends Screen {
 		float trackH = 11;
 		float tx = x + w - trackW;
 		float ty = y + (ROW - trackH) / 2f;
-		if (colorTarget != null && rgb >= 0) {
-			GuiDraw.icon(graphics, font, MenuFont.PALETTE, tx - 15, labelY, 0xFF000000 | rgb);
-			hits.add(new Hit(tx - 17, y + 1, 14, 14, () -> openPicker(colorTarget, rgb, tx - 18, y + 16)));
-		}
 		GuiDraw.pill(graphics, tx, ty, trackW, trackH, value ? Theme.ACCENT : Theme.TRACK);
 		float knob = value ? tx + trackW - 6 : tx + 6;
 		GuiDraw.circle(graphics, knob, ty + trackH / 2f, 4.6f, value ? Theme.TEXT : Theme.OFF);
-		hits.add(new Hit(x, y, w - (colorTarget != null ? 20 : 0), ROW, () -> setter.accept(!value)));
+		hits.add(new Hit(x, y, w, ROW, () -> setter.accept(!value)));
 		return y + ROW;
 	}
 
@@ -367,12 +368,22 @@ public class VoidmarkScreen extends Screen {
 		return y + ROW;
 	}
 
-	private float colorRow(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, String label, int rgb, PickerTarget target) {
+	private float colorRow(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String label, int rgb, PickerTarget target) {
 		float labelY = GuiDraw.middle(y, ROW);
 		GuiDraw.menu(graphics, font, label, x + 1, labelY, Theme.TEXT);
-		GuiDraw.rounded(graphics, x + w - 28, y + 3, 10, 10, 3, 0xFF000000 | rgb);
-		GuiDraw.icon(graphics, font, MenuFont.PALETTE, x + w - 14, labelY, Theme.ACCENT);
-		hits.add(new Hit(x + w - 32, y, 32, ROW, () -> openPicker(target, rgb, x + w - 118, y + ROW)));
+		float pw = 18;
+		float ph = 10;
+		float px = x + w - pw;
+		float py = y + (ROW - ph) / 2f;
+		boolean hover = GuiDraw.hovered(mouseX, mouseY, px - 1, y, pw + 2, ROW);
+		GuiDraw.rounded(graphics, px - 1, py - 1, pw + 2, ph + 2, 3, hover ? Theme.ACCENT : Theme.LINE);
+		GuiDraw.rounded(graphics, px, py, pw, ph, 2, 0xFF000000 | rgb);
+		hits.add(new Hit(px - 2, y, pw + 4, ROW, () -> {
+			if (target == PickerTarget.SKY) {
+				VoidmarkConfig.get().matchSkyToWorld = false;
+			}
+			openPicker(target, rgb, px - PICKER_W + pw, y + ROW + 2);
+		}));
 		return y + ROW;
 	}
 
@@ -386,19 +397,23 @@ public class VoidmarkScreen extends Screen {
 	private void drawPicker(GuiGraphicsExtractor graphics, Font font) {
 		float x = pickerX;
 		float y = pickerY;
-		float w = 118;
-		float h = 108;
+		float w = PICKER_W;
+		float h = PICKER_H;
 		GuiDraw.panel(graphics, x, y, w, h, 8, 0xFF0B1118, Theme.ACCENT);
-		GuiDraw.menu(graphics, font, "Color", x + 6, y + 4, Theme.MUTED);
+		GuiDraw.menu(graphics, font, "Color", x + 6, y + 5, Theme.MUTED);
+
+		int current = WorldTint.hsvToRgb(pickerHue, pickerSat, pickerVal);
+		GuiDraw.rounded(graphics, x + w - 22, y + 5, 14, 10, 3, Theme.LINE);
+		GuiDraw.rounded(graphics, x + w - 21, y + 6, 12, 8, 2, 0xFF000000 | current);
 
 		float svX = x + 6;
-		float svY = y + 16;
+		float svY = y + 20;
 		float svW = w - 12;
-		float svH = 62;
-		for (int row = 0; row < 10; row++) {
-			for (int col = 0; col < 12; col++) {
-				int rgb = WorldTint.hsvToRgb(pickerHue, col / 11f, 1f - row / 9f);
-				GuiDraw.fill(graphics, svX + col * (svW / 12f), svY + row * (svH / 10f), svW / 12f + 0.4f, svH / 10f + 0.4f, 0xFF000000 | rgb);
+		float svH = 68;
+		for (int row = 0; row < 12; row++) {
+			for (int col = 0; col < 14; col++) {
+				int rgb = WorldTint.hsvToRgb(pickerHue, col / 13f, 1f - row / 11f);
+				GuiDraw.fill(graphics, svX + col * (svW / 14f), svY + row * (svH / 12f), svW / 14f + 0.4f, svH / 12f + 0.4f, 0xFF000000 | rgb);
 			}
 		}
 		hits.add(new Hit(svX, svY, svW, svH, mx -> {
@@ -417,8 +432,6 @@ public class VoidmarkScreen extends Screen {
 			commitPicker();
 		}, true));
 
-		int current = WorldTint.hsvToRgb(pickerHue, pickerSat, pickerVal);
-		GuiDraw.rounded(graphics, x + w - 14, y + 5, 8, 8, 3, 0xFF000000 | current);
 		GuiDraw.menu(graphics, font, hex(current), x + 6, y + h - 12, Theme.MUTED);
 	}
 
@@ -429,8 +442,8 @@ public class VoidmarkScreen extends Screen {
 		pickerHue = hsv[0];
 		pickerSat = hsv[1];
 		pickerVal = hsv[2];
-		pickerX = Mth.clamp(x, windowX + SIDEBAR_W + 4, windowX + windowW - 122);
-		pickerY = Mth.clamp(y, windowY + TOOLBAR_H, windowY + windowH - 112);
+		pickerX = Mth.clamp(x, windowX + SIDEBAR_W + 4, windowX + windowW - PICKER_W - 4);
+		pickerY = Mth.clamp(y, windowY + TOOLBAR_H, windowY + windowH - PICKER_H - 4);
 	}
 
 	private void commitPicker() {
@@ -495,7 +508,7 @@ public class VoidmarkScreen extends Screen {
 				return true;
 			}
 		}
-		if (pickerTarget != null && !GuiDraw.hovered(event.x(), event.y(), pickerX, pickerY, 118, 108)) {
+		if (pickerTarget != null && !GuiDraw.hovered(event.x(), event.y(), pickerX, pickerY, PICKER_W, PICKER_H)) {
 			pickerTarget = null;
 			return true;
 		}
