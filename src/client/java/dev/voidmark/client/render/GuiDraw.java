@@ -1,13 +1,20 @@
 package dev.voidmark.client.render;
 
+import dev.voidmark.Voidmark;
 import dev.voidmark.client.ui.MenuFont;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import java.util.Locale;
 
 public final class GuiDraw {
+	private static final Identifier CIRCLE = Voidmark.id("textures/gui/circle.png");
+	private static final int CIRCLE_TEX = 64;
+	private static final int CIRCLE_HALF = 32;
+
 	private GuiDraw() {
 	}
 
@@ -41,15 +48,23 @@ public final class GuiDraw {
 		if (radius <= 0) {
 			return;
 		}
-		float step = radius < 3 ? 0.5f : 0.4f;
-		for (float dy = -radius; dy <= radius; dy += step) {
-			float inner = radius * radius - dy * dy;
-			if (inner < 0) {
-				continue;
-			}
-			float dx = (float) Math.sqrt(inner);
-			fill(graphics, cx - dx, cy + dy, dx * 2f, step + 0.15f, color);
+		float d = radius * 2f;
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(cx - radius, cy - radius);
+		graphics.pose().scale(d, d);
+		graphics.blit(RenderPipelines.GUI_TEXTURED, CIRCLE, 0, 0, 0f, 0f, 1, 1, CIRCLE_TEX, CIRCLE_TEX, CIRCLE_TEX, CIRCLE_TEX, color);
+		graphics.pose().popMatrix();
+	}
+
+	private static void corner(GuiGraphicsExtractor graphics, float x, float y, float radius, float u, float v, int color) {
+		if (radius <= 0) {
+			return;
 		}
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x, y);
+		graphics.pose().scale(radius, radius);
+		graphics.blit(RenderPipelines.GUI_TEXTURED, CIRCLE, 0, 0, u, v, 1, 1, CIRCLE_HALF, CIRCLE_HALF, CIRCLE_TEX, CIRCLE_TEX, color);
+		graphics.pose().popMatrix();
 	}
 
 	public static void rounded(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
@@ -61,26 +76,26 @@ public final class GuiDraw {
 		fill(graphics, x + r, y, w - 2f * r, h, color);
 		fill(graphics, x, y + r, r, h - 2f * r, color);
 		fill(graphics, x + w - r, y + r, r, h - 2f * r, color);
-		circle(graphics, x + r, y + r, r, color);
-		circle(graphics, x + w - r, y + r, r, color);
-		circle(graphics, x + r, y + h - r, r, color);
-		circle(graphics, x + w - r, y + h - r, r, color);
+		corner(graphics, x, y, r, 0f, 0f, color);
+		corner(graphics, x + w - r, y, r, CIRCLE_HALF, 0f, color);
+		corner(graphics, x, y + h - r, r, 0f, CIRCLE_HALF, color);
+		corner(graphics, x + w - r, y + h - r, r, CIRCLE_HALF, CIRCLE_HALF, color);
 	}
 
 	public static void roundLeft(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
 		float r = Math.min(radius, Math.min(w, h) / 2f);
 		fill(graphics, x + r, y, w - r, h, color);
 		fill(graphics, x, y + r, r, h - 2f * r, color);
-		circle(graphics, x + r, y + r, r, color);
-		circle(graphics, x + r, y + h - r, r, color);
+		corner(graphics, x, y, r, 0f, 0f, color);
+		corner(graphics, x, y + h - r, r, 0f, CIRCLE_HALF, color);
 	}
 
 	public static void roundRight(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
 		float r = Math.min(radius, Math.min(w, h) / 2f);
 		fill(graphics, x, y, w - r, h, color);
 		fill(graphics, x + w - r, y + r, r, h - 2f * r, color);
-		circle(graphics, x + w - r, y + r, r, color);
-		circle(graphics, x + w - r, y + h - r, r, color);
+		corner(graphics, x + w - r, y, r, CIRCLE_HALF, 0f, color);
+		corner(graphics, x + w - r, y + h - r, r, CIRCLE_HALF, CIRCLE_HALF, color);
 	}
 
 	public static void panel(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int fill, int outline) {
@@ -123,6 +138,10 @@ public final class GuiDraw {
 
 	public static void icon(GuiGraphicsExtractor graphics, Font font, String glyph, float x, float y, int color) {
 		text(graphics, font, MenuFont.icon(glyph), x, y, color, false);
+	}
+
+	public static int iconWidth(Font font, String glyph) {
+		return font.width(MenuFont.icon(glyph));
 	}
 
 	public static int menuWidth(Font font, String value) {
