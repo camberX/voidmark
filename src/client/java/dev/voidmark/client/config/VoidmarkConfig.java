@@ -28,7 +28,16 @@ public final class VoidmarkConfig {
 	public boolean blockScan = true;
 	public int scanRadius = 48;
 	public float fillOpacity = 0.32f;
-	public int colorRgb = 0xC084FC;
+	public int colorRgb = 0x2FB5FF;
+	public boolean worldTintEnabled = false;
+	public int worldTintRgb = 0x2FB5FF;
+	public float worldTintStrength = 0.45f;
+	public boolean skyTintEnabled = false;
+	public int skyTintRgb = 0x1B4F8A;
+	public float skyTintStrength = 0.70f;
+	public boolean matchSkyToWorld = true;
+	public boolean aspectEnabled = false;
+	public float aspectRatio = 1.0f;
 
 	private VoidmarkConfig() {
 	}
@@ -48,6 +57,9 @@ public final class VoidmarkConfig {
 			if (loaded != null) {
 				loaded.scanRadius = clamp(loaded.scanRadius, 16, 80);
 				loaded.fillOpacity = clamp(loaded.fillOpacity, 0.08f, 0.85f);
+				loaded.worldTintStrength = clamp(loaded.worldTintStrength, 0f, 1f);
+				loaded.skyTintStrength = clamp(loaded.skyTintStrength, 0f, 1f);
+				loaded.aspectRatio = clamp(loaded.aspectRatio, 0.50f, 1.20f);
 				instance = loaded;
 			}
 		} catch (Exception exception) {

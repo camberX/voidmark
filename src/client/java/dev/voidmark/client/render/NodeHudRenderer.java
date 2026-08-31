@@ -1,6 +1,7 @@
 package dev.voidmark.client.render;
 
 import dev.voidmark.Voidmark;
+import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
 import dev.voidmark.client.node.EnderNodeTracker;
@@ -46,12 +47,12 @@ public final class NodeHudRenderer {
 		float width = 168;
 		float height = nearest == null ? 42 : 58;
 
-		int accent = 0xFF000000 | (config.colorRgb & 0xFFFFFF);
-		GuiDraw.fill(graphics, x, y, width, height, 0xE0101014);
+		int accent = Theme.ACCENT;
+		GuiDraw.fill(graphics, x, y, width, height, 0xE0080C12);
 		GuiDraw.fill(graphics, x, y, 2, height, accent);
 		GuiDraw.fill(graphics, x + 2, y, width - 2, 1, 0x22FFFFFF);
 
-		GuiDraw.text(graphics, font, "VOIDMARK", x + 12, y + 7, 0xFFA1A1AA, false);
+		GuiDraw.text(graphics, font, "VOIDMARK", x + 12, y + 7, 0xFF6B7A8A, false);
 		String headline = count == 0 ? "No nodes in range" : count == 1 ? "1 ender node" : count + " ender nodes";
 		GuiDraw.text(graphics, font, headline, x + 12, y + 19, 0xFFF4F4F5, false);
 

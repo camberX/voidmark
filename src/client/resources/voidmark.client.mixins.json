@@ -3,7 +3,11 @@
 	"package": "dev.voidmark.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"ConnectionMixin"
+		"ConnectionMixin",
+		"FogRendererMixin",
+		"SkyRendererMixin",
+		"LightmapMixin",
+		"ProjectionMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
