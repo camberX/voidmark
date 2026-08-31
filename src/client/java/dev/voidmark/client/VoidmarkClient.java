@@ -8,6 +8,8 @@ import dev.voidmark.client.location.SkyblockLocation;
 import dev.voidmark.client.node.EnderNodeTracker;
 import dev.voidmark.client.render.NodeHudRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
+import dev.voidmark.client.render.WatermarkRenderer;
+import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.ui.VoidmarkScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -27,7 +29,9 @@ public final class VoidmarkClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		VoidmarkConfig.load();
+		Theme.refresh();
 		NodeWorldRenderer.init();
+		WatermarkRenderer.init();
 		NodeHudRenderer.init();
 
 		openGui = KeyMappingHelper.registerKeyMapping(new KeyMapping(

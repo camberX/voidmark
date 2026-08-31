@@ -43,7 +43,7 @@ public final class NodeHudRenderer {
 		EnderNodeTracker.TrackedNode nearest = EnderNodeTracker.get().nearest(eyes);
 
 		float x = 8;
-		float y = 8;
+		float y = 8 + WatermarkRenderer.occupiedHeight();
 		float width = 168;
 		float height = nearest == null ? 42 : 58;
 

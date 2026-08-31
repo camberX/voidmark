@@ -45,6 +45,14 @@ public final class VoidmarkConfig {
 	public boolean matchFogToWorld = false;
 	public boolean aspectEnabled = false;
 	public float aspectRatio = 1.0f;
+	public int themeAccentRgb = 0x2FB5FF;
+	public String themePreset = "cyan";
+	public boolean uiAnimations = true;
+	public boolean watermarkEnabled = true;
+	public boolean watermarkFps = true;
+	public boolean watermarkPing = true;
+	public boolean watermarkTime = true;
+	public boolean watermarkName = false;
 
 	private VoidmarkConfig() {
 	}
@@ -71,6 +79,21 @@ public final class VoidmarkConfig {
 				loaded.fogEnd = clamp(loaded.fogEnd, 0.05f, 1f);
 				loaded.fogDensity = clamp(loaded.fogDensity, 0f, 1f);
 				loaded.aspectRatio = clamp(loaded.aspectRatio, 0.50f, 1.20f);
+				boolean legacyTheme = loaded.themePreset == null || loaded.themePreset.isBlank();
+				if (legacyTheme) {
+					loaded.themeAccentRgb = 0x2FB5FF;
+					loaded.themePreset = "cyan";
+					loaded.uiAnimations = true;
+					loaded.watermarkEnabled = true;
+					loaded.watermarkFps = true;
+					loaded.watermarkPing = true;
+					loaded.watermarkTime = true;
+				} else {
+					loaded.themeAccentRgb = loaded.themeAccentRgb & 0xFFFFFF;
+					if (loaded.themeAccentRgb == 0) {
+						loaded.themeAccentRgb = 0x2FB5FF;
+					}
+				}
 				instance = loaded;
 			}
 		} catch (Exception exception) {
