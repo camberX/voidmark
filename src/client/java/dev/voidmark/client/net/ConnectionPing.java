@@ -5,9 +5,11 @@ import net.minecraft.network.protocol.ping.ServerboundPingRequestPacket;
 import net.minecraft.util.Util;
 
 public final class ConnectionPing {
+	private static final long INTERVAL_MS = 2000L;
 	private static volatile int pingMs = -1;
 	private static volatile long lastSampleAt;
-	private static int ticks;
+	private static long lastSentAt;
+	private static long pendingSentAt;
 
 	private ConnectionPing() {
 	}
@@ -24,10 +26,16 @@ public final class ConnectionPing {
 
 	public static void reset() {
 		pingMs = -1;
-		ticks = 0;
+		lastSampleAt = 0L;
+		lastSentAt = 0L;
+		pendingSentAt = 0L;
 	}
 
 	public static void onPong(long sentAtMillis) {
+		if (pendingSentAt == 0L || sentAtMillis != pendingSentAt) {
+			return;
+		}
+		pendingSentAt = 0L;
 		long rtt = Util.getMillis() - sentAtMillis;
 		if (rtt >= 0L && rtt < 10000L) {
 			record((int) rtt);
@@ -35,7 +43,7 @@ public final class ConnectionPing {
 	}
 
 	public static void onKeepAlive(long id) {
-		if (get() >= 0) {
+		if (get() >= 0 || pendingSentAt != 0L) {
 			return;
 		}
 		long delay = Util.getMillis() - id;
@@ -48,16 +56,20 @@ public final class ConnectionPing {
 		if (client.player == null || client.player.connection == null || client.isLocalServer()) {
 			return;
 		}
-		if (++ticks < 40) {
+		long now = Util.getMillis();
+		if (pendingSentAt != 0L && now - pendingSentAt > 10000L) {
+			pendingSentAt = 0L;
+		}
+		if (now - lastSentAt < INTERVAL_MS) {
 			return;
 		}
-		ticks = 0;
-		client.player.connection.send(new ServerboundPingRequestPacket(Util.getMillis()));
+		lastSentAt = now;
+		pendingSentAt = now;
+		client.player.connection.send(new ServerboundPingRequestPacket(now));
 	}
 
 	private static void record(int sample) {
-		int previous = pingMs;
-		pingMs = previous < 0 ? sample : (previous * 3 + sample) / 4;
+		pingMs = sample;
 		lastSampleAt = Util.getMillis();
 	}
 }
