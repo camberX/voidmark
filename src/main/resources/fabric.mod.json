@@ -1,0 +1,36 @@
+{
+	"schemaVersion": 1,
+	"id": "voidmark",
+	"version": "${version}",
+	"name": "Voidmark",
+	"description": "Hypixel Skyblock QoL for Minecraft 26.1.2. Marks Ender Nodes on the End Island and ships a clean in-game config UI.",
+	"authors": [
+		"Voidmark"
+	],
+	"contact": {
+		"sources": "https://github.com/Noamm9/NoammAddons"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/voidmark/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"main": [
+			"dev.voidmark.Voidmark"
+		],
+		"client": [
+			"dev.voidmark.client.VoidmarkClient"
+		]
+	},
+	"mixins": [
+		{
+			"config": "voidmark.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.1.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
