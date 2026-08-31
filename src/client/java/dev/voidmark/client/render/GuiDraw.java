@@ -141,7 +141,7 @@ public final class GuiDraw {
 	}
 
 	public static float middle(float y, float height) {
-		return y + height * 0.5f - 2.0f;
+		return y + (height - 9.0f) * 0.5f;
 	}
 
 	public static int iconWidth(Font font, String glyph) {
