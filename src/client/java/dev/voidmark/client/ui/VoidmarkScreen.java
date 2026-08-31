@@ -391,7 +391,7 @@ public class VoidmarkScreen extends Screen {
 	private float toggle(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String label, boolean value, Consumer<Boolean> setter) {
 		boolean hovered = GuiDraw.hovered(mouseX, mouseY, x, y, w, ROW);
 		if (hovered) {
-			GuiDraw.fill(graphics, x - 2, y, w + 2, ROW, 0x08FFFFFF);
+			GuiDraw.rounded(graphics, x - 3, y, w + 6, ROW, 6, 0x08FFFFFF);
 		}
 		float labelY = GuiDraw.middle(y, ROW);
 		GuiDraw.menu(graphics, font, label, x + 1, labelY, Theme.TEXT);
