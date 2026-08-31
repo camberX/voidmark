@@ -15,6 +15,8 @@ import java.util.List;
 
 public final class WatermarkRenderer {
 	public static final float HEIGHT = 18;
+	private static final String DEV_TAG = "DEV";
+	private static final float DEV_GAP = 3f;
 
 	private WatermarkRenderer() {
 	}
@@ -64,7 +66,7 @@ public final class WatermarkRenderer {
 
 		float pad = 7;
 		float gap = 8;
-		float w = pad * 2;
+		float w = pad * 2 + brandExtra(font);
 		for (int i = 0; i < parts.size(); i++) {
 			w += GuiDraw.menuWidth(font, parts.get(i));
 			if (i + 1 < parts.size()) {
@@ -87,6 +89,11 @@ public final class WatermarkRenderer {
 			int color = i == 0 ? Theme.ACCENT : Theme.TEXT;
 			GuiDraw.menu(graphics, font, parts.get(i), cx, textY, color);
 			cx += GuiDraw.menuWidth(font, parts.get(i));
+			if (i == 0) {
+				cx += DEV_GAP;
+				GuiDraw.small(graphics, font, DEV_TAG, cx, textY, Theme.WARN);
+				cx += GuiDraw.smallWidth(font, DEV_TAG);
+			}
 			if (i + 1 < parts.size()) {
 				cx += gap / 2f;
 				GuiDraw.fill(graphics, cx, 4, 1, HEIGHT - 8, Theme.LINE);
@@ -98,7 +105,7 @@ public final class WatermarkRenderer {
 
 	public static float width(Font font) {
 		VoidmarkConfig config = VoidmarkConfig.get();
-		float w = 16;
+		float w = 16 + brandExtra(font);
 		w += GuiDraw.menuWidth(font, "VOIDMARK");
 		if (config.watermarkFps) {
 			w += 9 + GuiDraw.menuWidth(font, "000 fps");
@@ -113,5 +120,9 @@ public final class WatermarkRenderer {
 			w += 9 + GuiDraw.menuWidth(font, HudStats.playerName());
 		}
 		return w;
+	}
+
+	private static float brandExtra(Font font) {
+		return DEV_GAP + GuiDraw.smallWidth(font, DEV_TAG);
 	}
 }

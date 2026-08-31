@@ -128,6 +128,7 @@ public class VoidmarkScreen extends Screen {
 	private String searchQuery = "";
 	private String capeUrlDraft = "";
 	private boolean dragging;
+	private boolean moved;
 	private double dragOffX;
 	private double dragOffY;
 	private boolean placed;
@@ -161,6 +162,7 @@ public class VoidmarkScreen extends Screen {
 
 	public VoidmarkScreen() {
 		super(Component.literal("Voidmark"));
+		tab = parseTab(VoidmarkConfig.get().menuTab);
 		String url = VoidmarkConfig.get().capeUrl;
 		if (url != null && !url.isBlank()) {
 			capeUrlDraft = url;
@@ -254,8 +256,14 @@ public class VoidmarkScreen extends Screen {
 		windowW = Math.min(MENU_W, Math.max(1, width - 16));
 		windowH = Math.min(MENU_H, Math.max(1, height - 16));
 		if (!placed) {
-			windowX = (width - windowW) / 2f;
-			windowY = (height - windowH) / 2f;
+			VoidmarkConfig config = VoidmarkConfig.get();
+			if (config.menuPlaced) {
+				windowX = config.menuX;
+				windowY = config.menuY;
+			} else {
+				windowX = (width - windowW) / 2f;
+				windowY = (height - windowH) / 2f;
+			}
 			placed = true;
 		}
 		windowX = Mth.clamp(windowX, 4, Math.max(4, width - windowW - 4));
@@ -335,6 +343,17 @@ public class VoidmarkScreen extends Screen {
 		capeFocused = tab == Tab.CAPE;
 		nickFocused = tab == Tab.NICK;
 		commitCapeUrl();
+		VoidmarkConfig config = VoidmarkConfig.get();
+		config.menuTab = value.name();
+		config.save();
+	}
+
+	private static Tab parseTab(String name) {
+		try {
+			return Tab.valueOf(VoidmarkConfig.normalizeMenuTab(name));
+		} catch (IllegalArgumentException ignored) {
+			return Tab.WORLD;
+		}
 	}
 
 	private void drawCapeTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
@@ -1143,7 +1162,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.31");
+			.orElse("1.1.32");
 	}
 
 	@Override
@@ -1193,6 +1212,7 @@ public class VoidmarkScreen extends Screen {
 		if (event.button() == 0 && dragging) {
 			windowX = (float) (event.x() - dragOffX);
 			windowY = (float) (event.y() - dragOffY);
+			moved = true;
 			return true;
 		}
 		if (event.button() == 0) {
@@ -1210,10 +1230,21 @@ public class VoidmarkScreen extends Screen {
 
 	@Override
 	public boolean mouseReleased(MouseButtonEvent event) {
+		if (dragging && moved) {
+			persistMenuPosition();
+		}
 		dragging = false;
 		VoidmarkConfig.get().save();
 		WorldTint.syncChunkMeshes(minecraft);
 		return super.mouseReleased(event);
+	}
+
+	private void persistMenuPosition() {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		config.menuX = windowX;
+		config.menuY = windowY;
+		config.menuPlaced = true;
+		config.menuTab = tab.name();
 	}
 
 	@Override
@@ -1329,6 +1360,11 @@ public class VoidmarkScreen extends Screen {
 
 	@Override
 	public void onClose() {
+		if (moved) {
+			persistMenuPosition();
+		} else {
+			VoidmarkConfig.get().menuTab = tab.name();
+		}
 		VoidmarkConfig.get().save();
 		commitCapeUrl();
 		if (!closing && VoidmarkConfig.get().uiAnimations && appear > 0.04f) {

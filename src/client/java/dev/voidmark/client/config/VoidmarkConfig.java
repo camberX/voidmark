@@ -68,6 +68,10 @@ public final class VoidmarkConfig {
 	public float hudWatermarkY = -1f;
 	public float hudNodesX = -1f;
 	public float hudNodesY = -1f;
+	public float menuX = -1f;
+	public float menuY = -1f;
+	public boolean menuPlaced = false;
+	public String menuTab = "WORLD";
 	public float themePaneOpacity = 0.90f;
 	public String capeUrl = "";
 	public String capePath = "";
@@ -128,6 +132,7 @@ public final class VoidmarkConfig {
 				if (loaded.nick == null) {
 					loaded.nick = "";
 				}
+				loaded.menuTab = normalizeMenuTab(loaded.menuTab);
 				loaded.inventoryHudAnchor = normalizeInventoryHudAnchor(loaded.inventoryHudAnchor);
 				loaded.inventoryHudScale = clampHudScale(loaded.inventoryHudScale);
 				loaded.hudWatermarkScale = clampHudScale(loaded.hudWatermarkScale);
@@ -205,6 +210,17 @@ public final class VoidmarkConfig {
 
 	public static String normalizeWorldTintMode(String mode) {
 		return "lightmap".equalsIgnoreCase(mode) ? "lightmap" : "shader";
+	}
+
+	public static String normalizeMenuTab(String tab) {
+		if (tab == null || tab.isBlank()) {
+			return "WORLD";
+		}
+		String name = tab.trim().toUpperCase(java.util.Locale.ROOT);
+		return switch (name) {
+			case "WORLD", "VIEW", "FOG", "MARKERS", "DISPLAY", "STATUS", "INVENTORY", "NICK", "CAPE" -> name;
+			default -> "WORLD";
+		};
 	}
 
 	public static float clampHudScale(float value) {
