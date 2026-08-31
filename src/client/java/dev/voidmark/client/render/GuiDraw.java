@@ -137,7 +137,7 @@ public final class GuiDraw {
 	}
 
 	public static void icon(GuiGraphicsExtractor graphics, Font font, String glyph, float x, float y, int color) {
-		text(graphics, font, MenuFont.icon(glyph), x, y - 0.5f, color, false);
+		text(graphics, font, MenuFont.icon(glyph), x, y + 0.5f, color, false);
 	}
 
 	public static float middle(float y, float height) {
