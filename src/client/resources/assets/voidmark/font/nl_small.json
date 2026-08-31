@@ -3,7 +3,7 @@
 		{
 			"type": "ttf",
 			"file": "voidmark:nunitosans.ttf",
-			"shift": [0, 2.5],
+			"shift": [0, 0],
 			"size": 5.25,
 			"oversample": 12.0
 		},

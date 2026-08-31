@@ -125,19 +125,19 @@ public final class GuiDraw {
 	}
 
 	public static void menu(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
-		text(graphics, font, MenuFont.body(value), x, y, color, false);
+		text(graphics, font, MenuFont.body(value), x, y - 1.0f, color, false);
 	}
 
 	public static void small(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
-		text(graphics, font, MenuFont.small(value), x, y, color, false);
+		text(graphics, font, MenuFont.small(value), x, y - 1.0f, color, false);
 	}
 
 	public static void title(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
-		text(graphics, font, MenuFont.title(value), x, y, color, false);
+		text(graphics, font, MenuFont.title(value), x, y - 1.0f, color, false);
 	}
 
 	public static void icon(GuiGraphicsExtractor graphics, Font font, String glyph, float x, float y, int color) {
-		text(graphics, font, MenuFont.icon(glyph), x, y, color, false);
+		text(graphics, font, MenuFont.icon(glyph), x, y - 0.5f, color, false);
 	}
 
 	public static float middle(float y, float height) {
