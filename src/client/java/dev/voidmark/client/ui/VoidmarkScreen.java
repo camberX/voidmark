@@ -8,10 +8,12 @@ import dev.voidmark.client.visual.WorldTint;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.PlayerSkin;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -184,9 +186,43 @@ public class VoidmarkScreen extends Screen {
 		}
 
 		float footY = windowY + windowH - 22;
-		GuiDraw.circle(graphics, windowX + 16, footY + 10, 5, Theme.ACCENT);
-		GuiDraw.small(graphics, font, "VOIDMARK", windowX + 24, footY, Theme.TEXT);
+		int face = 10;
+		int faceX = Math.round(windowX + 11);
+		int faceY = Math.round(footY + 5);
+		PlayerSkin skin = playerSkin();
+		if (skin != null && skin.body() != null) {
+			PlayerFaceExtractor.extractRenderState(graphics, skin, faceX, faceY, face);
+		} else {
+			GuiDraw.rounded(graphics, faceX, faceY, face, face, 3, Theme.ACCENT);
+		}
+		GuiDraw.small(graphics, font, fitName(font, playerName(), 56), windowX + 24, footY, Theme.TEXT);
 		GuiDraw.small(graphics, font, "v" + modVersion(), windowX + 24, footY + 9, Theme.ACCENT);
+	}
+
+	private String playerName() {
+		String name = minecraft.getGameProfile().name();
+		if (name == null || name.isBlank()) {
+			return "Player";
+		}
+		return name;
+	}
+
+	private PlayerSkin playerSkin() {
+		if (minecraft.player != null) {
+			return minecraft.player.getSkin();
+		}
+		return minecraft.getSkinManager().createLookup(minecraft.getGameProfile(), true).get();
+	}
+
+	private static String fitName(Font font, String name, int maxWidth) {
+		if (GuiDraw.smallWidth(font, name) <= maxWidth) {
+			return name;
+		}
+		String trimmed = name;
+		while (trimmed.length() > 1 && GuiDraw.smallWidth(font, trimmed + "..") > maxWidth) {
+			trimmed = trimmed.substring(0, trimmed.length() - 1);
+		}
+		return trimmed + "..";
 	}
 
 	private static String tabGlyph(Tab value) {
