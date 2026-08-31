@@ -186,9 +186,9 @@ public class VoidmarkScreen extends Screen {
 			y += 17;
 		}
 
-		float footY = windowY + windowH - 16;
-		int face = 10;
-		int faceX = Math.round(windowX + 11);
+		float footY = windowY + windowH - 20;
+		int face = 14;
+		int faceX = Math.round(windowX + 10);
 		int faceY = Math.round(footY);
 		PlayerSkin skin = playerSkin();
 		if (skin != null && skin.body() != null) {
@@ -196,7 +196,8 @@ public class VoidmarkScreen extends Screen {
 		} else {
 			GuiDraw.rounded(graphics, faceX, faceY, face, face, 3, Theme.ACCENT);
 		}
-		GuiDraw.small(graphics, font, fitName(font, playerName(), 56), windowX + 24, GuiDraw.middle(footY, face), Theme.TEXT);
+		float nameX = windowX + 10 + face + 4;
+		GuiDraw.menu(graphics, font, fitName(font, playerName(), (int) (SIDEBAR_W - 18 - face)), nameX, GuiDraw.middle(footY, face), Theme.TEXT);
 	}
 
 	private String playerName() {
@@ -215,11 +216,11 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private static String fitName(Font font, String name, int maxWidth) {
-		if (GuiDraw.smallWidth(font, name) <= maxWidth) {
+		if (GuiDraw.menuWidth(font, name) <= maxWidth) {
 			return name;
 		}
 		String trimmed = name;
-		while (trimmed.length() > 1 && GuiDraw.smallWidth(font, trimmed + "..") > maxWidth) {
+		while (trimmed.length() > 1 && GuiDraw.menuWidth(font, trimmed + "..") > maxWidth) {
 			trimmed = trimmed.substring(0, trimmed.length() - 1);
 		}
 		return trimmed + "..";
@@ -527,7 +528,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.13");
+			.orElse("1.1.14");
 	}
 
 	@Override
