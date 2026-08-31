@@ -106,7 +106,7 @@ public class VoidmarkScreen extends Screen {
 		layout();
 
 		GuiDraw.fill(graphics, 0, 0, width, height, 0x14000000);
-		GuiDraw.rounded(graphics, windowX + 1, windowY + 2, windowW, windowH, Theme.WINDOW_RADIUS, 0x66000000);
+		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W + 1, windowY + 2, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, 0x66000000);
 		GuiDraw.roundLeft(graphics, windowX, windowY, SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.SIDEBAR);
 		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW);
 		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY + 8, 1, windowH - 16, 0x3318A0C8);
