@@ -152,6 +152,7 @@ public class VoidmarkScreen extends Screen {
 
 	private void drawSidebar(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		GuiDraw.title(graphics, font, "VOIDMARK", windowX + 10, windowY + 8, Theme.TEXT);
+		GuiDraw.small(graphics, font, "v" + modVersion(), windowX + 10 + GuiDraw.titleWidth(font, "VOIDMARK") + 3, windowY + 10, Theme.ACCENT);
 		GuiDraw.rounded(graphics, windowX + 10, windowY + 20, 16, 2, 1, Theme.ACCENT);
 		hits.add(new Hit(windowX, windowY, SIDEBAR_W, 26, mx -> startDrag(mx, lastClickY), true));
 
@@ -185,18 +186,17 @@ public class VoidmarkScreen extends Screen {
 			y += 17;
 		}
 
-		float footY = windowY + windowH - 22;
+		float footY = windowY + windowH - 16;
 		int face = 10;
 		int faceX = Math.round(windowX + 11);
-		int faceY = Math.round(footY + 5);
+		int faceY = Math.round(footY);
 		PlayerSkin skin = playerSkin();
 		if (skin != null && skin.body() != null) {
 			PlayerFaceExtractor.extractRenderState(graphics, skin, faceX, faceY, face);
 		} else {
 			GuiDraw.rounded(graphics, faceX, faceY, face, face, 3, Theme.ACCENT);
 		}
-		GuiDraw.small(graphics, font, fitName(font, playerName(), 56), windowX + 24, footY, Theme.TEXT);
-		GuiDraw.small(graphics, font, "v" + modVersion(), windowX + 24, footY + 9, Theme.ACCENT);
+		GuiDraw.small(graphics, font, fitName(font, playerName(), 56), windowX + 24, GuiDraw.middle(footY, face), Theme.TEXT);
 	}
 
 	private String playerName() {
@@ -446,12 +446,12 @@ public class VoidmarkScreen extends Screen {
 		float svY = y + 20;
 		float svW = w - 12;
 		float svH = 68;
-		for (int row = 0; row < 12; row++) {
-			for (int col = 0; col < 14; col++) {
-				int rgb = WorldTint.hsvToRgb(pickerHue, col / 13f, 1f - row / 11f);
-				GuiDraw.fill(graphics, svX + col * (svW / 14f), svY + row * (svH / 12f), svW / 14f + 0.4f, svH / 12f + 0.4f, 0xFF000000 | rgb);
-			}
-		}
+		GuiDraw.hsvSquare(graphics, svX, svY, svW, svH, pickerHue);
+		float cursorX = svX + pickerSat * svW;
+		float cursorY = svY + (1f - pickerVal) * svH;
+		GuiDraw.circle(graphics, cursorX, cursorY, 3.6f, 0xFF000000);
+		GuiDraw.circle(graphics, cursorX, cursorY, 2.6f, 0xFFFFFFFF);
+		GuiDraw.circle(graphics, cursorX, cursorY, 1.6f, 0xFF000000 | current);
 		hits.add(new Hit(svX, svY, svW, svH, mx -> {
 			pickerSat = Mth.clamp((float) ((mx - svX) / svW), 0f, 1f);
 			pickerVal = Mth.clamp(1f - (float) ((lastClickY - svY) / svH), 0f, 1f);
@@ -459,11 +459,12 @@ public class VoidmarkScreen extends Screen {
 		}, true));
 
 		float hueY = svY + svH + 4;
-		for (int i = 0; i < 24; i++) {
-			int rgb = WorldTint.hsvToRgb(i * 15f, 1f, 1f);
-			GuiDraw.fill(graphics, svX + i * (svW / 24f), hueY, svW / 24f + 0.4f, 6, 0xFF000000 | rgb);
-		}
-		hits.add(new Hit(svX, hueY, svW, 6, mx -> {
+		float hueH = 6;
+		GuiDraw.hueBar(graphics, svX, hueY, svW, hueH);
+		float hueMark = svX + (pickerHue / 360f) * svW;
+		GuiDraw.fill(graphics, hueMark - 1.2f, hueY - 1, 2.4f, hueH + 2, 0xFF000000);
+		GuiDraw.fill(graphics, hueMark - 0.5f, hueY - 1, 1f, hueH + 2, 0xFFFFFFFF);
+		hits.add(new Hit(svX, hueY, svW, hueH, mx -> {
 			pickerHue = Mth.clamp((float) ((mx - svX) / svW) * 360f, 0f, 359f);
 			commitPicker();
 		}, true));
@@ -526,7 +527,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.3");
+			.orElse("1.1.13");
 	}
 
 	@Override

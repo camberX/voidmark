@@ -2,6 +2,7 @@ package dev.voidmark.client.render;
 
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.ui.MenuFont;
+import dev.voidmark.client.visual.WorldTint;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -35,6 +36,28 @@ public final class GuiDraw {
 		graphics.pose().scale(w, h);
 		graphics.fillGradient(0, 0, 1, 1, top, bottom);
 		graphics.pose().popMatrix();
+	}
+
+	/** Smooth HSV saturation/value square: 1px columns, vertical value gradient per column. */
+	public static void hsvSquare(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float hue) {
+		int cols = Math.max(1, Math.round(w));
+		float cw = w / cols;
+		for (int i = 0; i < cols; i++) {
+			float sat = cols == 1 ? 1f : i / (float) (cols - 1);
+			int top = 0xFF000000 | WorldTint.hsvToRgb(hue, sat, 1f);
+			int bot = 0xFF000000 | WorldTint.hsvToRgb(hue, sat, 0f);
+			fillGradient(graphics, x + i * cw, y, cw + 0.35f, h, top, bot);
+		}
+	}
+
+	/** Smooth hue strip: 1px columns of full-saturation color. */
+	public static void hueBar(GuiGraphicsExtractor graphics, float x, float y, float w, float h) {
+		int cols = Math.max(1, Math.round(w));
+		float cw = w / cols;
+		for (int i = 0; i < cols; i++) {
+			float hue = cols == 1 ? 0f : (i / (float) (cols - 1)) * 360f;
+			fill(graphics, x + i * cw, y, cw + 0.35f, h, 0xFF000000 | WorldTint.hsvToRgb(hue, 1f, 1f));
+		}
 	}
 
 	public static void border(GuiGraphicsExtractor graphics, float x, float y, float w, float h, int color, float thickness) {
