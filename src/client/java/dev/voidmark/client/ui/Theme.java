@@ -43,7 +43,7 @@ public final class Theme {
 		WINDOW = 0xFF000000 | mix(0x0B0E14, rgb, 0.14f);
 		CARD = 0xFF000000 | mix(0x12151C, rgb, 0.18f);
 		CARD_HOVER = 0xFF000000 | mix(0x171B24, rgb, 0.24f);
-		LINE = 0xFF000000 | mix(0x1C2430, rgb, 0.48f);
+		LINE = 0xFF000000 | mix(0x1C2430, rgb, 0.18f);
 		TRACK = 0xFF000000 | mix(0x1A222C, rgb, 0.28f);
 		PANEL = 0xFF000000 | mix(0x0B1118, rgb, 0.16f);
 		OFF = 0xFF000000 | mix(0x3D4A58, rgb, 0.30f);

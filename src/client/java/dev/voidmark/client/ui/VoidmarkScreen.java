@@ -163,8 +163,7 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W + 1, windowY + 2, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, shadow);
 		GuiDraw.roundLeft(graphics, windowX, windowY, SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.SIDEBAR);
 		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW);
-		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, 2, Theme.withAlpha(Theme.ACCENT, 200));
-		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY + 8, 1, windowH - 16, Theme.withAlpha(Theme.ACCENT, 90));
+		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY, 1, windowH, Theme.withAlpha(Theme.ACCENT, 90));
 
 		drawSidebar(graphics, font, mouseX, mouseY);
 		drawToolbar(graphics, font, mouseX, mouseY);
@@ -326,7 +325,7 @@ public class VoidmarkScreen extends Screen {
 		float x = contentX();
 		float y = windowY + 5;
 		float w = contentW();
-		GuiDraw.hline(graphics, x, windowY + TOOLBAR_H - 1, w, Theme.LINE);
+		GuiDraw.hline(graphics, windowX + SIDEBAR_W + 1, windowY + TOOLBAR_H - 1, windowW - SIDEBAR_W - 1, Theme.LINE);
 		hits.add(new Hit(windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, TOOLBAR_H, mx -> startDrag(mx, lastClickY), true));
 
 		float labelY = GuiDraw.middle(y, 14);
@@ -649,7 +648,6 @@ public class VoidmarkScreen extends Screen {
 
 	private float featureCard(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, float h, String title) {
 		GuiDraw.panel(graphics, x, y, w, h, Math.min(14f, h / 2f), Theme.CARD, Theme.LINE);
-		GuiDraw.rounded(graphics, x + 1, y + 5, 2, h - 10, 1, Theme.ACCENT);
 		GuiDraw.small(graphics, font, title, x + CARD_PAD, y + 5, Theme.HEADER);
 		GuiDraw.hline(graphics, x + CARD_PAD, y + 16, w - CARD_PAD * 2, Theme.LINE);
 		return y + CARD_HEAD;
@@ -885,7 +883,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.22");
+			.orElse("1.1.23");
 	}
 
 	@Override
