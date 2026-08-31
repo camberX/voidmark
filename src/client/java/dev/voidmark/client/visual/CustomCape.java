@@ -41,6 +41,9 @@ public final class CustomCape {
 	private static volatile ClientAsset.Texture asset;
 	private static volatile int texW;
 	private static volatile int texH;
+	private static volatile int srcW;
+	private static volatile int srcH;
+	private static volatile boolean fitted;
 	private static int generation;
 
 	private CustomCape() {
@@ -69,9 +72,34 @@ public final class CustomCape {
 		return switch (status) {
 			case EMPTY -> "No cape";
 			case LOADING -> "Loading…";
-			case READY -> "Ready";
+			case READY -> fitted ? "Fitted " + srcW + "×" + srcH : "Template " + srcW + "×" + srcH;
 			case ERROR -> error.isBlank() ? "Failed" : error;
 		};
+	}
+
+	public static String layoutHint() {
+		return switch (status) {
+			case EMPTY -> "Any PNG. Pictures are fitted to the cape.";
+			case LOADING -> "Downloading…";
+			case READY -> fitted ? "Fitted onto the cape from " + srcW + "×" + srcH + "." : "Vanilla 64×32 cape atlas.";
+			case ERROR -> "";
+		};
+	}
+
+	public static int faceU() {
+		return CapeAtlas.FACE_U * CapeAtlas.atlasScale(texW);
+	}
+
+	public static int faceV() {
+		return CapeAtlas.FACE_V * CapeAtlas.atlasScale(texW);
+	}
+
+	public static int faceW() {
+		return CapeAtlas.FACE_W * CapeAtlas.atlasScale(texW);
+	}
+
+	public static int faceH() {
+		return CapeAtlas.FACE_H * CapeAtlas.atlasScale(texW);
 	}
 
 	public static Identifier textureId() {
@@ -276,21 +304,34 @@ public final class CustomCape {
 			failOn(gen, "Bad dimensions");
 			return;
 		}
+		int originalW = image.getWidth();
+		int originalH = image.getHeight();
+		boolean needsFit = !CapeAtlas.isVanillaLayout(originalW, originalH);
+		NativeImage atlas;
+		try {
+			atlas = CapeAtlas.toAtlas(image);
+		} catch (Exception exception) {
+			failOn(gen, "Can't convert cape");
+			return;
+		}
 		Minecraft.getInstance().execute(() -> {
 			if (gen != generation) {
-				image.close();
+				atlas.close();
 				return;
 			}
 			try {
-				DynamicTexture texture = new DynamicTexture(() -> "voidmark-cape", image);
+				DynamicTexture texture = new DynamicTexture(() -> "voidmark-cape", atlas);
 				Minecraft.getInstance().getTextureManager().register(TEXTURE_ID, texture);
 				asset = new ClientAsset.ResourceTexture(TEXTURE_ID, TEXTURE_ID);
-				texW = image.getWidth();
-				texH = image.getHeight();
+				texW = atlas.getWidth();
+				texH = atlas.getHeight();
+				srcW = originalW;
+				srcH = originalH;
+				fitted = needsFit;
 				status = Status.READY;
 				error = "";
 			} catch (Exception exception) {
-				image.close();
+				atlas.close();
 				fail("Register failed");
 			}
 		});
@@ -314,5 +355,8 @@ public final class CustomCape {
 		asset = null;
 		texW = 0;
 		texH = 0;
+		srcW = 0;
+		srcH = 0;
+		fitted = false;
 	}
 }

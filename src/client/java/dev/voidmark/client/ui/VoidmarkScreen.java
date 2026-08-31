@@ -350,8 +350,12 @@ public class VoidmarkScreen extends Screen {
 			}
 		}
 
-		featureCard(graphics, font, left, top, col, CARD_HEAD + 118 + CARD_PAD, "Preview");
-		drawCapePreview(graphics, ix + 8, top + CARD_HEAD + 4, iw - 16, 110);
+		featureCard(graphics, font, left, top, col, CARD_HEAD + 128 + CARD_PAD, "Preview");
+		drawCapePreview(graphics, ix + 8, top + CARD_HEAD + 4, iw - 16, 102);
+		String hint = CustomCape.layoutHint();
+		if (!hint.isBlank()) {
+			GuiDraw.small(graphics, font, clip(font, hint, (int) iw - 4), ix + 2, top + CARD_HEAD + 108, Theme.MUTED);
+		}
 
 		float y = featureCard(graphics, font, right, top, col, cardHeight(5), "Source");
 		GuiDraw.small(graphics, font, CustomCape.statusLabel(), rx, y + 2, CustomCape.status() == CustomCape.Status.ERROR ? Theme.WARN : Theme.MUTED);
@@ -400,11 +404,20 @@ public class VoidmarkScreen extends Screen {
 		float capeH = Math.min(h - 8, capeW * 1.7f);
 		float px = x + (w - capeW) * 0.5f;
 		float py = y + (h - capeH) * 0.5f;
-		if (tw >= 64 && th >= 32) {
-			GuiDraw.blit(graphics, CustomCape.textureId(), px, py, capeW, capeH, 11f, 1f, 10, 16, tw, th);
-		} else {
-			GuiDraw.blit(graphics, CustomCape.textureId(), px, py, capeW, capeH, 0f, 0f, tw, th, tw, th);
-		}
+		GuiDraw.blit(
+			graphics,
+			CustomCape.textureId(),
+			px,
+			py,
+			capeW,
+			capeH,
+			CustomCape.faceU(),
+			CustomCape.faceV(),
+			CustomCape.faceW(),
+			CustomCape.faceH(),
+			tw,
+			th
+		);
 	}
 
 	private void commitCapeUrl() {
@@ -1093,7 +1106,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.27");
+			.orElse("1.1.28");
 	}
 
 	@Override
