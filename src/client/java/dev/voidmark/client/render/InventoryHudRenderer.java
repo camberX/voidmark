@@ -41,11 +41,11 @@ public final class InventoryHudRenderer {
 	}
 
 	public static float drawWidth() {
-		return (PAD * 2 + COLS * SLOT + (COLS - 1) * GAP) * VoidmarkConfig.get().inventoryHudScale;
+		return PAD * 2 + COLS * SLOT + (COLS - 1) * GAP;
 	}
 
 	public static float drawHeight() {
-		return metrics().panelH * VoidmarkConfig.get().inventoryHudScale;
+		return metrics().panelH;
 	}
 
 	public static float defaultX(int guiW, float drawW, String anchor) {
@@ -89,7 +89,7 @@ public final class InventoryHudRenderer {
 		}
 		Inventory inventory = player.getInventory();
 		Font font = client.font;
-		float scale = config.inventoryHudScale;
+		float scale = HudLayout.scale(HudLayout.Id.INVENTORY);
 		Metrics layout = metrics();
 
 		graphics.pose().pushMatrix();

@@ -12,6 +12,8 @@ import java.util.List;
 public final class HudLayout {
 	public static final float MARGIN = 8f;
 	public static final float SNAP = 6f;
+	public static final float SCALE_MIN = 0.50f;
+	public static final float SCALE_MAX = 2.00f;
 
 	public enum Id {
 		WATERMARK("Watermark"),
@@ -118,6 +120,25 @@ public final class HudLayout {
 		}
 	}
 
+	public static float scale(Id id) {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		return switch (id) {
+			case WATERMARK -> VoidmarkConfig.clampHudScale(config.hudWatermarkScale);
+			case INVENTORY -> VoidmarkConfig.clampHudScale(config.inventoryHudScale);
+			case NODES -> VoidmarkConfig.clampHudScale(config.hudNodesScale);
+		};
+	}
+
+	public static void setScale(Id id, float scale) {
+		float value = VoidmarkConfig.clampHudScale(scale);
+		VoidmarkConfig config = VoidmarkConfig.get();
+		switch (id) {
+			case WATERMARK -> config.hudWatermarkScale = value;
+			case INVENTORY -> config.inventoryHudScale = value;
+			case NODES -> config.hudNodesScale = value;
+		}
+	}
+
 	public static void reset(Id id) {
 		VoidmarkConfig config = VoidmarkConfig.get();
 		switch (id) {
@@ -213,18 +234,20 @@ public final class HudLayout {
 	}
 
 	private static float width(Id id, Font font) {
+		float scale = scale(id);
 		return switch (id) {
-			case WATERMARK -> WatermarkRenderer.width(font);
-			case INVENTORY -> InventoryHudRenderer.drawWidth();
-			case NODES -> NodeHudRenderer.drawWidth();
+			case WATERMARK -> WatermarkRenderer.width(font) * scale;
+			case INVENTORY -> InventoryHudRenderer.drawWidth() * scale;
+			case NODES -> NodeHudRenderer.drawWidth() * scale;
 		};
 	}
 
 	private static float height(Id id) {
+		float scale = scale(id);
 		return switch (id) {
-			case WATERMARK -> WatermarkRenderer.HEIGHT;
-			case INVENTORY -> InventoryHudRenderer.drawHeight();
-			case NODES -> NodeHudRenderer.drawHeight();
+			case WATERMARK -> WatermarkRenderer.HEIGHT * scale;
+			case INVENTORY -> InventoryHudRenderer.drawHeight() * scale;
+			case NODES -> NodeHudRenderer.drawHeight() * scale;
 		};
 	}
 

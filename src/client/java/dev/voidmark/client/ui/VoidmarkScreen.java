@@ -67,6 +67,7 @@ public class VoidmarkScreen extends Screen {
 		MARKERS("Markers", Group.NODES),
 		DISPLAY("Display", Group.NODES),
 		STATUS("Status", Group.MISC),
+		INVENTORY("Inventory", Group.MISC),
 		NICK("Nick", Group.MISC),
 		CAPE("Cape", Group.MISC);
 
@@ -96,10 +97,11 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Markers", Tab.MARKERS, "Nodes"),
 		new SearchEntry("Filled box", Tab.DISPLAY, "ESP"),
 		new SearchEntry("Watermark", Tab.DISPLAY, "HUD"),
-		new SearchEntry("Inventory HUD", Tab.DISPLAY, "HUD"),
-		new SearchEntry("Hotbar", Tab.DISPLAY, "HUD"),
-		new SearchEntry("Armor", Tab.DISPLAY, "HUD"),
-		new SearchEntry("Item count", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Node HUD", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Inventory HUD", Tab.INVENTORY, "Inventory"),
+		new SearchEntry("Hotbar", Tab.INVENTORY, "Inventory"),
+		new SearchEntry("Armor", Tab.INVENTORY, "Inventory"),
+		new SearchEntry("Item count", Tab.INVENTORY, "Inventory"),
 		new SearchEntry("Pane opacity", Tab.DISPLAY, "Theme"),
 		new SearchEntry("FPS", Tab.STATUS, "Stats"),
 		new SearchEntry("Ping", Tab.STATUS, "Stats"),
@@ -483,6 +485,7 @@ public class VoidmarkScreen extends Screen {
 			case MARKERS -> MenuFont.CUBE;
 			case DISPLAY -> MenuFont.MONITOR;
 			case STATUS -> MenuFont.SIGNAL;
+			case INVENTORY -> MenuFont.BAG;
 			case NICK -> MenuFont.PERSON;
 			case CAPE -> MenuFont.FLAG;
 		};
@@ -606,6 +609,15 @@ public class VoidmarkScreen extends Screen {
 				config.fillOpacity = 0.32f;
 				config.hudEnabled = true;
 				config.watermarkEnabled = true;
+				config.hudWatermarkX = -1f;
+				config.hudWatermarkY = -1f;
+				config.hudWatermarkScale = 1.0f;
+				config.hudNodesX = -1f;
+				config.hudNodesY = -1f;
+				config.hudNodesScale = 1.0f;
+				config.colorRgb = 0x2FB5FF;
+			}
+			case INVENTORY -> {
 				config.inventoryHudEnabled = true;
 				config.inventoryHudHotbar = true;
 				config.inventoryHudArmor = true;
@@ -614,11 +626,6 @@ public class VoidmarkScreen extends Screen {
 				config.inventoryHudScale = 1.0f;
 				config.hudInventoryX = -1f;
 				config.hudInventoryY = -1f;
-				config.hudWatermarkX = -1f;
-				config.hudWatermarkY = -1f;
-				config.hudNodesX = -1f;
-				config.hudNodesY = -1f;
-				config.colorRgb = 0x2FB5FF;
 			}
 			case STATUS -> {
 			}
@@ -811,14 +818,21 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(7), "Hud");
+				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Overlay");
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Inventory", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Hotbar", config.inventoryHudHotbar, v -> config.inventoryHudHotbar = v);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Armor", config.inventoryHudArmor, v -> config.inventoryHudArmor = v);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Item count", config.inventoryHudCount, v -> config.inventoryHudCount = v);
-				slider(graphics, font, rx, y, iw, "Scale", Math.round(config.inventoryHudScale * 100) + "%", (config.inventoryHudScale - 0.70f) / 0.70f, v -> config.inventoryHudScale = VoidmarkConfig.clamp(0.70f + v * 0.70f, 0.70f, 1.40f));
+				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
+			}
+			case INVENTORY -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Inventory HUD");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hotbar", config.inventoryHudHotbar, v -> config.inventoryHudHotbar = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Armor", config.inventoryHudArmor, v -> config.inventoryHudArmor = v);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Item count", config.inventoryHudCount, v -> config.inventoryHudCount = v);
+
+				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 48 + CARD_PAD, "Layout");
+				GuiDraw.menu(graphics, font, "Move and scale this HUD", rx, y + 2, Theme.MUTED);
+				GuiDraw.menu(graphics, font, "from the toolbar HUD editor.", rx, y + 14, Theme.MUTED);
+				GuiDraw.menu(graphics, font, "Scroll or drag the scale bar.", rx, y + 26, Theme.MUTED);
 			}
 			case STATUS -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(5), "Server");
@@ -1129,7 +1143,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.30");
+			.orElse("1.1.31");
 	}
 
 	@Override

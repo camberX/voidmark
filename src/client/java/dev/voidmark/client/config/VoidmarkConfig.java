@@ -60,6 +60,8 @@ public final class VoidmarkConfig {
 	public boolean inventoryHudCount = true;
 	public String inventoryHudAnchor = "bottom_right";
 	public float inventoryHudScale = 1.0f;
+	public float hudWatermarkScale = 1.0f;
+	public float hudNodesScale = 1.0f;
 	public float hudInventoryX = -1f;
 	public float hudInventoryY = -1f;
 	public float hudWatermarkX = -1f;
@@ -127,7 +129,9 @@ public final class VoidmarkConfig {
 					loaded.nick = "";
 				}
 				loaded.inventoryHudAnchor = normalizeInventoryHudAnchor(loaded.inventoryHudAnchor);
-				loaded.inventoryHudScale = clamp(loaded.inventoryHudScale, 0.70f, 1.40f);
+				loaded.inventoryHudScale = clampHudScale(loaded.inventoryHudScale);
+				loaded.hudWatermarkScale = clampHudScale(loaded.hudWatermarkScale);
+				loaded.hudNodesScale = clampHudScale(loaded.hudNodesScale);
 				loaded.themePaneOpacity = loaded.themePaneOpacity <= 0f
 					? 0.90f
 					: clamp(loaded.themePaneOpacity, 0.20f, 1f);
@@ -201,6 +205,13 @@ public final class VoidmarkConfig {
 
 	public static String normalizeWorldTintMode(String mode) {
 		return "lightmap".equalsIgnoreCase(mode) ? "lightmap" : "shader";
+	}
+
+	public static float clampHudScale(float value) {
+		if (value <= 0f) {
+			return 1.0f;
+		}
+		return clamp(value, 0.50f, 2.00f);
 	}
 
 	public static int clamp(int value, int min, int max) {

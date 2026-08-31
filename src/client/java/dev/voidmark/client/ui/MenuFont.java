@@ -30,6 +30,7 @@ public final class MenuFont {
 	public static final String CHEVRON = "\uE5CF";
 	public static final String PERSON = "\uE7FD";
 	public static final String FLAG = "\uE227";
+	public static final String BAG = "\uE8CC";
 
 	private MenuFont() {
 	}

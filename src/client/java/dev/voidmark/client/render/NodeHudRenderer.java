@@ -60,10 +60,10 @@ public final class NodeHudRenderer {
 
 		Font font = client.font;
 		HudLayout.Box box = HudLayout.box(HudLayout.Id.NODES, font, graphics.guiWidth(), graphics.guiHeight());
-		draw(graphics, client, font, box.x(), box.y(), deltaTracker);
+		draw(graphics, client, font, box.x(), box.y(), HudLayout.scale(HudLayout.Id.NODES), deltaTracker);
 	}
 
-	public static void draw(GuiGraphicsExtractor graphics, Minecraft client, Font font, float x, float y, DeltaTracker deltaTracker) {
+	public static void draw(GuiGraphicsExtractor graphics, Minecraft client, Font font, float x, float y, float scale, DeltaTracker deltaTracker) {
 		int count = EnderNodeTracker.get().count();
 		EnderNodeTracker.TrackedNode nearest = null;
 		if (client.player != null) {
@@ -73,12 +73,18 @@ public final class NodeHudRenderer {
 		float width = WIDTH;
 		float height = nearest == null ? HEIGHT_EMPTY : HEIGHT_TRACK;
 
-		GuiDraw.panel(graphics, x, y, width, height, 6, Theme.WINDOW, Theme.LINE);
-		GuiDraw.rounded(graphics, x + 1, y + 1, 3, height - 2, 1.5f, Theme.ACCENT);
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x, y);
+		if (scale != 1.0f) {
+			graphics.pose().scale(scale, scale);
+		}
 
-		GuiDraw.small(graphics, font, "NODES", x + 10, y + 5, Theme.ACCENT);
+		GuiDraw.panel(graphics, 0, 0, width, height, 6, Theme.WINDOW, Theme.LINE);
+		GuiDraw.rounded(graphics, 1, 1, 3, height - 2, 1.5f, Theme.ACCENT);
+
+		GuiDraw.small(graphics, font, "NODES", 10, 5, Theme.ACCENT);
 		String headline = count == 0 ? "No nodes in range" : count == 1 ? "1 ender node" : count + " ender nodes";
-		GuiDraw.menu(graphics, font, headline, x + 10, y + 18, Theme.TEXT);
+		GuiDraw.menu(graphics, font, headline, 10, 18, Theme.TEXT);
 
 		if (nearest != null && client.player != null) {
 			Vec3 eyes = client.player.getEyePosition(deltaTracker.getGameTimeDeltaPartialTick(false));
@@ -86,12 +92,13 @@ public final class NodeHudRenderer {
 			float yaw = nearest.yawTo(eyes);
 			float delta = GuiDraw.wrapDegrees(yaw - client.player.getYRot());
 			String detail = GuiDraw.meters(distance) + "  ·  " + GuiDraw.compass(delta);
-			GuiDraw.menu(graphics, font, detail, x + 10, y + 32, Theme.MUTED);
+			GuiDraw.menu(graphics, font, detail, 10, 32, Theme.MUTED);
 
 			float barWidth = width - 24;
 			float needle = Mth.clamp((delta + 180.0f) / 360.0f, 0.0f, 1.0f);
-			GuiDraw.fill(graphics, x + 12, y + 47, barWidth, 2, Theme.TRACK);
-			GuiDraw.fill(graphics, x + 12 + needle * (barWidth - 4), y + 45, 4, 6, Theme.ACCENT);
+			GuiDraw.fill(graphics, 12, 47, barWidth, 2, Theme.TRACK);
+			GuiDraw.fill(graphics, 12 + needle * (barWidth - 4), 45, 4, 6, Theme.ACCENT);
 		}
+		graphics.pose().popMatrix();
 	}
 }
