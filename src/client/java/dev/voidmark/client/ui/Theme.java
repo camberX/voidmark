@@ -5,8 +5,6 @@ public final class Theme {
 	public static final int ACCENT_DIM = 0xFF1A6FA8;
 	public static final int WINDOW = 0xFF0B0E14;
 	public static final int SIDEBAR = 0xB3142032;
-	public static final int FROST_SHEEN_TOP = 0x28184868;
-	public static final int FROST_SHEEN_BOTTOM = 0x00081820;
 	public static final int NAV_PILL = 0xE01E5F8C;
 	public static final int CARD = 0xFF12151C;
 	public static final int CARD_HOVER = 0xFF171B24;
