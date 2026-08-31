@@ -1,7 +1,7 @@
 package dev.voidmark.client.render;
 
+import dev.voidmark.client.net.ConnectionPing;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.PlayerInfo;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -18,11 +18,18 @@ public final class HudStats {
 
 	public static int ping() {
 		Minecraft client = Minecraft.getInstance();
-		if (client.player == null || client.player.connection == null) {
+		if (client.player == null || client.isLocalServer()) {
 			return -1;
 		}
-		PlayerInfo info = client.player.connection.getPlayerInfo(client.player.getUUID());
-		return info == null ? -1 : info.getLatency();
+		return ConnectionPing.get();
+	}
+
+	public static String pingLabel() {
+		if (Minecraft.getInstance().isLocalServer()) {
+			return "singleplayer";
+		}
+		int ping = ping();
+		return ping < 0 ? "…" : ping + " ms";
 	}
 
 	public static String time() {

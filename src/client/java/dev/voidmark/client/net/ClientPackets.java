@@ -4,13 +4,23 @@ import dev.voidmark.client.node.EnderNodeTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
+import net.minecraft.network.protocol.ping.ClientboundPongResponsePacket;
 
 public final class ClientPackets {
 	private ClientPackets() {
 	}
 
 	public static void onReceived(Packet<?> packet) {
+		if (packet instanceof ClientboundPongResponsePacket pong) {
+			ConnectionPing.onPong(pong.time());
+			return;
+		}
+		if (packet instanceof ClientboundKeepAlivePacket keepAlive) {
+			ConnectionPing.onKeepAlive(keepAlive.getId());
+			return;
+		}
 		if (!(packet instanceof ClientboundLevelParticlesPacket particles)) {
 			return;
 		}

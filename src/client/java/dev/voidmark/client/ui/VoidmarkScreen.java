@@ -658,8 +658,7 @@ public class VoidmarkScreen extends Screen {
 				y = readout(graphics, font, ix, y, iw, "Skyblock", SkyblockLocation.inSkyblock);
 				y = readout(graphics, font, ix, y, iw, "The End", SkyblockLocation.inTheEnd);
 				y = statRow(graphics, font, ix, y, iw, "FPS", HudStats.fps() + "");
-				int ping = HudStats.ping();
-				statRow(graphics, font, ix, y, iw, "Ping", ping < 0 ? "—" : ping + " ms");
+				statRow(graphics, font, ix, y, iw, "Ping", HudStats.pingLabel());
 
 				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 42 + CARD_PAD, "Nodes");
 				String area = SkyblockLocation.area.isEmpty() ? "Unknown" : SkyblockLocation.area;
@@ -886,7 +885,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.20");
+			.orElse("1.1.21");
 	}
 
 	@Override

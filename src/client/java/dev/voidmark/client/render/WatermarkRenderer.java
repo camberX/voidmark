@@ -52,8 +52,7 @@ public final class WatermarkRenderer {
 			parts.add(HudStats.fps() + " fps");
 		}
 		if (config.watermarkPing) {
-			int ping = HudStats.ping();
-			parts.add(ping < 0 ? "singleplayer" : ping + " ms");
+			parts.add(HudStats.pingLabel());
 		}
 		if (config.watermarkTime) {
 			parts.add(HudStats.time());

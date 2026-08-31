@@ -5,6 +5,7 @@ import com.mojang.brigadier.Command;
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
+import dev.voidmark.client.net.ConnectionPing;
 import dev.voidmark.client.node.EnderNodeTracker;
 import dev.voidmark.client.render.NodeHudRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
@@ -66,11 +67,13 @@ public final class VoidmarkClient implements ClientModInitializer {
 
 			SkyblockLocation.tick(client);
 			EnderNodeTracker.get().tick(client);
+			ConnectionPing.tick(client);
 		});
 
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			SkyblockLocation.reset();
 			EnderNodeTracker.get().clear();
+			ConnectionPing.reset();
 		});
 	}
 
