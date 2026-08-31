@@ -54,6 +54,10 @@ public final class VoidmarkConfig {
 	public boolean watermarkPing = true;
 	public boolean watermarkTime = true;
 	public boolean watermarkName = false;
+	public String capeUrl = "";
+	public String capePath = "";
+	public boolean nickEnabled = false;
+	public String nick = "";
 
 	private VoidmarkConfig() {
 	}
@@ -99,6 +103,15 @@ public final class VoidmarkConfig {
 					if (loaded.themePaneRgb == 0) {
 						loaded.themePaneRgb = 0x0B0E14;
 					}
+				}
+				if (loaded.capeUrl == null) {
+					loaded.capeUrl = "";
+				}
+				if (loaded.capePath == null) {
+					loaded.capePath = "";
+				}
+				if (loaded.nick == null) {
+					loaded.nick = "";
 				}
 				instance = loaded;
 			}

@@ -3,12 +3,19 @@
 	"package": "dev.voidmark.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"AbstractClientPlayerMixin",
+		"AvatarRendererMixin",
+		"ChatComponentMixin",
 		"ConnectionMixin",
+		"EntityRendererMixin",
 		"FogRendererMixin",
-		"SkyRendererMixin",
+		"FontMixin",
+		"GuiGraphicsExtractorMixin",
 		"LightmapRenderStateExtractorMixin",
 		"ModelBlockRendererMixin",
-		"ProjectionMixin"
+		"PlayerTabOverlayMixin",
+		"ProjectionMixin",
+		"SkyRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

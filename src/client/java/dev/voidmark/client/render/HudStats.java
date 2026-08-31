@@ -1,6 +1,8 @@
 package dev.voidmark.client.render;
 
+import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.net.ConnectionPing;
+import dev.voidmark.client.visual.NickHider;
 import net.minecraft.client.Minecraft;
 
 import java.time.LocalTime;
@@ -37,6 +39,10 @@ public final class HudStats {
 	}
 
 	public static String playerName() {
+		if (VoidmarkConfig.get().nickEnabled) {
+			String nick = NickHider.plainNick();
+			return nick.isBlank() ? "" : nick;
+		}
 		Minecraft client = Minecraft.getInstance();
 		String name = client.getGameProfile().name();
 		if (name == null || name.isBlank()) {

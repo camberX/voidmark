@@ -28,6 +28,7 @@ public final class MenuFont {
 	public static final String BELL = "\uE7F4";
 	public static final String SEARCH = "\uE8B6";
 	public static final String CHEVRON = "\uE5CF";
+	public static final String PERSON = "\uE7FD";
 
 	private MenuFont() {
 	}

@@ -90,6 +90,17 @@ public final class GuiDraw {
 		graphics.pose().popMatrix();
 	}
 
+	public static void blit(GuiGraphicsExtractor graphics, Identifier id, float x, float y, float w, float h, float u, float v, int regionW, int regionH, int texW, int texH) {
+		if (w <= 0 || h <= 0) {
+			return;
+		}
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x, y);
+		graphics.pose().scale(w, h);
+		graphics.blit(RenderPipelines.GUI_TEXTURED, id, 0, 0, u, v, 1, 1, regionW, regionH, texW, texH);
+		graphics.pose().popMatrix();
+	}
+
 	public static void rounded(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
 		float r = Math.min(radius, Math.min(w, h) / 2f);
 		if (r < 0.75f) {

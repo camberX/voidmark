@@ -7,6 +7,8 @@ import dev.voidmark.client.location.SkyblockLocation;
 import dev.voidmark.client.node.EnderNodeTracker;
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.HudStats;
+import dev.voidmark.client.visual.CustomCape;
+import dev.voidmark.client.visual.NickHider;
 import dev.voidmark.client.visual.WorldTint;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.Font;
@@ -29,9 +31,9 @@ import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 
 public class VoidmarkScreen extends Screen {
-	private static final float MENU_W = 400;
-	private static final float MENU_H = 248;
-	private static final float SIDEBAR_W = 88;
+	private static final float MENU_W = 410;
+	private static final float MENU_H = 316;
+	private static final float SIDEBAR_W = 92;
 	private static final float TOOLBAR_H = 22;
 	private static final float ROW = 16;
 	private static final float COL_GAP = 10;
@@ -64,7 +66,8 @@ public class VoidmarkScreen extends Screen {
 		FOG("Fog", Group.VISUALS),
 		MARKERS("Markers", Group.NODES),
 		DISPLAY("Display", Group.NODES),
-		STATUS("Status", Group.MISC);
+		STATUS("Status", Group.MISC),
+		NICK("Nick", Group.MISC);
 
 		final String label;
 		final Group group;
@@ -94,7 +97,8 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Watermark", Tab.DISPLAY, "HUD"),
 		new SearchEntry("FPS", Tab.STATUS, "Stats"),
 		new SearchEntry("Ping", Tab.STATUS, "Stats"),
-		new SearchEntry("Hypixel", Tab.STATUS, "Server")
+		new SearchEntry("Hypixel", Tab.STATUS, "Server"),
+		new SearchEntry("Nick hider", Tab.NICK, "Name")
 	};
 
 	private final List<Hit> hits = new ArrayList<>();
@@ -110,7 +114,10 @@ public class VoidmarkScreen extends Screen {
 	private boolean settingsOpen;
 	private boolean bellOpen;
 	private boolean searchOpen;
+	private boolean capeFocused;
+	private boolean nickFocused;
 	private String searchQuery = "";
+	private String capeUrlDraft = "";
 	private boolean dragging;
 	private double dragOffX;
 	private double dragOffY;
@@ -118,6 +125,8 @@ public class VoidmarkScreen extends Screen {
 	private long lastNs = System.nanoTime();
 	private float dt = 0.016f;
 	private float appear;
+	private boolean closing;
+	private boolean finishedClose;
 	private float navY = -1f;
 	private float settingsT;
 	private float bellT;
@@ -129,6 +138,12 @@ public class VoidmarkScreen extends Screen {
 	private float bellY;
 	private float searchFieldX;
 	private float searchFieldW;
+	private float capeFieldX;
+	private float capeFieldY;
+	private float capeFieldW;
+	private float nickFieldX;
+	private float nickFieldY;
+	private float nickFieldW;
 
 	private float windowX;
 	private float windowY;
@@ -137,6 +152,13 @@ public class VoidmarkScreen extends Screen {
 
 	public VoidmarkScreen() {
 		super(Component.literal("Voidmark"));
+		String url = VoidmarkConfig.get().capeUrl;
+		if (url != null && !url.isBlank()) {
+			capeUrlDraft = url;
+		} else {
+			String path = VoidmarkConfig.get().capePath;
+			capeUrlDraft = path == null ? "" : path;
+		}
 	}
 
 	@Override
@@ -155,11 +177,25 @@ public class VoidmarkScreen extends Screen {
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
 		tickAnim();
 		hits.clear();
+		if (closing && appear <= 0.02f) {
+			finishClose();
+			return;
+		}
 		Font font = minecraft.font;
 		layout();
 
 		int dim = Anim.fade(0x14000000, appear);
 		GuiDraw.fill(graphics, 0, 0, width, height, dim);
+
+		float scale = 0.92f + 0.08f * appear;
+		float lift = (1f - appear) * 12f;
+		float cx = windowX + windowW * 0.5f;
+		float cy = windowY + windowH * 0.5f;
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(cx, cy + lift);
+		graphics.pose().scale(scale, scale);
+		graphics.pose().translate(-cx, -cy);
+
 		int shadow = Anim.fade(0x66000000, appear);
 		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W + 1, windowY + 2, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, shadow);
 		GuiDraw.roundLeft(graphics, windowX, windowY, SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.SIDEBAR);
@@ -181,13 +217,17 @@ public class VoidmarkScreen extends Screen {
 		if (pickerT > 0.02f && pickerTarget != null) {
 			drawPicker(graphics, font);
 		}
+		graphics.pose().popMatrix();
+		if (closing || appear < 0.88f) {
+			hits.clear();
+		}
 	}
 
 	private void tickAnim() {
 		long now = System.nanoTime();
 		dt = Math.min(0.05f, (now - lastNs) / 1_000_000_000f);
 		lastNs = now;
-		appear = Anim.exp(appear, 1f, 11f, dt);
+		appear = Anim.exp(appear, closing ? 0f : 1f, closing ? 16f : 13f, dt);
 		settingsT = Anim.exp(settingsT, settingsOpen ? 1f : 0f, 18f, dt);
 		bellT = Anim.exp(bellT, bellOpen ? 1f : 0f, 18f, dt);
 		searchT = Anim.exp(searchT, searchOpen ? 1f : 0f, 18f, dt);
@@ -265,6 +305,8 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.icon(graphics, font, tabGlyph(tab), windowX + 11, labelY, Theme.TEXT);
 		GuiDraw.menu(graphics, font, tab.label, windowX + 24, labelY, Theme.TEXT);
 
+		drawCapeSection(graphics, font, mouseX, mouseY);
+
 		float footY = windowY + windowH - 20;
 		int face = 14;
 		int faceX = Math.round(windowX + 10);
@@ -283,9 +325,110 @@ public class VoidmarkScreen extends Screen {
 		tab = value;
 		pickerTarget = null;
 		searchOpen = false;
+		capeFocused = false;
+		nickFocused = tab == Tab.NICK;
+		commitCapeUrl();
+	}
+
+	private void drawCapeSection(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
+		float x = windowX + 8;
+		float w = SIDEBAR_W - 16;
+		float previewH = 44;
+		float fieldH = 14;
+		float blockH = 12 + previewH + 4 + fieldH + 4 + fieldH;
+		float y = windowY + windowH - 24 - blockH;
+		if (!capeFocused) {
+			VoidmarkConfig config = VoidmarkConfig.get();
+			if (config.capeUrl != null && !config.capeUrl.isBlank()) {
+				capeUrlDraft = config.capeUrl;
+			} else if (config.capePath != null && !config.capePath.isBlank()) {
+				capeUrlDraft = config.capePath;
+			} else if (CustomCape.status() == CustomCape.Status.EMPTY) {
+				capeUrlDraft = "";
+			}
+		}
+		GuiDraw.small(graphics, font, "CAPE", x, y, Theme.HEADER);
+		y += 11;
+
+		GuiDraw.panel(graphics, x, y, w, previewH, 6, Theme.CARD, Theme.LINE);
+		drawCapePreview(graphics, x + 4, y + 3, w - 8, previewH - 6);
+		if (CustomCape.status() != CustomCape.Status.READY) {
+			GuiDraw.small(graphics, font, clip(font, CustomCape.statusLabel(), (int) w - 10), x + 5, y + previewH - 11, CustomCape.status() == CustomCape.Status.ERROR ? Theme.WARN : Theme.MUTED);
+		}
+		y += previewH + 4;
+
+		capeFieldX = x;
+		capeFieldY = y;
+		capeFieldW = w;
+		boolean hoverField = GuiDraw.hovered(mouseX, mouseY, x, y, w, fieldH);
+		GuiDraw.panel(graphics, x, y, w, fieldH, 4, capeFocused || hoverField ? Theme.CARD_HOVER : Theme.CARD, capeFocused ? Theme.ACCENT : Theme.LINE);
+		NickHider.suppress();
+		String shown;
+		if (capeUrlDraft.isEmpty() && !capeFocused) {
+			shown = "Texture URL...";
+		} else {
+			shown = capeUrlDraft + (capeFocused ? "|" : "");
+		}
+		int color = capeUrlDraft.isEmpty() && !capeFocused ? Theme.MUTED : Theme.TEXT;
+		GuiDraw.small(graphics, font, clip(font, shown, (int) w - 8), x + 4, GuiDraw.middle(y, fieldH) + 1, color);
+		NickHider.resume();
+		hits.add(new Hit(x, y, w, fieldH, () -> {
+			capeFocused = true;
+			nickFocused = false;
+			searchOpen = false;
+		}));
+		y += fieldH + 4;
+
+		boolean hoverFile = GuiDraw.hovered(mouseX, mouseY, x, y, w, fieldH);
+		GuiDraw.panel(graphics, x, y, w, fieldH, 4, hoverFile ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
+		GuiDraw.small(graphics, font, "Local file...", x + 4, GuiDraw.middle(y, fieldH) + 1, Theme.TEXT);
+		hits.add(new Hit(x, y, w, fieldH, CustomCape::pickLocal));
+	}
+
+	private void drawCapePreview(GuiGraphicsExtractor graphics, float x, float y, float w, float h) {
+		if (!CustomCape.ready()) {
+			float cx = x + w * 0.5f;
+			GuiDraw.rounded(graphics, cx - 10, y + 4, 20, h - 8, 3, Theme.TRACK);
+			return;
+		}
+		int tw = CustomCape.width();
+		int th = CustomCape.height();
+		float capeW = Math.min(w - 4, 22);
+		float capeH = Math.min(h - 4, capeW * 1.7f);
+		float px = x + (w - capeW) * 0.5f;
+		float py = y + (h - capeH) * 0.5f;
+		if (tw >= 64 && th >= 32) {
+			GuiDraw.blit(graphics, CustomCape.textureId(), px, py, capeW, capeH, 11f, 1f, 10, 16, tw, th);
+		} else {
+			GuiDraw.blit(graphics, CustomCape.textureId(), px, py, capeW, capeH, 0f, 0f, tw, th, tw, th);
+		}
+	}
+
+	private void commitCapeUrl() {
+		String draft = capeUrlDraft.trim();
+		VoidmarkConfig config = VoidmarkConfig.get();
+		if (draft.isEmpty()) {
+			if ((config.capeUrl == null || config.capeUrl.isBlank()) && (config.capePath == null || config.capePath.isBlank())) {
+				return;
+			}
+			CustomCape.clear();
+			return;
+		}
+		if (draft.equals(config.capeUrl) || draft.equals(config.capePath)) {
+			return;
+		}
+		if (draft.startsWith("http://") || draft.startsWith("https://")) {
+			CustomCape.applyUrl(draft);
+		}
 	}
 
 	private String playerName() {
+		if (VoidmarkConfig.get().nickEnabled) {
+			String nick = NickHider.plainNick();
+			if (!nick.isBlank()) {
+				return nick;
+			}
+		}
 		String name = minecraft.getGameProfile().name();
 		if (name == null || name.isBlank()) {
 			return "Player";
@@ -319,6 +462,7 @@ public class VoidmarkScreen extends Screen {
 			case MARKERS -> MenuFont.CUBE;
 			case DISPLAY -> MenuFont.MONITOR;
 			case STATUS -> MenuFont.SIGNAL;
+			case NICK -> MenuFont.PERSON;
 		};
 	}
 
@@ -447,6 +591,10 @@ public class VoidmarkScreen extends Screen {
 				config.colorRgb = 0x2FB5FF;
 			}
 			case STATUS -> {
+			}
+			case NICK -> {
+				config.nickEnabled = false;
+				config.nick = "";
 			}
 		}
 		WorldTint.syncChunkMeshes(minecraft);
@@ -641,6 +789,47 @@ public class VoidmarkScreen extends Screen {
 				GuiDraw.menu(graphics, font, area, rx, y + 2, Theme.TEXT);
 				GuiDraw.menu(graphics, font, EnderNodeTracker.get().count() + " tracked", rx, y + 14, Theme.MUTED);
 				GuiDraw.menu(graphics, font, "Right Shift", rx, y + 28, Theme.HEADER);
+			}
+			case NICK -> {
+				float full = contentW();
+				float y = featureCard(graphics, font, left, top, full, cardHeight(2), "Hider");
+				y = toggle(graphics, font, left + CARD_PAD, y, full - CARD_PAD * 2, mouseX, mouseY, "Replace my name", config.nickEnabled, v -> config.nickEnabled = v);
+				GuiDraw.small(graphics, font, "Chat, tab, scoreboard, nametags. Use &6 &l codes.", left + CARD_PAD, y + 2, Theme.MUTED);
+
+				float inputY = top + cardHeight(2) + 8;
+				nickFieldX = left;
+				nickFieldY = inputY;
+				nickFieldW = full;
+				boolean hoverNick = GuiDraw.hovered(mouseX, mouseY, left, inputY, full, 18);
+				GuiDraw.panel(graphics, left, inputY, full, 18, 5, nickFocused || hoverNick ? Theme.CARD_HOVER : Theme.CARD, nickFocused ? Theme.ACCENT : Theme.LINE);
+				NickHider.suppress();
+				String raw = config.nick == null ? "" : config.nick;
+				String shown = raw.isEmpty() && !nickFocused ? "Nick  (&6Name)" : raw + (nickFocused ? "|" : "");
+				GuiDraw.menu(graphics, font, clip(font, shown, (int) full - 14), left + 7, GuiDraw.middle(inputY, 18), raw.isEmpty() && !nickFocused ? Theme.MUTED : Theme.TEXT);
+				NickHider.resume();
+				hits.add(new Hit(left, inputY, full, 18, () -> {
+					nickFocused = true;
+					capeFocused = false;
+					searchOpen = false;
+				}));
+
+				float previewY = inputY + 26;
+				float previewH = 56;
+				GuiDraw.panel(graphics, left, previewY, full, previewH, 8, Theme.CARD, Theme.LINE);
+				GuiDraw.small(graphics, font, "PREVIEW", left + CARD_PAD, previewY + 6, Theme.HEADER);
+				GuiDraw.hline(graphics, left + CARD_PAD, previewY + 16, full - CARD_PAD * 2, Theme.LINE);
+				GuiDraw.rounded(graphics, left + CARD_PAD, previewY + 22, full - CARD_PAD * 2, 26, 5, Theme.PANEL);
+				NickHider.suppress();
+				Component preview = config.nickEnabled ? NickHider.formattedNick() : Component.literal(playerName());
+				if (preview.getString().isEmpty()) {
+					GuiDraw.menu(graphics, font, "Your name will be hidden", left + CARD_PAD + 6, GuiDraw.middle(previewY + 22, 26), Theme.MUTED);
+				} else {
+					graphics.pose().pushMatrix();
+					graphics.pose().translate(left + CARD_PAD + 6, GuiDraw.middle(previewY + 22, 26));
+					graphics.text(font, preview, 0, 0, 0xFFFFFFFF, false);
+					graphics.pose().popMatrix();
+				}
+				NickHider.resume();
 			}
 		}
 	}
@@ -895,7 +1084,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.25");
+			.orElse("1.1.26");
 	}
 
 	@Override
@@ -905,6 +1094,15 @@ public class VoidmarkScreen extends Screen {
 		}
 		lastClickY = event.y();
 		dragging = false;
+		boolean onCape = GuiDraw.hovered(event.x(), event.y(), capeFieldX, capeFieldY, capeFieldW, 14);
+		boolean onNick = GuiDraw.hovered(event.x(), event.y(), nickFieldX, nickFieldY, nickFieldW, 18);
+		if (capeFocused && !onCape) {
+			capeFocused = false;
+			commitCapeUrl();
+		}
+		if (nickFocused && !onNick) {
+			nickFocused = false;
+		}
 		for (int i = hits.size() - 1; i >= 0; i--) {
 			Hit hit = hits.get(i);
 			if (hit.contains(event.x(), event.y())) {
@@ -962,6 +1160,15 @@ public class VoidmarkScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (event.isEscape()) {
+			if (capeFocused) {
+				capeFocused = false;
+				commitCapeUrl();
+				return true;
+			}
+			if (nickFocused) {
+				nickFocused = false;
+				return true;
+			}
 			if (searchOpen) {
 				searchOpen = false;
 				searchQuery = "";
@@ -980,6 +1187,43 @@ public class VoidmarkScreen extends Screen {
 				return true;
 			}
 		}
+		if (capeFocused && event.key() == InputConstants.KEY_BACKSPACE) {
+			if (!capeUrlDraft.isEmpty()) {
+				capeUrlDraft = capeUrlDraft.substring(0, capeUrlDraft.length() - 1);
+			}
+			return true;
+		}
+		if (nickFocused && event.key() == InputConstants.KEY_BACKSPACE) {
+			String nick = VoidmarkConfig.get().nick;
+			if (nick != null && !nick.isEmpty()) {
+				VoidmarkConfig.get().nick = nick.substring(0, nick.length() - 1);
+			}
+			return true;
+		}
+		if (capeFocused && event.key() == InputConstants.KEY_RETURN) {
+			capeFocused = false;
+			commitCapeUrl();
+			return true;
+		}
+		if (nickFocused && event.key() == InputConstants.KEY_RETURN) {
+			nickFocused = false;
+			return true;
+		}
+		if (capeFocused && event.key() == InputConstants.KEY_V && event.hasControlDown()) {
+			String clip = minecraft.keyboardHandler.getClipboard();
+			if (clip != null && !clip.isBlank()) {
+				capeUrlDraft += clip.replace("\n", "").replace("\r", "").trim();
+			}
+			return true;
+		}
+		if (nickFocused && event.key() == InputConstants.KEY_V && event.hasControlDown()) {
+			String clip = minecraft.keyboardHandler.getClipboard();
+			if (clip != null && !clip.isBlank()) {
+				VoidmarkConfig config = VoidmarkConfig.get();
+				config.nick = (config.nick == null ? "" : config.nick) + clip.replace("\n", "").replace("\r", "");
+			}
+			return true;
+		}
 		if (searchOpen && event.key() == InputConstants.KEY_BACKSPACE) {
 			if (!searchQuery.isEmpty()) {
 				searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
@@ -990,6 +1234,8 @@ public class VoidmarkScreen extends Screen {
 			searchOpen = true;
 			settingsOpen = false;
 			bellOpen = false;
+			capeFocused = false;
+			nickFocused = false;
 			return true;
 		}
 		return super.keyPressed(event);
@@ -997,6 +1243,20 @@ public class VoidmarkScreen extends Screen {
 
 	@Override
 	public boolean charTyped(CharacterEvent event) {
+		if (capeFocused && event.isAllowedChatCharacter()) {
+			capeUrlDraft += event.codepointAsString();
+			return true;
+		}
+		if (nickFocused && event.isAllowedChatCharacter()) {
+			VoidmarkConfig config = VoidmarkConfig.get();
+			if (config.nick == null) {
+				config.nick = "";
+			}
+			if (config.nick.length() < 48) {
+				config.nick += event.codepointAsString();
+			}
+			return true;
+		}
 		if (searchOpen && event.isAllowedChatCharacter()) {
 			searchQuery += event.codepointAsString();
 			return true;
@@ -1004,9 +1264,28 @@ public class VoidmarkScreen extends Screen {
 		return super.charTyped(event);
 	}
 
+	public void requestClose() {
+		onClose();
+	}
+
 	@Override
 	public void onClose() {
 		VoidmarkConfig.get().save();
+		commitCapeUrl();
+		if (!closing && VoidmarkConfig.get().uiAnimations && appear > 0.04f) {
+			closing = true;
+			capeFocused = false;
+			nickFocused = false;
+			return;
+		}
+		finishClose();
+	}
+
+	private void finishClose() {
+		if (finishedClose) {
+			return;
+		}
+		finishedClose = true;
 		WorldTint.syncChunkMeshes(minecraft);
 		super.onClose();
 	}

@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.25.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.26.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -16,13 +16,15 @@ Java **25** is required.
 ## Use
 
 - `/voidmark` or `/vm` opens the config screen.
-- Right Shift is the default keybind (Controls → Voidmark).
+- Right Shift is the default keybind (Controls → Voidmark). Press it again to close (the menu eases out).
 - `/voidmark toggle` flips node markers without opening the menu.
 - Toolbar **Unload** disables world tint, sky, fog, aspect, and markers in one click (**Load** restores them).
 - **Reset** restores only the page you are looking at.
 - The gear opens **Theme**: **Accent** (highlights, toggles, icons) and **Pane** (main window background) are separate colors. Animation toggle is there too.
 - The bell toggles the **watermark** overlay (FPS, ping, clock, name).
 - Search (`Ctrl+F` or the magnifier) jumps to a setting.
+- The sidebar **Cape** slot previews a custom cape. Paste a PNG URL or click **Local file...** to pick one in Explorer. It is client-side on you only.
+- **Nick** replaces your username in chat, tab, the scoreboard, and nametags. `&6` `&l` `&r` (and the rest of the legacy codes) work in the input; the preview under it is what other HUD text will look like.
 
 ### Visuals → World
 
@@ -50,6 +52,7 @@ Markers only run in Skyblock by default. Enable **Force enable** to test in sing
 | Markers | Scan, End-only filter, particles |
 | Display | Node HUD, watermark, boxes, tracers, marker color |
 | Status | Hypixel / Skyblock / The End, live FPS and ping |
+| Nick | Hide/replace your username with `&` color codes |
 
 Config is saved to `.minecraft/config/voidmark.json`.
 

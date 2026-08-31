@@ -12,6 +12,7 @@ import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.WatermarkRenderer;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.ui.VoidmarkScreen;
+import dev.voidmark.client.visual.CustomCape;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
@@ -31,6 +32,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		VoidmarkConfig.load();
 		Theme.refresh();
+		CustomCape.init();
 		NodeWorldRenderer.init();
 		WatermarkRenderer.init();
 		NodeHudRenderer.init();
@@ -62,7 +64,11 @@ public final class VoidmarkClient implements ClientModInitializer {
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (openGui.consumeClick()) {
-				openScreen();
+				if (client.screen instanceof VoidmarkScreen screen) {
+					screen.requestClose();
+				} else {
+					openScreen();
+				}
 			}
 
 			SkyblockLocation.tick(client);
@@ -79,7 +85,13 @@ public final class VoidmarkClient implements ClientModInitializer {
 
 	private static int openScreen() {
 		Minecraft client = Minecraft.getInstance();
-		client.execute(() -> client.setScreen(new VoidmarkScreen()));
+		client.execute(() -> {
+			if (client.screen instanceof VoidmarkScreen screen) {
+				screen.requestClose();
+			} else {
+				client.setScreen(new VoidmarkScreen());
+			}
+		});
 		return Command.SINGLE_SUCCESS;
 	}
 }
