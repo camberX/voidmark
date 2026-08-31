@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.21.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.22.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -19,10 +19,10 @@ Java **25** is required.
 - Right Shift is the default keybind (Controls → Voidmark).
 - `/voidmark toggle` flips node markers without opening the menu.
 - Toolbar **Unload** disables world tint, sky, fog, aspect, and markers in one click (**Load** restores them).
-- The gear opens **Theme** (accent swatches, custom color, animation toggle).
+- **Reset** restores only the page you are looking at.
+- The gear opens **Theme** (accent swatches, custom color, animation toggle). The accent tints the sidebar and the main window.
 - The bell toggles the **watermark** overlay (FPS, ping, clock, name).
 - Search (`Ctrl+F` or the magnifier) jumps to a setting.
-- The toolbar dropdown applies **Skyblock / Visuals / All / None** presets (aspect ratios on the View tab).
 
 ### Visuals → World
 
@@ -34,7 +34,7 @@ Separate custom fog: color, start, end (as a percent of view distance), and dens
 
 ### Visuals → View
 
-Aspect ratio stretches the world horizontally the same way 4:3 on a 16:9 panel does. Native is 100%. **4:3** is the usual stretched look.
+Aspect ratio stretches the world horizontally the same way 4:3 on a 16:9 panel does. Native is 100%. Use the **Native / 16:10 / 4:3 / 5:4** chips on the View page. **4:3** is the usual stretched look.
 
 ### Nodes
 
@@ -46,7 +46,7 @@ Markers only run in Skyblock by default. Enable **Force enable** to test in sing
 | --- | --- |
 | World | Block tint, shader/lightmap mode, skybox tint, colors, strength |
 | Fog | Custom fog color, start, end, density |
-| View | Aspect ratio slider and 4:3 / 16:10 / 5:4 presets |
+| View | Aspect ratio slider and Native / 16:10 / 4:3 / 5:4 chips |
 | Markers | Scan, End-only filter, particles |
 | Display | Node HUD, watermark, boxes, tracers, marker color |
 | Status | Hypixel / Skyblock / The End, live FPS and ping |

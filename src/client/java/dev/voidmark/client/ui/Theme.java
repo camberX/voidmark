@@ -11,10 +11,11 @@ public final class Theme {
 	public static int CARD = 0xFF12151C;
 	public static int CARD_HOVER = 0xFF171B24;
 	public static int LINE = 0xFF1C2430;
+	public static int TRACK = 0xFF1A222C;
+	public static int PANEL = 0xFF0B1118;
 	public static int TEXT = 0xFFF2F4F7;
 	public static int MUTED = 0xFF8A9AAB;
 	public static int HEADER = 0xFFC4CED8;
-	public static int TRACK = 0xFF1A222C;
 	public static int OFF = 0xFF3D4A58;
 	public static int DANGER = 0xFFE8B86D;
 	public static int WARN = 0xFFF5C16C;
@@ -38,9 +39,17 @@ public final class Theme {
 	public static void refresh() {
 		int rgb = VoidmarkConfig.get().themeAccentRgb & 0xFFFFFF;
 		ACCENT = 0xFF000000 | rgb;
-		ACCENT_DIM = 0xFF000000 | mix(rgb, 0x0B0E14, 0.45f);
-		NAV_PILL = withAlpha(mix(0x152030, rgb, 0.55f), 224);
-		SIDEBAR = withAlpha(mix(0x142032, rgb, 0.18f), 179);
+		ACCENT_DIM = 0xFF000000 | mix(rgb, 0x0B0E14, 0.42f);
+		WINDOW = 0xFF000000 | mix(0x0B0E14, rgb, 0.14f);
+		CARD = 0xFF000000 | mix(0x12151C, rgb, 0.18f);
+		CARD_HOVER = 0xFF000000 | mix(0x171B24, rgb, 0.24f);
+		LINE = 0xFF000000 | mix(0x1C2430, rgb, 0.48f);
+		TRACK = 0xFF000000 | mix(0x1A222C, rgb, 0.28f);
+		PANEL = 0xFF000000 | mix(0x0B1118, rgb, 0.16f);
+		OFF = 0xFF000000 | mix(0x3D4A58, rgb, 0.30f);
+		HEADER = 0xFF000000 | mix(0xC4CED8, rgb, 0.12f);
+		NAV_PILL = withAlpha(mix(0x152030, rgb, 0.58f), 230);
+		SIDEBAR = withAlpha(mix(0x142032, rgb, 0.22f), 179);
 	}
 
 	public static void applyPreset(Swatch swatch) {

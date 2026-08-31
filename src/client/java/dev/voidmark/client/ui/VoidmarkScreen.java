@@ -39,6 +39,7 @@ public class VoidmarkScreen extends Screen {
 	private static final float CARD_PAD = 8;
 	private static final float CARD_HEAD = 20;
 	private static final float ACTION_W = 54;
+	private static final float RESET_W = 44;
 	private static final float ICON_SLOT = 14;
 	private static final float PICKER_W = 132;
 	private static final float PICKER_H = 122;
@@ -105,7 +106,6 @@ public class VoidmarkScreen extends Screen {
 	private float pickerX;
 	private float pickerY;
 	private double lastClickY;
-	private boolean dropdownOpen;
 	private boolean settingsOpen;
 	private boolean bellOpen;
 	private boolean searchOpen;
@@ -118,7 +118,6 @@ public class VoidmarkScreen extends Screen {
 	private float dt = 0.016f;
 	private float appear;
 	private float navY = -1f;
-	private float dropdownT;
 	private float settingsT;
 	private float bellT;
 	private float searchT;
@@ -129,7 +128,6 @@ public class VoidmarkScreen extends Screen {
 	private float bellY;
 	private float searchFieldX;
 	private float searchFieldW;
-	private String presetName = "Custom";
 
 	private float windowX;
 	private float windowY;
@@ -165,14 +163,12 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W + 1, windowY + 2, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, shadow);
 		GuiDraw.roundLeft(graphics, windowX, windowY, SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.SIDEBAR);
 		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW);
-		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY + 8, 1, windowH - 16, Theme.withAlpha(Theme.ACCENT, 51));
+		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, 2, Theme.withAlpha(Theme.ACCENT, 200));
+		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY + 8, 1, windowH - 16, Theme.withAlpha(Theme.ACCENT, 90));
 
 		drawSidebar(graphics, font, mouseX, mouseY);
 		drawToolbar(graphics, font, mouseX, mouseY);
 		drawColumns(graphics, font, mouseX, mouseY);
-		if (dropdownT > 0.02f) {
-			drawDropdown(graphics, font);
-		}
 		if (searchT > 0.02f && !searchQuery.isBlank()) {
 			drawSearchResults(graphics, font, mouseX, mouseY);
 		}
@@ -192,7 +188,6 @@ public class VoidmarkScreen extends Screen {
 		dt = Math.min(0.05f, (now - lastNs) / 1_000_000_000f);
 		lastNs = now;
 		appear = Anim.exp(appear, 1f, 11f, dt);
-		dropdownT = Anim.exp(dropdownT, dropdownOpen ? 1f : 0f, 18f, dt);
 		settingsT = Anim.exp(settingsT, settingsOpen ? 1f : 0f, 18f, dt);
 		bellT = Anim.exp(bellT, bellOpen ? 1f : 0f, 18f, dt);
 		searchT = Anim.exp(searchT, searchOpen ? 1f : 0f, 18f, dt);
@@ -287,7 +282,6 @@ public class VoidmarkScreen extends Screen {
 	private void selectTab(Tab value) {
 		tab = value;
 		pickerTarget = null;
-		dropdownOpen = false;
 		searchOpen = false;
 	}
 
@@ -342,34 +336,28 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.menu(graphics, font, unloaded ? "Load" : "Unload", x + (ACTION_W - GuiDraw.menuWidth(font, unloaded ? "Load" : "Unload")) / 2f, labelY, unloaded ? Theme.WARN : Theme.TEXT);
 		hits.add(new Hit(x, y, ACTION_W, 14, () -> {
 			UnloadState.toggle();
-			presetName = UnloadState.isUnloaded() ? "None" : "Custom";
 			WorldTint.syncChunkMeshes(minecraft);
 		}));
 
-		float comboX = x + ACTION_W + 4;
-		float comboW = Math.min(88, w * 0.38f);
-		float searchMax = w - ACTION_W - 4 - ICON_SLOT * 3 - 8;
-		searchFieldX = comboX;
-		searchFieldW = Mth.lerp(searchT, comboW, Math.max(comboW, searchMax));
+		float resetX = x + ACTION_W + 4;
+		boolean resetHover = GuiDraw.hovered(mouseX, mouseY, resetX, y, RESET_W, 14);
+		GuiDraw.panel(graphics, resetX, y, RESET_W, 14, 5, resetHover ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
+		GuiDraw.menu(graphics, font, "Reset", resetX + (RESET_W - GuiDraw.menuWidth(font, "Reset")) / 2f, labelY, Theme.TEXT);
+		hits.add(new Hit(resetX, y, RESET_W, 14, this::resetCurrentPage));
+
+		float titleX = resetX + RESET_W + 8;
+		float searchMax = w - ACTION_W - RESET_W - 8 - ICON_SLOT * 3 - 8;
+		searchFieldX = titleX;
+		searchFieldW = Mth.lerp(searchT, 72, Math.max(72, searchMax));
 
 		if (searchT > 0.08f) {
 			GuiDraw.panel(graphics, searchFieldX, y, searchFieldW, 14, 5, Theme.CARD_HOVER, Theme.ACCENT);
-			String shown = searchQuery.isEmpty() ? "Search features..." : searchQuery + (searchOpen ? "|" : "");
+			String shown = searchQuery.isEmpty() ? "Search settings..." : searchQuery + (searchOpen ? "|" : "");
 			int color = searchQuery.isEmpty() ? Theme.MUTED : Theme.TEXT;
 			GuiDraw.menu(graphics, font, clip(font, shown, (int) searchFieldW - 10), searchFieldX + 6, labelY, color);
 			hits.add(new Hit(searchFieldX, y, searchFieldW, 14, () -> searchOpen = true));
 		} else {
-			String comboLabel = tab == Tab.VIEW ? aspectLabel(VoidmarkConfig.get().aspectRatio) : presetName;
-			boolean comboHover = GuiDraw.hovered(mouseX, mouseY, comboX, y, comboW, 14) || dropdownOpen;
-			GuiDraw.panel(graphics, comboX, y, comboW, 14, 5, comboHover ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
-			GuiDraw.menu(graphics, font, comboLabel, comboX + 6, labelY, Theme.TEXT);
-			GuiDraw.icon(graphics, font, MenuFont.CHEVRON, comboX + comboW - 11, labelY, Theme.MUTED);
-			hits.add(new Hit(comboX, y, comboW, 14, () -> {
-				dropdownOpen = !dropdownOpen;
-				settingsOpen = false;
-				bellOpen = false;
-				searchOpen = false;
-			}));
+			GuiDraw.menu(graphics, font, tab.label, titleX, labelY, Theme.HEADER);
 		}
 
 		float iconX = x + w - ICON_SLOT * 3;
@@ -377,19 +365,16 @@ public class VoidmarkScreen extends Screen {
 			settingsOpen = !settingsOpen;
 			bellOpen = false;
 			searchOpen = false;
-			dropdownOpen = false;
 		});
 		drawIconButton(graphics, font, mouseX, mouseY, iconX + ICON_SLOT, y, MenuFont.BELL, bellOpen, () -> {
 			bellOpen = !bellOpen;
 			settingsOpen = false;
 			searchOpen = false;
-			dropdownOpen = false;
 		});
 		drawIconButton(graphics, font, mouseX, mouseY, iconX + ICON_SLOT * 2, y, MenuFont.SEARCH, searchOpen, () -> {
 			searchOpen = !searchOpen;
 			settingsOpen = false;
 			bellOpen = false;
-			dropdownOpen = false;
 			if (!searchOpen) {
 				searchQuery = "";
 			}
@@ -417,75 +402,51 @@ public class VoidmarkScreen extends Screen {
 		return trimmed + "..";
 	}
 
-	private void drawDropdown(GuiGraphicsExtractor graphics, Font font) {
-		float comboX = contentX() + ACTION_W + 4;
-		float comboW = Math.min(88, contentW() * 0.38f);
-		String[] items = tab == Tab.VIEW
-			? new String[]{"Native", "16:10", "4:3", "5:4"}
-			: new String[]{"Skyblock", "Visuals", "All", "None"};
-		float fullH = items.length * 14 + 4;
-		float h = Math.max(4, fullH * dropdownT);
-		float y = windowY + 20;
-		GuiDraw.panel(graphics, comboX, y, comboW, h, 6, Anim.fade(0xFF0B1118, dropdownT), Anim.fade(Theme.LINE, dropdownT));
-		if (dropdownT < 0.85f) {
-			return;
-		}
-		for (int i = 0; i < items.length; i++) {
-			float iy = y + 2 + i * 14;
-			boolean active = items[i].equals(tab == Tab.VIEW ? aspectLabel(VoidmarkConfig.get().aspectRatio) : presetName);
-			if (active) {
-				GuiDraw.rounded(graphics, comboX + 2, iy, comboW - 4, 14, 4, Theme.withAlpha(Theme.ACCENT, 28));
-			}
-			GuiDraw.circle(graphics, comboX + 8, iy + 7, 2.4f, active ? Theme.ACCENT : Theme.OFF);
-			GuiDraw.menu(graphics, font, items[i], comboX + 14, GuiDraw.middle(iy, 14), active ? Theme.ACCENT : Theme.TEXT);
-			int index = i;
-			hits.add(new Hit(comboX, iy, comboW, 14, () -> {
-				if (tab == Tab.VIEW) {
-					float[] values = {1.00f, 0.90f, 0.75f, 0.70f};
-					VoidmarkConfig config = VoidmarkConfig.get();
-					config.aspectEnabled = true;
-					config.aspectRatio = values[index];
-				} else {
-					applyPreset(items[index]);
-				}
-				dropdownOpen = false;
-			}));
-		}
-	}
-
-	private void applyPreset(String name) {
+	private void resetCurrentPage() {
 		VoidmarkConfig config = VoidmarkConfig.get();
-		presetName = name;
 		UnloadState.markDirty();
-		switch (name) {
-			case "Skyblock" -> {
-				config.markersEnabled = true;
+		switch (tab) {
+			case WORLD -> {
 				config.worldTintEnabled = false;
+				config.worldTintRgb = 0x2FB5FF;
+				config.worldTintStrength = 0.70f;
+				config.worldTintMode = "shader";
 				config.skyTintEnabled = false;
-				config.fogEnabled = false;
+				config.skyTintRgb = 0x1B4F8A;
+				config.skyTintStrength = 0.70f;
+				config.matchSkyToWorld = true;
+			}
+			case VIEW -> {
 				config.aspectEnabled = false;
+				config.aspectRatio = 1.0f;
 			}
-			case "Visuals" -> {
-				config.worldTintEnabled = true;
-				config.skyTintEnabled = true;
-				config.fogEnabled = true;
+			case FOG -> {
+				config.fogEnabled = false;
+				config.fogRgb = 0x8EC8FF;
+				config.fogStart = 0.12f;
+				config.fogEnd = 0.72f;
+				config.fogDensity = 1.0f;
+				config.matchFogToWorld = false;
 			}
-			case "All" -> {
+			case MARKERS -> {
 				config.markersEnabled = true;
+				config.onlyInTheEnd = true;
+				config.forceEnable = false;
+				config.blockScan = true;
+				config.particleDetection = true;
+				config.scanRadius = 48;
+			}
+			case DISPLAY -> {
+				config.boxFill = true;
+				config.boxOutline = true;
+				config.tracersEnabled = true;
+				config.throughWalls = true;
+				config.fillOpacity = 0.32f;
 				config.hudEnabled = true;
-				config.worldTintEnabled = true;
-				config.skyTintEnabled = true;
-				config.fogEnabled = true;
-				config.aspectEnabled = true;
+				config.watermarkEnabled = true;
+				config.colorRgb = 0x2FB5FF;
 			}
-			case "None" -> {
-				config.markersEnabled = false;
-				config.worldTintEnabled = false;
-				config.skyTintEnabled = false;
-				config.fogEnabled = false;
-				config.aspectEnabled = false;
-			}
-			default -> {
+			case STATUS -> {
 			}
 		}
 		WorldTint.syncChunkMeshes(minecraft);
@@ -494,12 +455,12 @@ public class VoidmarkScreen extends Screen {
 	private void drawSearchResults(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		List<SearchEntry> matches = matches();
 		if (matches.isEmpty()) {
-			GuiDraw.panel(graphics, searchFieldX, windowY + 20, searchFieldW, 20, 6, Anim.fade(0xFF0B1118, searchT), Theme.LINE);
+			GuiDraw.panel(graphics, searchFieldX, windowY + 20, searchFieldW, 20, 6, Anim.fade(Theme.PANEL, searchT), Theme.LINE);
 			GuiDraw.menu(graphics, font, "No matches", searchFieldX + 8, GuiDraw.middle(windowY + 20, 20), Theme.MUTED);
 			return;
 		}
 		float h = matches.size() * 16 + 6;
-		GuiDraw.panel(graphics, searchFieldX, windowY + 20, searchFieldW, h, 6, Anim.fade(0xFF0B1118, searchT), Theme.LINE);
+		GuiDraw.panel(graphics, searchFieldX, windowY + 20, searchFieldW, h, 6, Anim.fade(Theme.PANEL, searchT), Theme.LINE);
 		float iy = windowY + 23;
 		for (SearchEntry entry : matches) {
 			boolean hover = GuiDraw.hovered(mouseX, mouseY, searchFieldX, iy, searchFieldW, 16);
@@ -534,7 +495,7 @@ public class VoidmarkScreen extends Screen {
 		settingsX = contentX() + contentW() - PANEL_W;
 		settingsY = windowY + TOOLBAR_H + 2;
 		float h = 118;
-		GuiDraw.panel(graphics, settingsX, settingsY, PANEL_W, h * Math.max(0.2f, settingsT), 8, Anim.fade(0xFF0B1118, settingsT), Theme.ACCENT);
+		GuiDraw.panel(graphics, settingsX, settingsY, PANEL_W, h * Math.max(0.2f, settingsT), 8, Anim.fade(Theme.PANEL, settingsT), Theme.ACCENT);
 		if (settingsT < 0.85f) {
 			return;
 		}
@@ -562,7 +523,7 @@ public class VoidmarkScreen extends Screen {
 		bellX = contentX() + contentW() - PANEL_W;
 		bellY = windowY + TOOLBAR_H + 2;
 		float h = 128;
-		GuiDraw.panel(graphics, bellX, bellY, PANEL_W, h * Math.max(0.2f, bellT), 8, Anim.fade(0xFF0B1118, bellT), Theme.ACCENT);
+		GuiDraw.panel(graphics, bellX, bellY, PANEL_W, h * Math.max(0.2f, bellT), 8, Anim.fade(Theme.PANEL, bellT), Theme.ACCENT);
 		if (bellT < 0.85f) {
 			return;
 		}
@@ -608,9 +569,14 @@ public class VoidmarkScreen extends Screen {
 				slider(graphics, font, rx, y, iw, "Strength", String.format(Locale.ROOT, "%.0f", config.skyTintStrength * 100), config.skyTintStrength, v -> config.skyTintStrength = v);
 			}
 			case VIEW -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(2), "Camera");
+				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Camera");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v);
-				slider(graphics, font, ix, y, iw, "Aspect", aspectLabel(config.aspectRatio), (config.aspectRatio - 0.50f) / 0.70f, v -> config.aspectRatio = VoidmarkConfig.clamp(0.50f + v * 0.70f, 0.50f, 1.20f));
+				y = slider(graphics, font, ix, y, iw, "Aspect", aspectLabel(config.aspectRatio), (config.aspectRatio - 0.50f) / 0.70f, v -> config.aspectRatio = VoidmarkConfig.clamp(0.50f + v * 0.70f, 0.50f, 1.20f));
+				chipRow(graphics, font, ix, y, iw, mouseX, mouseY, new String[]{"Native", "16:10", "4:3", "5:4"}, aspectChipIndex(config.aspectRatio), index -> {
+					float[] values = {1.00f, 0.90f, 0.75f, 0.70f};
+					config.aspectEnabled = true;
+					config.aspectRatio = values[index];
+				});
 
 				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 32 + CARD_PAD, "Info");
 				GuiDraw.menu(graphics, font, "Below Native stretches", rx, y + 2, Theme.MUTED);
@@ -683,6 +649,7 @@ public class VoidmarkScreen extends Screen {
 
 	private float featureCard(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, float h, String title) {
 		GuiDraw.panel(graphics, x, y, w, h, Math.min(14f, h / 2f), Theme.CARD, Theme.LINE);
+		GuiDraw.rounded(graphics, x + 1, y + 5, 2, h - 10, 1, Theme.ACCENT);
 		GuiDraw.small(graphics, font, title, x + CARD_PAD, y + 5, Theme.HEADER);
 		GuiDraw.hline(graphics, x + CARD_PAD, y + 16, w - CARD_PAD * 2, Theme.LINE);
 		return y + CARD_HEAD;
@@ -724,6 +691,40 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.menu(graphics, font, value, x + w - valueWidth, labelY, Theme.ACCENT);
 		hits.add(new Hit(x, y, w, ROW, next));
 		return y + ROW;
+	}
+
+	private float chipRow(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String[] labels, int selected, java.util.function.IntConsumer pick) {
+		float cx = x;
+		for (int i = 0; i < labels.length; i++) {
+			float cw = GuiDraw.menuWidth(font, labels[i]) + 10;
+			if (cx + cw > x + w) {
+				break;
+			}
+			boolean on = i == selected;
+			boolean hover = GuiDraw.hovered(mouseX, mouseY, cx, y + 1, cw, ROW - 2);
+			GuiDraw.panel(graphics, cx, y + 1, cw, ROW - 2, 5, on ? Theme.ACCENT : hover ? Theme.CARD_HOVER : Theme.CARD, on ? Theme.ACCENT : Theme.LINE);
+			GuiDraw.menu(graphics, font, labels[i], cx + 5, GuiDraw.middle(y, ROW), on ? Theme.WINDOW : Theme.TEXT);
+			int index = i;
+			hits.add(new Hit(cx, y, cw, ROW, () -> pick.accept(index)));
+			cx += cw + 4;
+		}
+		return y + ROW;
+	}
+
+	private static int aspectChipIndex(float ratio) {
+		if (Math.abs(ratio - 1.00f) < 0.02f) {
+			return 0;
+		}
+		if (Math.abs(ratio - 0.90f) < 0.02f) {
+			return 1;
+		}
+		if (Math.abs(ratio - 0.75f) < 0.02f) {
+			return 2;
+		}
+		if (Math.abs(ratio - 0.70f) < 0.02f) {
+			return 3;
+		}
+		return -1;
 	}
 
 	private float slider(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, String label, String valueText, float progress, Consumer<Float> setter) {
@@ -788,7 +789,7 @@ public class VoidmarkScreen extends Screen {
 		float y = pickerY;
 		float w = PICKER_W;
 		float h = PICKER_H;
-		GuiDraw.panel(graphics, x, y, w, h, 8, Anim.fade(0xFF0B1118, pickerT), Theme.ACCENT);
+		GuiDraw.panel(graphics, x, y, w, h, 8, Anim.fade(Theme.PANEL, pickerT), Theme.ACCENT);
 		if (pickerT < 0.7f) {
 			return;
 		}
@@ -830,7 +831,6 @@ public class VoidmarkScreen extends Screen {
 
 	private void openPicker(PickerTarget target, int rgb, float x, float y) {
 		pickerTarget = target;
-		dropdownOpen = false;
 		float[] hsv = WorldTint.rgbToHsv(rgb);
 		pickerHue = hsv[0];
 		pickerSat = hsv[1];
@@ -885,7 +885,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.21");
+			.orElse("1.1.22");
 	}
 
 	@Override
@@ -912,10 +912,6 @@ public class VoidmarkScreen extends Screen {
 		}
 		if (bellOpen && !GuiDraw.hovered(event.x(), event.y(), bellX, bellY, PANEL_W, 128)) {
 			bellOpen = false;
-			return true;
-		}
-		if (dropdownOpen) {
-			dropdownOpen = false;
 			return true;
 		}
 		if (searchOpen && !GuiDraw.hovered(event.x(), event.y(), searchFieldX, windowY + 5, searchFieldW, 80)) {
@@ -973,10 +969,6 @@ public class VoidmarkScreen extends Screen {
 				pickerTarget = null;
 				return true;
 			}
-			if (dropdownOpen) {
-				dropdownOpen = false;
-				return true;
-			}
 		}
 		if (searchOpen && event.key() == InputConstants.KEY_BACKSPACE) {
 			if (!searchQuery.isEmpty()) {
@@ -988,7 +980,6 @@ public class VoidmarkScreen extends Screen {
 			searchOpen = true;
 			settingsOpen = false;
 			bellOpen = false;
-			dropdownOpen = false;
 			return true;
 		}
 		return super.keyPressed(event);
