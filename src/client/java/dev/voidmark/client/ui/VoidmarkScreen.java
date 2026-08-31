@@ -96,6 +96,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Markers", Tab.MARKERS, "Nodes"),
 		new SearchEntry("Filled box", Tab.DISPLAY, "ESP"),
 		new SearchEntry("Watermark", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Inventory HUD", Tab.DISPLAY, "HUD"),
 		new SearchEntry("FPS", Tab.STATUS, "Stats"),
 		new SearchEntry("Ping", Tab.STATUS, "Stats"),
 		new SearchEntry("Hypixel", Tab.STATUS, "Server"),
@@ -605,6 +606,9 @@ public class VoidmarkScreen extends Screen {
 				config.fillOpacity = 0.32f;
 				config.hudEnabled = true;
 				config.watermarkEnabled = true;
+				config.inventoryHudEnabled = true;
+				config.inventoryHudAnchor = "bottom_right";
+				config.inventoryHudScale = 1.0f;
 				config.colorRgb = 0x2FB5FF;
 			}
 			case STATUS -> {
@@ -701,7 +705,7 @@ public class VoidmarkScreen extends Screen {
 	private void drawBell(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		bellX = contentX() + contentW() - PANEL_W;
 		bellY = windowY + TOOLBAR_H + 2;
-		float h = 128;
+		float h = 144;
 		GuiDraw.panel(graphics, bellX, bellY, PANEL_W, h * Math.max(0.2f, bellT), 8, Anim.fade(Theme.PANEL, bellT), Theme.ACCENT);
 		if (bellT < 0.85f) {
 			return;
@@ -711,6 +715,7 @@ public class VoidmarkScreen extends Screen {
 		float y = bellY + 20;
 		float iw = PANEL_W - 16;
 		float ix = bellX + 8;
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Inventory HUD", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "FPS", config.watermarkFps, v -> config.watermarkFps = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ping", config.watermarkPing, v -> config.watermarkPing = v);
@@ -785,17 +790,20 @@ public class VoidmarkScreen extends Screen {
 				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Particle hints", config.particleDetection, v -> config.particleDetection = v);
 			}
 			case DISPLAY -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(5), "Esp");
+				float y = featureCard(graphics, font, left, top, col, cardHeight(6), "Esp");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Filled box", config.boxFill, v -> config.boxFill = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Tracer", config.tracersEnabled, v -> config.tracersEnabled = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.throughWalls, v -> config.throughWalls = v);
-				slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
+				y = slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(3), "Hud");
+				y = featureCard(graphics, font, right, top, col, cardHeight(5), "Hud");
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
-				colorRow(graphics, font, rx, y, iw, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Inventory", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v);
+				y = cycle(graphics, font, rx, y, iw, mouseX, mouseY, "Position", config.inventoryHudAnchorLabel(), config::cycleInventoryHudAnchor);
+				slider(graphics, font, rx, y, iw, "Scale", Math.round(config.inventoryHudScale * 100) + "%", (config.inventoryHudScale - 0.70f) / 0.70f, v -> config.inventoryHudScale = VoidmarkConfig.clamp(0.70f + v * 0.70f, 0.70f, 1.40f));
 			}
 			case STATUS -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(5), "Server");
@@ -1106,7 +1114,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.28");
+			.orElse("1.1.29");
 	}
 
 	@Override

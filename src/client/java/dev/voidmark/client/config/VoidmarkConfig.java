@@ -54,6 +54,9 @@ public final class VoidmarkConfig {
 	public boolean watermarkPing = true;
 	public boolean watermarkTime = true;
 	public boolean watermarkName = false;
+	public boolean inventoryHudEnabled = true;
+	public String inventoryHudAnchor = "bottom_right";
+	public float inventoryHudScale = 1.0f;
 	public String capeUrl = "";
 	public String capePath = "";
 	public boolean nickEnabled = false;
@@ -113,6 +116,8 @@ public final class VoidmarkConfig {
 				if (loaded.nick == null) {
 					loaded.nick = "";
 				}
+				loaded.inventoryHudAnchor = normalizeInventoryHudAnchor(loaded.inventoryHudAnchor);
+				loaded.inventoryHudScale = clamp(loaded.inventoryHudScale, 0.70f, 1.40f);
 				instance = loaded;
 			}
 		} catch (Exception exception) {
@@ -151,6 +156,34 @@ public final class VoidmarkConfig {
 
 	public String worldTintModeLabel() {
 		return worldTintUsesLightmap() ? "Lightmap" : "Shader";
+	}
+
+	public void cycleInventoryHudAnchor() {
+		inventoryHudAnchor = switch (inventoryHudAnchor) {
+			case "top_left" -> "top_right";
+			case "top_right" -> "bottom_right";
+			case "bottom_right" -> "bottom_left";
+			default -> "top_left";
+		};
+	}
+
+	public String inventoryHudAnchorLabel() {
+		return switch (inventoryHudAnchor) {
+			case "top_left" -> "Top left";
+			case "top_right" -> "Top right";
+			case "bottom_left" -> "Bottom left";
+			default -> "Bottom right";
+		};
+	}
+
+	public static String normalizeInventoryHudAnchor(String anchor) {
+		if (anchor == null) {
+			return "bottom_right";
+		}
+		return switch (anchor) {
+			case "top_left", "top_right", "bottom_left", "bottom_right" -> anchor;
+			default -> "bottom_right";
+		};
 	}
 
 	public static String normalizeWorldTintMode(String mode) {

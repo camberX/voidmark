@@ -9,6 +9,7 @@ import dev.voidmark.client.net.ConnectionPing;
 import dev.voidmark.client.node.EnderNodeTracker;
 import dev.voidmark.client.render.NodeHudRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
+import dev.voidmark.client.render.InventoryHudRenderer;
 import dev.voidmark.client.render.WatermarkRenderer;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.ui.VoidmarkScreen;
@@ -35,6 +36,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		CustomCape.init();
 		NodeWorldRenderer.init();
 		WatermarkRenderer.init();
+		InventoryHudRenderer.init();
 		NodeHudRenderer.init();
 
 		openGui = KeyMappingHelper.registerKeyMapping(new KeyMapping(
