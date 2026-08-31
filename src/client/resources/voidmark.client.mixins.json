@@ -6,7 +6,7 @@
 		"ConnectionMixin",
 		"FogRendererMixin",
 		"SkyRendererMixin",
-		"LightmapMixin",
+		"LightmapRenderStateExtractorMixin",
 		"ModelBlockRendererMixin",
 		"ProjectionMixin"
 	],

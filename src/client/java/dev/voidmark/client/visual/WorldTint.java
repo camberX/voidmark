@@ -47,9 +47,9 @@ public final class WorldTint {
 		state.needsUpdate = true;
 		float strength = config.worldTintStrength;
 		int rgb = config.worldTintRgb;
-		state.skyLightColor = mix(state.skyLightColor, rgb, strength);
-		state.ambientColor = mix(state.ambientColor, rgb, strength);
-		state.blockLightTint = mix(state.blockLightTint, rgb, strength);
+		state.skyLightColor = apply(state.skyLightColor, rgb, strength);
+		state.ambientColor = apply(state.ambientColor, rgb, strength);
+		state.blockLightTint = apply(state.blockLightTint, rgb, strength);
 	}
 
 	public static void tintQuad(QuadInstance quad) {
@@ -57,7 +57,11 @@ public final class WorldTint {
 		if (!config.worldTintEnabled || quad == null) {
 			return;
 		}
-		quad.multiplyColor(0xFF000000 | (mixArgb(0xFFFFFF, config.worldTintRgb, config.worldTintStrength) & 0xFFFFFF));
+		float strength = config.worldTintStrength;
+		int tint = config.worldTintRgb;
+		for (int i = 0; i < 4; i++) {
+			quad.setColor(i, mixArgb(quad.getColor(i), tint, strength));
+		}
 	}
 
 	public static void syncChunkMeshes(Minecraft client) {
@@ -83,19 +87,21 @@ public final class WorldTint {
 		return ARGB.color(a == 0 ? 255 : a, r, g, b);
 	}
 
-	private static Vector3f mix(Vector3fc original, int rgb, float strength) {
+	private static Vector3f apply(Vector3fc original, int rgb, float strength) {
 		float t = Mth.clamp(strength, 0f, 1f);
-		float r = ((rgb >> 16) & 0xFF) / 255f;
-		float g = ((rgb >> 8) & 0xFF) / 255f;
-		float b = (rgb & 0xFF) / 255f;
+		float tr = ((rgb >> 16) & 0xFF) / 255f;
+		float tg = ((rgb >> 8) & 0xFF) / 255f;
+		float tb = (rgb & 0xFF) / 255f;
 		if (original == null) {
-			return new Vector3f(r, g, b);
+			return new Vector3f(tr, tg, tb);
 		}
-		return new Vector3f(
-			original.x() * (1f - t) + r * t,
-			original.y() * (1f - t) + g * t,
-			original.z() * (1f - t) + b * t
-		);
+		float mixedX = original.x() * (1f - t) + tr * t;
+		float mixedY = original.y() * (1f - t) + tg * t;
+		float mixedZ = original.z() * (1f - t) + tb * t;
+		float filterR = 1f - t + tr * t;
+		float filterG = 1f - t + tg * t;
+		float filterB = 1f - t + tb * t;
+		return new Vector3f(mixedX * filterR, mixedY * filterG, mixedZ * filterB);
 	}
 
 	private static int lerpChannel(int from, int to, float t) {

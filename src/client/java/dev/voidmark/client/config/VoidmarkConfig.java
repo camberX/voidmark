@@ -31,7 +31,7 @@ public final class VoidmarkConfig {
 	public int colorRgb = 0x2FB5FF;
 	public boolean worldTintEnabled = false;
 	public int worldTintRgb = 0x2FB5FF;
-	public float worldTintStrength = 0.45f;
+	public float worldTintStrength = 0.70f;
 	public boolean skyTintEnabled = false;
 	public int skyTintRgb = 0x1B4F8A;
 	public float skyTintStrength = 0.70f;
