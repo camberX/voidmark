@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.24.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.25.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -20,7 +20,7 @@ Java **25** is required.
 - `/voidmark toggle` flips node markers without opening the menu.
 - Toolbar **Unload** disables world tint, sky, fog, aspect, and markers in one click (**Load** restores them).
 - **Reset** restores only the page you are looking at.
-- The gear opens **Theme** (accent swatches, custom color, animation toggle). The accent tints the sidebar and the main window.
+- The gear opens **Theme**: **Accent** (highlights, toggles, icons) and **Pane** (main window background) are separate colors. Animation toggle is there too.
 - The bell toggles the **watermark** overlay (FPS, ping, clock, name).
 - Search (`Ctrl+F` or the magnifier) jumps to a setting.
 

@@ -33,23 +33,39 @@ public final class Theme {
 		new Swatch("White", 0xE5E7EB)
 	};
 
+	public static final Swatch[] PANE_PRESETS = {
+		new Swatch("Night", 0x0B0E14),
+		new Swatch("Slate", 0x151922),
+		new Swatch("Navy", 0x0E1828),
+		new Swatch("Steel", 0x1C222C),
+		new Swatch("Olive", 0x14180F),
+		new Swatch("Wine", 0x1C1418),
+		new Swatch("Black", 0x0A0A0C),
+		new Swatch("Graphite", 0x22262E)
+	};
+
 	private Theme() {
 	}
 
 	public static void refresh() {
-		int rgb = VoidmarkConfig.get().themeAccentRgb & 0xFFFFFF;
-		ACCENT = 0xFF000000 | rgb;
-		ACCENT_DIM = 0xFF000000 | mix(rgb, 0x0B0E14, 0.42f);
-		WINDOW = 0xFF000000 | mix(0x0B0E14, rgb, 0.14f);
-		CARD = 0xFF000000 | mix(0x12151C, rgb, 0.18f);
-		CARD_HOVER = 0xFF000000 | mix(0x171B24, rgb, 0.24f);
-		LINE = 0xFF000000 | mix(0x1C2430, rgb, 0.18f);
-		TRACK = 0xFF000000 | mix(0x1A222C, rgb, 0.28f);
-		PANEL = 0xFF000000 | mix(0x0B1118, rgb, 0.16f);
-		OFF = 0xFF000000 | mix(0x3D4A58, rgb, 0.30f);
-		HEADER = 0xFF000000 | mix(0xC4CED8, rgb, 0.12f);
-		NAV_PILL = withAlpha(mix(0x152030, rgb, 0.58f), 230);
-		SIDEBAR = withAlpha(mix(0x142032, rgb, 0.22f), 179);
+		int accent = VoidmarkConfig.get().themeAccentRgb & 0xFFFFFF;
+		int pane = VoidmarkConfig.get().themePaneRgb & 0xFFFFFF;
+		if (pane == 0) {
+			pane = 0x0B0E14;
+		}
+
+		ACCENT = 0xFF000000 | accent;
+		ACCENT_DIM = 0xFF000000 | mix(accent, pane, 0.42f);
+		WINDOW = 0xFF000000 | pane;
+		CARD = 0xFF000000 | mix(pane, 0xFFFFFF, 0.055f);
+		CARD_HOVER = 0xFF000000 | mix(pane, 0xFFFFFF, 0.10f);
+		LINE = 0xFF000000 | mix(pane, 0xFFFFFF, 0.14f);
+		TRACK = 0xFF000000 | mix(pane, 0xFFFFFF, 0.08f);
+		PANEL = 0xFF000000 | mix(pane, 0x000000, 0.18f);
+		OFF = 0xFF000000 | mix(pane, 0xFFFFFF, 0.22f);
+		HEADER = 0xFF000000 | mix(0xC4CED8, pane, 0.10f);
+		NAV_PILL = withAlpha(mix(pane, accent, 0.55f), 230);
+		SIDEBAR = withAlpha(mix(0x101820, pane, 0.45f), 185);
 	}
 
 	public static void applyPreset(Swatch swatch) {
@@ -64,6 +80,19 @@ public final class Theme {
 		config.themeAccentRgb = rgb & 0xFFFFFF;
 		config.themePreset = "custom";
 		refresh();
+	}
+
+	public static void applyPane(int rgb) {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		config.themePaneRgb = rgb & 0xFFFFFF;
+		if (config.themePaneRgb == 0) {
+			config.themePaneRgb = 0x0B0E14;
+		}
+		refresh();
+	}
+
+	public static void applyPanePreset(Swatch swatch) {
+		applyPane(swatch.rgb);
 	}
 
 	public static int withAlpha(int color, int alpha) {

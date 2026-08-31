@@ -46,6 +46,7 @@ public final class VoidmarkConfig {
 	public boolean aspectEnabled = false;
 	public float aspectRatio = 1.0f;
 	public int themeAccentRgb = 0x2FB5FF;
+	public int themePaneRgb = 0x0B0E14;
 	public String themePreset = "cyan";
 	public boolean uiAnimations = true;
 	public boolean watermarkEnabled = true;
@@ -82,6 +83,7 @@ public final class VoidmarkConfig {
 				boolean legacyTheme = loaded.themePreset == null || loaded.themePreset.isBlank();
 				if (legacyTheme) {
 					loaded.themeAccentRgb = 0x2FB5FF;
+					loaded.themePaneRgb = 0x0B0E14;
 					loaded.themePreset = "cyan";
 					loaded.uiAnimations = true;
 					loaded.watermarkEnabled = true;
@@ -92,6 +94,10 @@ public final class VoidmarkConfig {
 					loaded.themeAccentRgb = loaded.themeAccentRgb & 0xFFFFFF;
 					if (loaded.themeAccentRgb == 0) {
 						loaded.themeAccentRgb = 0x2FB5FF;
+					}
+					loaded.themePaneRgb = loaded.themePaneRgb & 0xFFFFFF;
+					if (loaded.themePaneRgb == 0) {
+						loaded.themePaneRgb = 0x0B0E14;
 					}
 				}
 				instance = loaded;

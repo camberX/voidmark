@@ -44,6 +44,7 @@ public class VoidmarkScreen extends Screen {
 	private static final float PICKER_W = 132;
 	private static final float PICKER_H = 122;
 	private static final float PANEL_W = 168;
+	private static final float SETTINGS_H = 154;
 
 	private enum Group {
 		VISUALS("VISUALS"),
@@ -75,7 +76,7 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private enum PickerTarget {
-		WORLD, SKY, FOG, NODE, THEME
+		WORLD, SKY, FOG, NODE, THEME, PANE
 	}
 
 	private record SearchEntry(String label, Tab tab, String hint) {
@@ -493,29 +494,39 @@ public class VoidmarkScreen extends Screen {
 	private void drawSettings(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		settingsX = contentX() + contentW() - PANEL_W;
 		settingsY = windowY + TOOLBAR_H + 2;
-		float h = 118;
-		GuiDraw.panel(graphics, settingsX, settingsY, PANEL_W, h * Math.max(0.2f, settingsT), 8, Anim.fade(Theme.PANEL, settingsT), Theme.ACCENT);
+		GuiDraw.panel(graphics, settingsX, settingsY, PANEL_W, SETTINGS_H * Math.max(0.2f, settingsT), 8, Anim.fade(Theme.PANEL, settingsT), Theme.ACCENT);
 		if (settingsT < 0.85f) {
 			return;
 		}
 		GuiDraw.menu(graphics, font, "Theme", settingsX + 8, settingsY + 6, Theme.HEADER);
-		float dx = settingsX + 10;
-		float dy = settingsY + 22;
-		for (Theme.Swatch swatch : Theme.PRESETS) {
-			boolean active = (VoidmarkConfig.get().themeAccentRgb & 0xFFFFFF) == swatch.rgb();
+		GuiDraw.small(graphics, font, "Accent", settingsX + 8, settingsY + 20, Theme.MUTED);
+		float y = swatchRow(graphics, mouseX, mouseY, settingsX + 10, settingsY + 32, Theme.PRESETS, true);
+		y = colorRow(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Custom", VoidmarkConfig.get().themeAccentRgb, PickerTarget.THEME);
+		GuiDraw.small(graphics, font, "Pane", settingsX + 8, y + 1, Theme.MUTED);
+		y = swatchRow(graphics, mouseX, mouseY, settingsX + 10, y + 12, Theme.PANE_PRESETS, false);
+		y = colorRow(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Custom", VoidmarkConfig.get().themePaneRgb, PickerTarget.PANE);
+		toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Animations", VoidmarkConfig.get().uiAnimations, v -> VoidmarkConfig.get().uiAnimations = v);
+	}
+
+	private float swatchRow(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float startX, float startY, Theme.Swatch[] swatches, boolean accent) {
+		float dx = startX;
+		float dy = startY;
+		float rowEnd = settingsX + PANEL_W - 20;
+		for (int i = 0; i < swatches.length; i++) {
+			Theme.Swatch swatch = swatches[i];
+			int current = accent ? VoidmarkConfig.get().themeAccentRgb : VoidmarkConfig.get().themePaneRgb;
+			boolean active = (current & 0xFFFFFF) == swatch.rgb();
 			boolean hover = GuiDraw.hovered(mouseX, mouseY, dx, dy, 14, 14);
 			GuiDraw.rounded(graphics, dx - 1, dy - 1, 16, 16, 4, active || hover ? Theme.TEXT : Theme.LINE);
 			GuiDraw.rounded(graphics, dx, dy, 14, 14, 3, 0xFF000000 | swatch.rgb());
-			hits.add(new Hit(dx, dy, 14, 14, () -> Theme.applyPreset(swatch)));
+			hits.add(new Hit(dx, dy, 14, 14, accent ? () -> Theme.applyPreset(swatch) : () -> Theme.applyPanePreset(swatch)));
 			dx += 18;
-			if (dx > settingsX + PANEL_W - 20) {
-				dx = settingsX + 10;
+			if (i + 1 < swatches.length && dx > rowEnd) {
+				dx = startX;
 				dy += 18;
 			}
 		}
-		float y = settingsY + 60;
-		y = colorRow(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Custom", VoidmarkConfig.get().themeAccentRgb, PickerTarget.THEME);
-		toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Animations", VoidmarkConfig.get().uiAnimations, v -> VoidmarkConfig.get().uiAnimations = v);
+		return dy + 18;
 	}
 
 	private void drawBell(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
@@ -850,6 +861,7 @@ public class VoidmarkScreen extends Screen {
 			case FOG -> config.fogRgb = packed;
 			case NODE -> config.colorRgb = packed;
 			case THEME -> Theme.applyCustom(packed);
+			case PANE -> Theme.applyPane(packed);
 		}
 	}
 
@@ -883,7 +895,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.24");
+			.orElse("1.1.25");
 	}
 
 	@Override
@@ -904,7 +916,7 @@ public class VoidmarkScreen extends Screen {
 			pickerTarget = null;
 			return true;
 		}
-		if (settingsOpen && !GuiDraw.hovered(event.x(), event.y(), settingsX, settingsY, PANEL_W, 118)) {
+		if (settingsOpen && !GuiDraw.hovered(event.x(), event.y(), settingsX, settingsY, PANEL_W, SETTINGS_H)) {
 			settingsOpen = false;
 			return true;
 		}
