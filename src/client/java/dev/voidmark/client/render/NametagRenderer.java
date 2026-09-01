@@ -13,10 +13,12 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -53,7 +55,14 @@ public final class NametagRenderer {
 	}
 
 	public static boolean hidingVanilla(Entity entity) {
-		return entity instanceof Player && VoidmarkConfig.get().nametagsEnabled;
+		return entity instanceof Avatar && VoidmarkConfig.get().nametagsEnabled;
+	}
+
+	public static boolean hidingVanillaState(EntityRenderState state) {
+		if (!VoidmarkConfig.get().nametagsEnabled || state.entityType == null) {
+			return false;
+		}
+		return state.entityType == EntityType.PLAYER || state.entityType == EntityType.MANNEQUIN;
 	}
 
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {

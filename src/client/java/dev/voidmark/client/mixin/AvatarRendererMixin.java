@@ -1,5 +1,6 @@
 package dev.voidmark.client.mixin;
 
+import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.visual.CustomCape;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
@@ -9,6 +10,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AvatarRenderer.class)
 public class AvatarRendererMixin {
@@ -23,5 +25,12 @@ public class AvatarRendererMixin {
 		}
 		state.showCape = true;
 		state.skin = CustomCape.patch(state.skin);
+	}
+
+	@Inject(method = "shouldShowName(Lnet/minecraft/world/entity/Avatar;D)Z", at = @At("HEAD"), cancellable = true)
+	private void voidmark$hideNametag(Avatar entity, double dist, CallbackInfoReturnable<Boolean> cir) {
+		if (NametagRenderer.hidingVanilla(entity)) {
+			cir.setReturnValue(false);
+		}
 	}
 }

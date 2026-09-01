@@ -227,17 +227,9 @@ public class VoidmarkScreen extends Screen {
 		graphics.pose().scale(scale, scale);
 		graphics.pose().translate(-cx, -cy);
 
-		int shadow = Anim.fade(0x66000000, appear);
+		int shadow = Anim.fade(0x55000000, appear);
+		GuiDraw.rounded(graphics, windowX, windowY + 4, windowW, windowH, Theme.WINDOW_RADIUS, shadow);
 		boolean chromeClip = GuiDraw.scissor(graphics, windowX, windowY, windowW, windowH);
-		GuiDraw.roundRight(
-			graphics,
-			windowX + SIDEBAR_W + 1,
-			windowY + 2,
-			windowW - SIDEBAR_W - 1,
-			windowH - 2,
-			Theme.WINDOW_RADIUS,
-			shadow
-		);
 		GuiDraw.roundLeft(graphics, windowX, windowY, SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.SIDEBAR);
 		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW);
 		Starfield.draw(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, appear);
