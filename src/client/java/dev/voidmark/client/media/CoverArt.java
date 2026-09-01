@@ -170,10 +170,59 @@ public final class CoverArt {
 		NativeImage out = new NativeImage(dest, dest, false);
 		if (sx == 0 && sy == 0 && side == dest) {
 			out.copyFrom(src);
-			return out;
+		} else {
+			src.resizeSubRectTo(sx, sy, side, side, out);
 		}
-		src.resizeSubRectTo(sx, sy, side, side, out);
+		roundCorners(out);
 		return out;
+	}
+
+	/**
+	 * Matches {@code MusicHudRenderer} cover radius 5 on a 42px tile so the
+	 * photo follows the same rounded chrome as the rest of the HUD.
+	 */
+	private static void roundCorners(NativeImage image) {
+		int n = image.getWidth();
+		if (n != image.getHeight() || n < 4) {
+			return;
+		}
+		float radius = n * (5f / 42f);
+		int span = Math.min(n / 2, Math.max(1, (int) Math.ceil(radius + 1.5f)));
+		punchCorner(image, n, radius, 0, 0, radius, radius, span);
+		punchCorner(image, n, radius, n - span, 0, n - radius, radius, span);
+		punchCorner(image, n, radius, 0, n - span, radius, n - radius, span);
+		punchCorner(image, n, radius, n - span, n - span, n - radius, n - radius, span);
+	}
+
+	private static void punchCorner(
+		NativeImage image,
+		int n,
+		float radius,
+		int x0,
+		int y0,
+		float cx,
+		float cy,
+		int span
+	) {
+		int x1 = Math.min(n, x0 + span);
+		int y1 = Math.min(n, y0 + span);
+		for (int y = Math.max(0, y0); y < y1; y++) {
+			for (int x = Math.max(0, x0); x < x1; x++) {
+				float dx = (x + 0.5f) - cx;
+				float dy = (y + 0.5f) - cy;
+				float coverage = radius + 0.5f - (float) Math.sqrt(dx * dx + dy * dy);
+				if (coverage >= 1f) {
+					continue;
+				}
+				if (coverage <= 0f) {
+					image.setPixel(x, y, 0);
+					continue;
+				}
+				int rgb = image.getPixel(x, y) & 0x00FFFFFF;
+				int alpha = Math.round(255f * coverage);
+				image.setPixel(x, y, (alpha << 24) | rgb);
+			}
+		}
 	}
 
 	private static byte[] readSpec(String spec) {

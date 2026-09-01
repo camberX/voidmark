@@ -177,7 +177,7 @@ public final class MusicHudRenderer {
 		GuiDraw.rounded(graphics, x, y, size, size, 5, Theme.CARD);
 		if (CoverArt.ready()) {
 			int tex = CoverArt.size();
-			GuiDraw.blit(graphics, CoverArt.id(), x, y, size, size, 0f, 0f, tex, tex, tex, tex);
+			GuiDraw.roundedBlit(graphics, CoverArt.id(), x, y, size, size, 5, tex, Theme.CARD);
 			return size;
 		}
 		GuiDraw.icon(graphics, font, ICON, x + size * 0.5f - 5f, y + size * 0.5f - 5f, live ? Theme.ACCENT : Theme.MUTED);

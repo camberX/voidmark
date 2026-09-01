@@ -68,16 +68,10 @@ public record NowPlaying(
 
 	public NowPlaying withCatalog(String catalogTitle, String catalogArtist, String catalogAlbum, String catalogCover) {
 		NowPlaying base = cleaned();
-		if (placeholder(catalogTitle) || placeholder(catalogArtist)) {
-			return base;
-		}
-		if (!placeholder(base.artist) && !titlesClose(base.artist, catalogArtist) && !titlesClose(base.title, catalogArtist)) {
-			return base;
-		}
 		String newTitle = base.title;
 		String newArtist = firstPerson(base.artist, catalogArtist);
-		boolean swapped = titlesClose(base.title, catalogArtist);
-		boolean missing = placeholder(base.artist);
+		boolean swapped = titlesClose(base.title, catalogArtist) && !placeholder(catalogTitle);
+		boolean missing = placeholder(base.artist) && !placeholder(catalogArtist);
 		if ((swapped || missing) && !placeholder(catalogTitle)) {
 			newTitle = catalogTitle;
 			newArtist = catalogArtist;
@@ -88,7 +82,7 @@ public record NowPlaying(
 			firstNonBlank(base.album, catalogAlbum),
 			base.app,
 			base.source,
-			firstNonBlank(catalogCover, base.cover),
+			firstNonBlank(base.cover, catalogCover),
 			base.playing,
 			base.positionMs,
 			base.durationMs,

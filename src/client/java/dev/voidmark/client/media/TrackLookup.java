@@ -13,16 +13,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Fills missing artist/cover from Deezer and iTunes only when the match is
- * unambiguous. Title-only hits like two different "Xanny" songs are ignored.
+ * Fills missing artist/cover from Deezer and iTunes. The query includes
+ * title and artist when the player sends them; ranking still prefers a
+ * title match so a cover shows even if the artist string is messy.
  */
 final class TrackLookup {
 	private static final HttpClient HTTP = HttpClient.newBuilder()
@@ -96,12 +93,12 @@ final class TrackLookup {
 			return Hit.NONE;
 		}
 		try {
-			String body = get("https://api.deezer.com/search?limit=10&q=" + encode(query));
+			String body = get("https://api.deezer.com/search?limit=8&q=" + encode(query));
 			JsonObject root = JsonParser.parseString(body).getAsJsonObject();
 			if (!root.has("data") || !root.get("data").isJsonArray()) {
 				return Hit.NONE;
 			}
-			return pick(root.getAsJsonArray("data"), title, artist, album, true);
+			return best(root.getAsJsonArray("data"), title, artist, true);
 		} catch (Exception exception) {
 			return Hit.NONE;
 		}
@@ -115,16 +112,16 @@ final class TrackLookup {
 		Hit best = Hit.NONE;
 		for (String country : new String[]{"de", "us", "gb", "at", "ch"}) {
 			try {
-				String body = get("https://itunes.apple.com/search?entity=song&limit=10&country=" + country + "&term=" + encode(query));
+				String body = get("https://itunes.apple.com/search?entity=song&limit=8&country=" + country + "&term=" + encode(query));
 				JsonObject root = JsonParser.parseString(body).getAsJsonObject();
 				if (!root.has("results") || !root.get("results").isJsonArray()) {
 					continue;
 				}
-				Hit hit = pick(root.getAsJsonArray("results"), title, artist, album, false);
+				Hit hit = best(root.getAsJsonArray("results"), title, artist, false);
 				if (hit.score > best.score) {
 					best = hit;
 				}
-				if (best.score >= 11) {
+				if (best.score >= 6) {
 					return best;
 				}
 			} catch (Exception ignored) {
@@ -134,17 +131,11 @@ final class TrackLookup {
 	}
 
 	private static String query(String title, String artist, String album) {
-		StringBuilder out = new StringBuilder(safe(title));
-		if (!safe(artist).isBlank()) {
-			out.append(' ').append(artist.trim());
-		} else if (!safe(album).isBlank()) {
-			out.append(' ').append(album.trim());
-		}
-		return out.toString().trim();
+		return (safe(title) + " " + safe(artist) + " " + safe(album)).trim();
 	}
 
-	private static Hit pick(JsonArray results, String title, String artist, String album, boolean deezer) {
-		List<Hit> titleHits = new ArrayList<>();
+	private static Hit best(JsonArray results, String title, String artist, boolean deezer) {
+		Hit best = Hit.NONE;
 		for (JsonElement el : results) {
 			if (!el.isJsonObject()) {
 				continue;
@@ -172,69 +163,39 @@ final class TrackLookup {
 					art = art.replace("100x100bb", "300x300bb").replace("60x60bb", "300x300bb");
 				}
 			}
-			if (!tightTitle(rowTitle, title)) {
-				continue;
-			}
-			int score = 4;
-			if (samePerson(rowArtist, artist)) {
-				score += 4;
-			}
-			if (tightTitle(rowAlbum, album) || samePerson(rowAlbum, album)) {
-				score += 3;
-			}
-			titleHits.add(new Hit(rowTitle, rowArtist, rowAlbum, art, score));
-		}
-		if (titleHits.isEmpty()) {
-			return Hit.NONE;
-		}
-		if (!NowPlaying.placeholder(artist)) {
-			Hit best = Hit.NONE;
-			for (Hit hit : titleHits) {
-				if (samePerson(hit.artist, artist) && hit.score > best.score) {
-					best = hit;
-				}
-			}
-			return best.score >= 8 ? best : Hit.NONE;
-		}
-		Set<String> artists = new LinkedHashSet<>();
-		for (Hit hit : titleHits) {
-			String name = norm(hit.artist);
-			if (!name.isEmpty() && !NowPlaying.placeholder(hit.artist)) {
-				artists.add(name);
+			int score = matchScore(rowTitle, rowArtist, title, artist);
+			if (score > best.score) {
+				best = new Hit(rowTitle, rowArtist, rowAlbum, art, score);
 			}
 		}
-		if (artists.size() != 1) {
-			return Hit.NONE;
-		}
-		String only = artists.iterator().next();
-		Hit best = Hit.NONE;
-		for (Hit hit : titleHits) {
-			if (norm(hit.artist).equals(only) && hit.score > best.score) {
-				best = hit;
-			}
-		}
-		return best;
+		return best.usable() ? best : Hit.NONE;
 	}
 
-	private static boolean tightTitle(String row, String query) {
-		String r = norm(row);
-		String q = norm(query);
-		if (r.isEmpty() || q.isEmpty()) {
-			return false;
+	private static int matchScore(String rowTitle, String rowArtist, String title, String artist) {
+		String rt = norm(rowTitle);
+		String ra = norm(rowArtist);
+		String t = norm(title);
+		String a = norm(artist);
+		if (rt.isEmpty()) {
+			return 0;
 		}
-		if (r.equals(q)) {
-			return true;
+		int score = 0;
+		if (!t.isEmpty() && (rt.equals(t) || rt.contains(t) || t.contains(rt))) {
+			score += 4;
 		}
-		return r.startsWith(q + " ") || q.startsWith(r + " ");
-	}
-
-	private static boolean samePerson(String left, String right) {
-		String a = norm(left);
-		String b = norm(right);
-		if (a.isEmpty() || b.isEmpty()) {
-			return false;
+		if (!a.isEmpty() && (ra.equals(a) || ra.contains(a) || a.contains(ra))) {
+			score += 4;
 		}
-		return a.equals(b) || a.contains(b) || b.contains(a);
+		if (!t.isEmpty() && (ra.equals(t) || ra.contains(t) || t.contains(ra))) {
+			score += 3;
+		}
+		if (!a.isEmpty() && (rt.equals(a) || rt.contains(a) || a.contains(rt))) {
+			score += 3;
+		}
+		if (a.isEmpty() && !t.isEmpty() && (rt.contains(t) || t.contains(rt) || ra.contains(t))) {
+			score += 2;
+		}
+		return score;
 	}
 
 	private static String key(String title, String artist, String album) {
@@ -305,7 +266,7 @@ final class TrackLookup {
 		private static final Hit NONE = new Hit("", "", "", "", 0);
 
 		boolean usable() {
-			return score >= 4 && !NowPlaying.placeholder(artist);
+			return score >= 3 && !NowPlaying.placeholder(artist);
 		}
 	}
 }

@@ -101,6 +101,57 @@ public final class GuiDraw {
 		graphics.pose().popMatrix();
 	}
 
+	/**
+	 * Blits a square texture then paints the four corner ears so the photo
+	 * follows the same rounded silhouette as {@link #rounded}.
+	 */
+	public static void roundedBlit(
+		GuiGraphicsExtractor graphics,
+		Identifier id,
+		float x,
+		float y,
+		float w,
+		float h,
+		float radius,
+		int texSize,
+		int earColor
+	) {
+		blit(graphics, id, x, y, w, h, 0f, 0f, texSize, texSize, texSize, texSize);
+		paintRoundedEars(graphics, x, y, w, h, radius, earColor);
+	}
+
+	private static void paintRoundedEars(
+		GuiGraphicsExtractor graphics,
+		float x,
+		float y,
+		float w,
+		float h,
+		float radius,
+		int color
+	) {
+		float r = Math.min(radius, Math.min(w, h) / 2f);
+		if (r < 0.75f) {
+			return;
+		}
+		int rows = Math.max(1, Math.round(r * 2f));
+		float rowH = r / rows;
+		for (int i = 0; i < rows; i++) {
+			float ly = i * rowH;
+			float dy = r - (ly + rowH * 0.5f);
+			float chord = (float) Math.sqrt(Math.max(0f, r * r - dy * dy));
+			float ear = r - chord;
+			if (ear <= 0.02f) {
+				continue;
+			}
+			float top = y + ly;
+			float bottom = y + h - ly - rowH;
+			fill(graphics, x, top, ear, rowH + 0.2f, color);
+			fill(graphics, x + w - ear, top, ear, rowH + 0.2f, color);
+			fill(graphics, x, bottom, ear, rowH + 0.2f, color);
+			fill(graphics, x + w - ear, bottom, ear, rowH + 0.2f, color);
+		}
+	}
+
 	public static void rounded(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
 		float r = Math.min(radius, Math.min(w, h) / 2f);
 		if (r < 0.75f) {
