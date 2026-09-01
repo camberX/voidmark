@@ -3,6 +3,7 @@ package dev.voidmark.client.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.voidmark.Voidmark;
+import dev.voidmark.client.render.MobCatalog;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -117,13 +118,51 @@ public final class VoidmarkConfig {
 	public float nametagScale = 1.0f;
 	public boolean mobGlowEnabled = false;
 	public boolean mobGlowThroughWalls = true;
-	public String mobGlowId = "minecraft:zombie";
+	public String mobGlowId = "";
+	public java.util.List<String> mobGlowIds = new java.util.ArrayList<>();
 	public float mobGlowSize = 0.48f;
 	public float mobGlowOpacity = 0.58f;
 	public int mobGlowRgb = 0x2FB5FF;
 	public java.util.List<ItemSkin> itemSkins = new java.util.ArrayList<>();
 
 	private VoidmarkConfig() {
+	}
+
+	public void normalizeMobGlowIds() {
+		mobGlowIds = new java.util.ArrayList<>(MobCatalog.normalizeIds(mobGlowIds));
+		mobGlowId = mobGlowIds.isEmpty() ? "" : mobGlowIds.get(0);
+	}
+
+	public boolean isMobGlowSelected(String id) {
+		String key = MobCatalog.canonical(id);
+		if (key == null || key.isEmpty()) {
+			return false;
+		}
+		for (String selected : mobGlowIds) {
+			if (key.equals(MobCatalog.canonical(selected))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Toggle a catalog id. Selecting a type while glow is off also turns glow on. */
+	public void toggleMobGlow(String id) {
+		String key = MobCatalog.canonical(id);
+		if (key == null || key.isEmpty()) {
+			return;
+		}
+		java.util.List<String> next = new java.util.ArrayList<>(MobCatalog.normalizeIds(mobGlowIds));
+		if (next.contains(key)) {
+			next.remove(key);
+		} else {
+			next.add(key);
+			if (!mobGlowEnabled) {
+				mobGlowEnabled = true;
+			}
+		}
+		mobGlowIds = next;
+		mobGlowId = next.isEmpty() ? "" : next.get(0);
 	}
 
 	public static VoidmarkConfig get() {
@@ -179,9 +218,13 @@ public final class VoidmarkConfig {
 				}
 				loaded.nametagRange = clamp(loaded.nametagRange <= 0 ? 128 : loaded.nametagRange, 64, 256);
 				loaded.nametagScale = clampHudScale(loaded.nametagScale);
-				if (loaded.mobGlowId == null || loaded.mobGlowId.isBlank()) {
-					loaded.mobGlowId = "minecraft:zombie";
+				if (loaded.mobGlowIds == null) {
+					loaded.mobGlowIds = new java.util.ArrayList<>();
 				}
+				if (loaded.mobGlowIds.isEmpty() && loaded.mobGlowId != null && !loaded.mobGlowId.isBlank()) {
+					loaded.mobGlowIds.add(loaded.mobGlowId);
+				}
+				loaded.normalizeMobGlowIds();
 				loaded.mobGlowSize = clamp(loaded.mobGlowSize <= 0f ? 0.48f : loaded.mobGlowSize, 0.12f, 1.20f);
 				loaded.mobGlowOpacity = clamp(loaded.mobGlowOpacity <= 0f ? 0.58f : loaded.mobGlowOpacity, 0.15f, 0.90f);
 				loaded.mobGlowRgb = loaded.mobGlowRgb & 0xFFFFFF;

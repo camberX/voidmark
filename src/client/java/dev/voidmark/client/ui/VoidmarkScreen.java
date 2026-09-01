@@ -408,7 +408,7 @@ public class VoidmarkScreen extends Screen {
 		float rx = innerX(right);
 		float iw = innerW(col);
 		VoidmarkConfig config = VoidmarkConfig.get();
-		config.mobGlowId = MobCatalog.normalizeId(config.mobGlowId);
+		config.normalizeMobGlowIds();
 
 		float y = featureCard(graphics, font, left, top, col, cardHeight(6), "Glow");
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.mobGlowEnabled, v -> config.mobGlowEnabled = v);
@@ -416,7 +416,7 @@ public class VoidmarkScreen extends Screen {
 		y = slider(graphics, font, ix, y, iw, "Size", String.format(Locale.ROOT, "%.0f", config.mobGlowSize * 100), (config.mobGlowSize - 0.12f) / 1.08f, v -> config.mobGlowSize = VoidmarkConfig.clamp(0.12f + v * 1.08f, 0.12f, 1.20f));
 		y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.mobGlowOpacity * 100) + "%", (config.mobGlowOpacity - 0.15f) / 0.75f, v -> config.mobGlowOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
 		y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
-		String selected = clip(font, MobCatalog.displayName(config.mobGlowId), (int) iw - 4);
+		String selected = clip(font, MobCatalog.displayNames(config.mobGlowIds), (int) iw - 4);
 		GuiDraw.menu(graphics, font, selected, ix + 1, GuiDraw.middle(y, ROW), Theme.ACCENT);
 
 		List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
@@ -445,7 +445,7 @@ public class VoidmarkScreen extends Screen {
 		float maxScroll = Math.max(0f, contentH - mobListH);
 		if (ensureMobVisible) {
 			for (int i = 0; i < entries.size(); i++) {
-				if (entries.get(i).id().toString().equals(config.mobGlowId)) {
+				if (config.isMobGlowSelected(entries.get(i).id().toString())) {
 					mobScroll = Mth.clamp(i * ROW - mobListH * 0.4f, 0f, maxScroll);
 					break;
 				}
@@ -463,7 +463,7 @@ public class VoidmarkScreen extends Screen {
 			for (int i = first; i <= last; i++) {
 				MobCatalog.Entry entry = entries.get(i);
 				float iy = mobListY + i * ROW - mobScroll;
-				boolean on = entry.id().toString().equals(config.mobGlowId);
+				boolean on = config.isMobGlowSelected(entry.id().toString());
 				boolean hover = GuiDraw.hovered(mouseX, mouseY, mobListX, iy, mobListW, ROW)
 					&& GuiDraw.hovered(mouseX, mouseY, mobListX, mobListY, mobListW, mobListH);
 				if (on) {
@@ -477,8 +477,7 @@ public class VoidmarkScreen extends Screen {
 				float hitB = Math.min(iy + ROW, mobListY + mobListH);
 				if (hitB - hitY >= 3f) {
 					hits.add(new Hit(mobListX, hitY, mobListW, hitB - hitY, () -> {
-						config.mobGlowId = entry.id().toString();
-						config.mobGlowEnabled = true;
+						config.toggleMobGlow(entry.id().toString());
 						UnloadState.markDirty();
 					}));
 				}
@@ -500,7 +499,7 @@ public class VoidmarkScreen extends Screen {
 
 		int nearby = config.mobGlowEnabled ? MobGlowRenderer.nearbyCount() : 0;
 		GuiDraw.small(graphics, font, nearby == 0 ? "None nearby" : nearby + " nearby", ix + 1, top + cardHeight(6) + 6, Theme.MUTED);
-		GuiDraw.small(graphics, font, "Silhouette outline, shader glow.", ix + 1, top + cardHeight(6) + 16, Theme.MUTED);
+		GuiDraw.small(graphics, font, "Click a type to add it, again to drop it.", ix + 1, top + cardHeight(6) + 16, Theme.MUTED);
 	}
 
 	private void drawCapeTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
@@ -764,7 +763,8 @@ public class VoidmarkScreen extends Screen {
 			case MOBS -> {
 				config.mobGlowEnabled = false;
 				config.mobGlowThroughWalls = true;
-				config.mobGlowId = MobCatalog.DEFAULT_ID;
+				config.mobGlowId = "";
+				config.mobGlowIds = new ArrayList<>();
 				config.mobGlowSize = 0.48f;
 				config.mobGlowOpacity = 0.58f;
 				config.mobGlowRgb = 0x2FB5FF;
@@ -1400,7 +1400,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.74");
+			.orElse("1.1.75");
 	}
 
 	@Override

@@ -7,24 +7,23 @@ import net.minecraft.world.entity.MobCategory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
 /**
- * Every living mob in the vanilla entity registry, minus players and armor stands.
- * {@link EntityType#getBaseClass()} is a stub that always returns Entity, so listing
- * uses spawn category plus a few MISC golems.
+ * Living mobs in the vanilla entity registry, plus players. Armor stands and
+ * mannequins stay out. {@link EntityType#getBaseClass()} is a stub in 26.1, so
+ * listing uses spawn category plus a few MISC extras.
  */
 public final class MobCatalog {
-	public static final String DEFAULT_ID = "minecraft:zombie";
-
 	private static final Set<String> SKIP = Set.of(
-		"player",
 		"mannequin",
 		"armor_stand"
 	);
 	private static final Set<String> MISC_MOBS = Set.of(
+		"player",
 		"iron_golem",
 		"snow_golem",
 		"copper_golem"
@@ -66,8 +65,25 @@ public final class MobCatalog {
 		return isListable(key, type) ? type : null;
 	}
 
-	public static String normalizeId(String id) {
-		return type(id) == null ? DEFAULT_ID : parseId(id).toString();
+	public static String canonical(String id) {
+		Identifier key = parseId(id);
+		if (key == null || type(id) == null) {
+			return null;
+		}
+		return key.toString();
+	}
+
+	public static List<String> normalizeIds(List<String> ids) {
+		LinkedHashSet<String> unique = new LinkedHashSet<>();
+		if (ids != null) {
+			for (String id : ids) {
+				String canonical = canonical(id);
+				if (canonical != null) {
+					unique.add(canonical);
+				}
+			}
+		}
+		return new ArrayList<>(unique);
 	}
 
 	public static String displayName(String id) {
@@ -76,6 +92,20 @@ public final class MobCatalog {
 			return "None";
 		}
 		return label(type);
+	}
+
+	public static String displayNames(List<String> ids) {
+		if (ids == null || ids.isEmpty()) {
+			return "None";
+		}
+		String first = displayName(ids.get(0));
+		if (ids.size() == 1) {
+			return first;
+		}
+		if (ids.size() == 2) {
+			return first + ", " + displayName(ids.get(1));
+		}
+		return first + " +" + (ids.size() - 1);
 	}
 
 	public static Identifier parseId(String id) {

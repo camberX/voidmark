@@ -8,6 +8,10 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * Marks matching mobs for the entity-outline buffer. A custom post shader
  * turns that silhouette into a clean outward gradient, not vanilla sobel.
@@ -26,13 +30,13 @@ public final class MobGlowRenderer {
 		if (client.level == null || client.player == null) {
 			return 0;
 		}
-		EntityType<?> type = MobCatalog.type(VoidmarkConfig.get().mobGlowId);
-		if (type == null) {
+		Set<EntityType<?>> types = selectedTypes();
+		if (types.isEmpty()) {
 			return 0;
 		}
 		int count = 0;
 		for (Entity entity : client.level.entitiesForRendering()) {
-			if (matches(entity, type, client.player)) {
+			if (matches(entity, types, client.player)) {
 				count++;
 			}
 		}
@@ -48,8 +52,8 @@ public final class MobGlowRenderer {
 		if (client.player == null || client.level == null || entity == client.player) {
 			return 0;
 		}
-		EntityType<?> type = MobCatalog.type(config.mobGlowId);
-		if (type == null || !matches(entity, type, client.player)) {
+		Set<EntityType<?>> types = selectedTypes();
+		if (types.isEmpty() || !matches(entity, types, client.player)) {
 			return 0;
 		}
 		Vec3 camera = client.gameRenderer.getMainCamera().position();
@@ -64,11 +68,26 @@ public final class MobGlowRenderer {
 		return (alpha << 24) | (config.mobGlowRgb & 0xFFFFFF);
 	}
 
-	static boolean matches(Entity entity, EntityType<?> type, Entity player) {
+	private static Set<EntityType<?>> selectedTypes() {
+		List<String> ids = VoidmarkConfig.get().mobGlowIds;
+		Set<EntityType<?>> types = new HashSet<>();
+		if (ids == null) {
+			return types;
+		}
+		for (String id : ids) {
+			EntityType<?> type = MobCatalog.type(id);
+			if (type != null) {
+				types.add(type);
+			}
+		}
+		return types;
+	}
+
+	static boolean matches(Entity entity, Set<EntityType<?>> types, Entity player) {
 		if (entity == null || entity == player || entity.isRemoved() || !entity.isAlive()) {
 			return false;
 		}
-		return entity.getType() == type;
+		return types.contains(entity.getType());
 	}
 
 	private static boolean occluded(Minecraft client, Vec3 from, Vec3 to) {
