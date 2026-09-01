@@ -143,10 +143,8 @@ public final class MusicHudRenderer {
 		GuiDraw.rounded(graphics, barX, barY, filled, 3, 1.5f, Theme.ACCENT);
 
 		if (track.durationMs() > 0L) {
-			String left = NowPlaying.clock(track.displayPositionMs());
-			String right = NowPlaying.clock(track.durationMs());
-			GuiDraw.small(graphics, font, left, barX, 33, Theme.MUTED);
-			GuiDraw.small(graphics, font, right, barX + barW - GuiDraw.smallWidth(font, right), 33, Theme.MUTED);
+			String clock = NowPlaying.clock(track.displayPositionMs()) + "/" + NowPlaying.clock(track.durationMs());
+			GuiDraw.small(graphics, font, clock, barX + barW - GuiDraw.smallWidth(font, clock), 33, Theme.MUTED);
 		}
 
 		boolean chat = interactive();
