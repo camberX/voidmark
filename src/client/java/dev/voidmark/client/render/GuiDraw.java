@@ -133,7 +133,7 @@ public final class GuiDraw {
 		if (r < 0.75f) {
 			return;
 		}
-		int rows = Math.max(1, Math.round(r * 2f));
+		int rows = Math.max(8, Math.round(r * 4f));
 		float rowH = r / rows;
 		for (int i = 0; i < rows; i++) {
 			float ly = i * rowH;

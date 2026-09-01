@@ -174,6 +174,105 @@ public final class CoverArt {
 	}
 
 	private static NativeImage square(NativeImage src) {
+		NativeImage trimmed = trimBars(src);
+		try {
+			return fitSquare(trimmed);
+		} finally {
+			if (trimmed != src) {
+				trimmed.close();
+			}
+		}
+	}
+
+	/**
+	 * Drops uniform letterbox / pillarbox (YouTube thumbs, padded SMTC art)
+	 * so the square crop is the artwork instead of black and gray bars.
+	 */
+	private static NativeImage trimBars(NativeImage src) {
+		int width = src.getWidth();
+		int height = src.getHeight();
+		if (width < 16 || height < 16) {
+			return src;
+		}
+		int x0 = 0;
+		int y0 = 0;
+		int x1 = width;
+		int y1 = height;
+		int maxX = Math.max(4, width * 2 / 5);
+		int maxY = Math.max(4, height * 2 / 5);
+		for (int pass = 0; pass < 3; pass++) {
+			int before = x0 + y0 + (width - x1) + (height - y1);
+			while (y0 < y1 - 12 && y0 < maxY && rowIsBar(src, y0, x0, x1)) {
+				y0++;
+			}
+			while (y1 > y0 + 12 && (height - y1) < maxY && rowIsBar(src, y1 - 1, x0, x1)) {
+				y1--;
+			}
+			while (x0 < x1 - 12 && x0 < maxX && colIsBar(src, x0, y0, y1)) {
+				x0++;
+			}
+			while (x1 > x0 + 12 && (width - x1) < maxX && colIsBar(src, x1 - 1, y0, y1)) {
+				x1--;
+			}
+			if (x0 + y0 + (width - x1) + (height - y1) == before) {
+				break;
+			}
+		}
+		if (x0 <= 1 && y0 <= 1 && x1 >= width - 1 && y1 >= height - 1) {
+			return src;
+		}
+		int nw = x1 - x0;
+		int nh = y1 - y0;
+		if (nw < 12 || nh < 12) {
+			return src;
+		}
+		NativeImage out = new NativeImage(nw, nh, false);
+		src.resizeSubRectTo(x0, y0, nw, nh, out);
+		return out;
+	}
+
+	private static boolean rowIsBar(NativeImage image, int y, int x0, int x1) {
+		return lineIsBar(image, true, y, x0, x1);
+	}
+
+	private static boolean colIsBar(NativeImage image, int x, int y0, int y1) {
+		return lineIsBar(image, false, x, y0, y1);
+	}
+
+	private static boolean lineIsBar(NativeImage image, boolean horizontal, int index, int from, int to) {
+		int span = to - from;
+		if (span < 8) {
+			return false;
+		}
+		int step = Math.max(1, span / 48);
+		int min = 255;
+		int max = 0;
+		int n = 0;
+		long sum = 0L;
+		for (int i = from; i < to; i += step) {
+			int pixel = horizontal ? image.getPixel(i, index) : image.getPixel(index, i);
+			int y = luma(pixel);
+			min = Math.min(min, y);
+			max = Math.max(max, y);
+			sum += y;
+			n++;
+		}
+		if (n == 0) {
+			return false;
+		}
+		int avg = (int) (sum / n);
+		int range = max - min;
+		return range <= 14 && (avg <= 32 || range <= 8);
+	}
+
+	private static int luma(int color) {
+		int r = (color >>> 16) & 255;
+		int g = (color >>> 8) & 255;
+		int b = color & 255;
+		return (r + g + b) / 3;
+	}
+
+	private static NativeImage fitSquare(NativeImage src) {
 		int width = src.getWidth();
 		int height = src.getHeight();
 		if (width < 1 || height < 1) {
