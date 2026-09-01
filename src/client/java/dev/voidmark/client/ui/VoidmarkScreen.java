@@ -500,7 +500,7 @@ public class VoidmarkScreen extends Screen {
 
 		int nearby = config.mobGlowEnabled ? MobGlowRenderer.nearbyCount() : 0;
 		GuiDraw.small(graphics, font, nearby == 0 ? "None nearby" : nearby + " nearby", ix + 1, top + cardHeight(6) + 6, Theme.MUTED);
-		GuiDraw.small(graphics, font, "Soft bloom, not vanilla glow.", ix + 1, top + cardHeight(6) + 16, Theme.MUTED);
+		GuiDraw.small(graphics, font, "Silhouette outline, shader glow.", ix + 1, top + cardHeight(6) + 16, Theme.MUTED);
 	}
 
 	private void drawCapeTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
@@ -1400,7 +1400,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.73");
+			.orElse("1.1.74");
 	}
 
 	@Override

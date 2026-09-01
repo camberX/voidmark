@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-		3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.73.jar` in `mods`.
+		3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.74.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -19,7 +19,7 @@ Java **25** is required.
 - `/vm edit` or `/voidmark edit` opens the item id window. It shows the item you are holding, with its `minecraft:` id or Skyblock `sb:` id in a text box and a large preview above it. Typing another id reskins that item on your client: hand, hotbar, and inventory all show the new look. The server still has the real item. Vanilla ids look like `minecraft:diamond_sword`; Skyblock ids look like `sb:HYPERION`. Tab or click a suggestion to fill it. Type the original id again to clear the reskin.
 - `/vm rawmats sb:HYPERION` (or `/voidmark rawmats`, or `/vm rawmats` while holding the item) expands that Skyblock craft and shows a HUD with item icons, have/need counts, and a live progress bar per ingredient. **Materials** (Display tab, or click Raw/Enchanted on the HUD with chat open) picks **Raw** (Iron Ingot) or **Enchanted** (Enchanted Iron). Inventory and armor are counted live. Ender Chest and backpacks come from your Skyblock profile (`hypixel.odtheking.com`) so island swaps and profile refreshes do not wipe them. `/vm rawmats refresh` pulls storage again; `/vm rawmats raw` / `/vm rawmats enchanted` switch the mode; `/vm rawmats clear` hides the tracker.
 - The **Music HUD** (Display tab, or the bell) shows the song that is playing in Spotify or YouTube Music: cover art, title, artist, source, a progress bar, and elapsed/duration on the right of the bar (`1:23/3:45`). Pause freezes the bar; scrubbing updates it when the player reports a real timestamp. YouTube Music in a browser often keeps SMTC position at `0` — use YouTube Music Desktop (port 9863) or th-ch YouTube Music (26558) for a live clock. When the track changes, chat shows a styled `VOIDMARK | NOW PLAYING` line with the title and artist. Open Minecraft chat (`T`) to click **previous / play-pause / next** on the HUD. You can also type `.np` `.play` `.pause` `.skip` `.prev` in chat (those stay client-side) or `/vm music`. On Windows it reads the system now-playing session (including SMTC album art), Spotify / YouTube Music window titles, and local companion APIs (YouTube Music Desktop on 9863, th-ch YouTube Music on 26558). Linux uses `playerctl` metadata and `mpris:artUrl`.
-- **Mobs** (Mobs tab) highlights every loaded entity of a type you pick. Scroll the full vanilla mob list (or type in the list search) and click a row. That draws a soft outward bloom around matching mobs — stacked translucent shells, not the vanilla glowing outline. Size, opacity, color, and through-walls are on the same page. Reset restores only this tab.
+- **Mobs** (Mobs tab) highlights every loaded entity of a type you pick. Scroll the full vanilla mob list (or type in the list search) and click a row. Matching mobs get a **silhouette outline** with a shader gradient that fades outward from the model — not boxes, and not Minecraft’s sobel glow. Opacity, color, and through-walls are on the same page. Reset restores only this tab.
 
 - Right Shift is the default keybind (Controls → Voidmark). Press it again to close (the menu eases out).
 - `/voidmark toggle` flips node markers without opening the menu.
@@ -47,7 +47,7 @@ Aspect ratio stretches the world horizontally the same way 4:3 on a 16:9 panel d
 
 ### Visuals → Mobs
 
-Pick a mob from the scrollable list of every living vanilla type. Matching entities in the world get a smooth outward glow built from stacked translucent boxes, not Minecraft's glowing outline. Through-walls, size, opacity, and color are on that page.
+Pick a mob from the scrollable list of every living vanilla type. Matching entities are drawn into the outline buffer as a silhouette, then a custom post shader blurs that mask and keeps only the outside so you get a clean rim plus an outward gradient. Through-walls, opacity, and color are on that page.
 
 ### Nodes
 
@@ -60,7 +60,7 @@ Markers only run in Skyblock by default. Enable **Force enable** to test in sing
 | World | Block tint, shader/lightmap mode, skybox tint, colors, strength |
 | Fog | Custom fog color, start, end, density |
 | View | Aspect ratio slider and Native / 16:10 / 4:3 / 5:4 chips |
-| Mobs | Scrollable mob list and custom outward glow ESP |
+| Mobs | Scrollable mob list and shader silhouette outline glow |
 | Markers | Scan, End-only filter, particles |
 | Display | Node HUD, watermark, music HUD, boxes, tracers, marker color |
 | HUD | Custom vanilla HUD: hotbar, bars, scoreboard, boss, effects, held item |

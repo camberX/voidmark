@@ -1,6 +1,7 @@
 package dev.voidmark.client.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import dev.voidmark.client.render.MobGlowRenderer;
 import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.visual.NickHider;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -21,6 +22,10 @@ public class EntityRendererMixin {
 		at = @At("RETURN")
 	)
 	private void voidmark$nickTag(Entity entity, EntityRenderState state, float tickDelta, CallbackInfo ci) {
+		int glow = MobGlowRenderer.outlineColor(entity);
+		if (glow != 0) {
+			state.outlineColor = glow;
+		}
 		if (NametagRenderer.hidingVanilla(entity)) {
 			state.nameTag = null;
 			state.scoreText = null;

@@ -1,35 +1,24 @@
 package dev.voidmark.client.render;
 
 import dev.voidmark.client.config.VoidmarkConfig;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.gizmos.GizmoProperties;
-import net.minecraft.gizmos.GizmoStyle;
-import net.minecraft.gizmos.Gizmos;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-
 /**
- * Soft outward bloom around the selected mob type. Built from stacked
- * translucent AABB shells — not the vanilla glowing outline.
+ * Marks matching mobs for the entity-outline buffer. A custom post shader
+ * turns that silhouette into a clean outward gradient, not vanilla sobel.
  */
 public final class MobGlowRenderer {
-	private static final int SHELLS = 10;
-	private static final int MAX_MOBS = 64;
 	private static final double MAX_RANGE = 96.0;
 
 	private MobGlowRenderer() {
 	}
 
 	public static void init() {
-		LevelRenderEvents.BEFORE_GIZMOS.register(context -> emit());
 	}
 
 	public static int nearbyCount() {
@@ -50,98 +39,49 @@ public final class MobGlowRenderer {
 		return count;
 	}
 
-	private static void emit() {
+	public static int outlineColor(Entity entity) {
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.mobGlowEnabled) {
-			return;
+		if (!config.mobGlowEnabled || entity == null) {
+			return 0;
 		}
 		Minecraft client = Minecraft.getInstance();
-		if (client.level == null || client.player == null) {
-			return;
+		if (client.player == null || client.level == null || entity == client.player) {
+			return 0;
 		}
 		EntityType<?> type = MobCatalog.type(config.mobGlowId);
-		if (type == null) {
-			return;
+		if (type == null || !matches(entity, type, client.player)) {
+			return 0;
 		}
-
-		float partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
 		Vec3 camera = client.gameRenderer.getMainCamera().position();
-		List<Entity> mobs = collect(client, type, camera);
-		if (mobs.isEmpty()) {
-			return;
+		if (entity.distanceToSqr(camera) > MAX_RANGE * MAX_RANGE) {
+			return 0;
 		}
-
-		int rgb = config.mobGlowRgb & 0xFFFFFF;
-		float size = VoidmarkConfig.clamp(config.mobGlowSize, 0.12f, 1.20f);
+		if (!config.mobGlowThroughWalls && occluded(client, camera, entity.getEyePosition())) {
+			return 0;
+		}
 		float opacity = VoidmarkConfig.clamp(config.mobGlowOpacity, 0.15f, 0.90f);
-		boolean throughWalls = config.mobGlowThroughWalls;
-		float pulse = 0.88f + 0.12f * Mth.sin((float) (System.nanoTime() / 1_000_000_000.0 * 2.35));
-
-		for (Entity entity : mobs) {
-			AABB box = interpolatedBox(entity, partial);
-			drawBloom(box, rgb, opacity, size * pulse, throughWalls);
-		}
+		int alpha = Math.round(opacity * 255f);
+		return (alpha << 24) | (config.mobGlowRgb & 0xFFFFFF);
 	}
 
-	private static List<Entity> collect(Minecraft client, EntityType<?> type, Vec3 camera) {
-		List<Entity> mobs = new ArrayList<>();
-		double maxSq = MAX_RANGE * MAX_RANGE;
-		for (Entity entity : client.level.entitiesForRendering()) {
-			if (!matches(entity, type, client.player)) {
-				continue;
-			}
-			if (entity.distanceToSqr(camera) > maxSq) {
-				continue;
-			}
-			mobs.add(entity);
-		}
-		if (mobs.size() > MAX_MOBS) {
-			mobs.sort(Comparator.comparingDouble(entity -> entity.distanceToSqr(camera)));
-			return mobs.subList(0, MAX_MOBS);
-		}
-		return mobs;
-	}
-
-	private static boolean matches(Entity entity, EntityType<?> type, Entity player) {
+	static boolean matches(Entity entity, EntityType<?> type, Entity player) {
 		if (entity == null || entity == player || entity.isRemoved() || !entity.isAlive()) {
 			return false;
 		}
 		return entity.getType() == type;
 	}
 
-	private static AABB interpolatedBox(Entity entity, float partial) {
-		Vec3 pos = entity.getPosition(partial);
-		return entity.getBoundingBox().move(
-			pos.x - entity.getX(),
-			pos.y - entity.getY(),
-			pos.z - entity.getZ()
-		);
-	}
-
-	private static void drawBloom(AABB box, int rgb, float opacity, float size, boolean throughWalls) {
-		for (int i = SHELLS; i >= 1; i--) {
-			float t = i / (float) SHELLS;
-			float falloff = (1f - t);
-			falloff *= falloff;
-			int alpha = Math.round(opacity * (0.16f + 0.62f * falloff) * 255f);
-			if (alpha <= 0) {
-				continue;
-			}
-			int fill = (alpha << 24) | rgb;
-			AABB shell = box.inflate(size * t);
-			GizmoProperties properties = Gizmos.cuboid(shell, GizmoStyle.fill(fill));
-			if (throughWalls) {
-				properties.setAlwaysOnTop();
-			}
+	private static boolean occluded(Minecraft client, Vec3 from, Vec3 to) {
+		HitResult hit = client.level.clip(new ClipContext(
+			from,
+			to,
+			ClipContext.Block.VISUAL,
+			ClipContext.Fluid.NONE,
+			client.player
+		));
+		if (hit.getType() == HitResult.Type.MISS) {
+			return false;
 		}
-
-		int coreAlpha = Math.round(opacity * 0.22f * 255f);
-		GizmoProperties core = Gizmos.cuboid(
-			box.inflate(0.03),
-			GizmoStyle.fill((coreAlpha << 24) | rgb)
-		);
-		if (throughWalls) {
-			core.setAlwaysOnTop();
-		}
+		return hit.getLocation().distanceToSqr(from) + 0.36 < to.distanceToSqr(from);
 	}
 }
