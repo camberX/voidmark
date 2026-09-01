@@ -22,8 +22,9 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Counts Skyblock items in the live inventory plus the last-seen
- * Ender Chest / backpack pages. Backpack NBT on items is read when present.
+ * Live inventory plus Ender Chest / backpack counts from the Skyblock profile API.
+ * Opened pages are only used as a fallback until the API has storage, or while
+ * that container is open so the HUD can update immediately.
  */
 public final class ItemStorage {
 	private static final EquipmentSlot[] ARMOR = {
@@ -47,13 +48,17 @@ public final class ItemStorage {
 	};
 
 	private static final Map<String, Map<String, Long>> PAGES = new HashMap<>();
-	private static boolean sawEnder;
-	private static boolean sawBackpack;
+	private static volatile Map<String, Long> apiEnder = Map.of();
+	private static volatile Map<String, Long> apiBackpack = Map.of();
+	private static volatile boolean apiEnderReady;
+	private static volatile boolean apiBackpackReady;
+	private static String openKind;
 
 	private ItemStorage() {
 	}
 
 	public static void tick(Minecraft client) {
+		openKind = null;
 		if (client == null || client.player == null) {
 			return;
 		}
@@ -73,30 +78,34 @@ public final class ItemStorage {
 		Map<String, Long> counts = new HashMap<>();
 		int end = Math.max(0, menu.slots.size() - 36);
 		for (int i = 0; i < end; i++) {
-			addSlot(menu.slots.get(i), counts, 0);
+			addSlot(menu.slots.get(i), counts, 0, true);
 		}
 		String key = kind + ":" + title.trim().toLowerCase(Locale.ROOT);
 		PAGES.put(key, counts);
-		if ("ender".equals(kind)) {
-			sawEnder = true;
+		openKind = kind;
+	}
+
+	public static void applyApi(Map<String, Long> ender, Map<String, Long> backpacks) {
+		if (ender != null) {
+			apiEnder = Map.copyOf(ender);
+			apiEnderReady = true;
 		}
-		if ("backpack".equals(kind)) {
-			sawBackpack = true;
+		if (backpacks != null) {
+			apiBackpack = Map.copyOf(backpacks);
+			apiBackpackReady = true;
 		}
 	}
 
-	public static void clearPages() {
-		PAGES.clear();
-		sawEnder = false;
-		sawBackpack = false;
+	public static boolean hasApiStorage() {
+		return apiEnderReady || apiBackpackReady;
 	}
 
 	public static boolean sawEnder() {
-		return sawEnder;
+		return apiEnderReady || hasPage("ender");
 	}
 
 	public static boolean sawBackpack() {
-		return sawBackpack;
+		return apiBackpackReady || hasPage("backpack");
 	}
 
 	public static Map<String, Long> counts(Player player) {
@@ -107,27 +116,68 @@ public final class ItemStorage {
 		Inventory inventory = player.getInventory();
 		int size = inventory.getContainerSize();
 		for (int i = 0; i < size; i++) {
-			addStack(inventory.getItem(i), out, 0);
+			addStack(inventory.getItem(i), out, 0, false);
 		}
 		for (EquipmentSlot slot : ARMOR) {
-			addStack(player.getItemBySlot(slot), out, 0);
+			addStack(player.getItemBySlot(slot), out, 0, false);
 		}
-		for (Map<String, Long> page : PAGES.values()) {
-			for (Map.Entry<String, Long> entry : page.entrySet()) {
-				out.merge(entry.getKey(), entry.getValue(), Long::sum);
-			}
+		if (apiEnderReady) {
+			merge(out, apiEnder);
+		} else {
+			addPages(out, "ender");
+		}
+		if (apiBackpackReady) {
+			merge(out, apiBackpack);
+		} else {
+			addPages(out, "backpack");
+		}
+		if (!apiEnderReady && !apiBackpackReady) {
+			addPages(out, "storage");
 		}
 		return out;
 	}
 
-	private static void addSlot(Slot slot, Map<String, Long> out, int depth) {
+	public static void addCounts(Tag tag, Map<String, Long> out, boolean nestStorage) {
+		addTag(tag, out, 0, nestStorage);
+	}
+
+	private static void addPages(Map<String, Long> out, String kind) {
+		String prefix = kind + ":";
+		for (Map.Entry<String, Map<String, Long>> page : PAGES.entrySet()) {
+			if (!page.getKey().startsWith(prefix)) {
+				continue;
+			}
+			merge(out, page.getValue());
+		}
+	}
+
+	private static boolean hasPage(String kind) {
+		String prefix = kind + ":";
+		for (String key : PAGES.keySet()) {
+			if (key.startsWith(prefix)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static void merge(Map<String, Long> out, Map<String, Long> extra) {
+		if (extra == null || extra.isEmpty()) {
+			return;
+		}
+		for (Map.Entry<String, Long> entry : extra.entrySet()) {
+			out.merge(entry.getKey(), entry.getValue(), Long::sum);
+		}
+	}
+
+	private static void addSlot(Slot slot, Map<String, Long> out, int depth, boolean nestStorage) {
 		if (slot == null) {
 			return;
 		}
-		addStack(slot.getItem(), out, depth);
+		addStack(slot.getItem(), out, depth, nestStorage);
 	}
 
-	private static void addStack(ItemStack stack, Map<String, Long> out, int depth) {
+	private static void addStack(ItemStack stack, Map<String, Long> out, int depth, boolean nestStorage) {
 		if (stack == null || stack.isEmpty() || depth > 4) {
 			return;
 		}
@@ -136,25 +186,31 @@ public final class ItemStorage {
 			out.merge(id, (long) Math.max(1, stack.getCount()), Long::sum);
 			ItemIds.remember(stack);
 		}
-		addNested(extra(stack), out, depth + 1);
+		addNested(extra(stack), out, depth + 1, nestStorage);
 	}
 
-	private static void addNested(CompoundTag extra, Map<String, Long> out, int depth) {
+	private static void addNested(CompoundTag extra, Map<String, Long> out, int depth, boolean nestStorage) {
 		if (extra == null || extra.isEmpty() || depth > 6) {
 			return;
 		}
 		for (String key : CONTENT_KEYS) {
-			addTag(extra.get(key), out, depth);
+			if (!nestStorage && storageKey(key)) {
+				continue;
+			}
+			addTag(extra.get(key), out, depth, nestStorage);
 		}
 		for (String key : extra.keySet()) {
+			if (!nestStorage && storageKey(key)) {
+				continue;
+			}
 			String lower = key.toLowerCase(Locale.ROOT);
 			if (lower.contains("content") || lower.contains("container") || lower.contains("inventory") || lower.equals("items")) {
-				addTag(extra.get(key), out, depth);
+				addTag(extra.get(key), out, depth, nestStorage);
 			}
 		}
 	}
 
-	private static void addTag(Tag tag, Map<String, Long> out, int depth) {
+	private static void addTag(Tag tag, Map<String, Long> out, int depth, boolean nestStorage) {
 		if (tag == null || depth > 8) {
 			return;
 		}
@@ -164,21 +220,32 @@ public final class ItemStorage {
 				if (id != null) {
 					out.merge(id, (long) itemCount(compound), Long::sum);
 				}
-				addNested(compound.getCompoundOrEmpty("tag").getCompoundOrEmpty("ExtraAttributes"), out, depth + 1);
-				addNested(compound.getCompoundOrEmpty("ExtraAttributes"), out, depth + 1);
-				addNested(compound.getCompoundOrEmpty("components").getCompoundOrEmpty("minecraft:custom_data"), out, depth + 1);
+				addNested(compound.getCompoundOrEmpty("tag").getCompoundOrEmpty("ExtraAttributes"), out, depth + 1, nestStorage);
+				addNested(compound.getCompoundOrEmpty("ExtraAttributes"), out, depth + 1, nestStorage);
+				addNested(compound.getCompoundOrEmpty("components").getCompoundOrEmpty("minecraft:custom_data"), out, depth + 1, nestStorage);
 				return;
 			}
 			for (String key : compound.keySet()) {
-				addTag(compound.get(key), out, depth + 1);
+				if (!nestStorage && storageKey(key)) {
+					continue;
+				}
+				addTag(compound.get(key), out, depth + 1, nestStorage);
 			}
 			return;
 		}
 		if (tag instanceof ListTag list) {
 			for (Tag child : list) {
-				addTag(child, out, depth + 1);
+				addTag(child, out, depth + 1, nestStorage);
 			}
 		}
+	}
+
+	private static boolean storageKey(String key) {
+		if (key == null) {
+			return false;
+		}
+		String lower = key.toLowerCase(Locale.ROOT);
+		return lower.contains("backpack") || lower.contains("ender_chest") || lower.contains("enderchest");
 	}
 
 	private static boolean looksLikeItem(CompoundTag tag) {

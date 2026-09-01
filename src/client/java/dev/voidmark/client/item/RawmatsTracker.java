@@ -69,10 +69,11 @@ public final class RawmatsTracker {
 
 	public static void tick(Minecraft client) {
 		ItemStorage.tick(client);
+		SkyblockProfileApi.tick(client);
 	}
 
 	public static void disconnect() {
-		ItemStorage.clearPages();
+		SkyblockProfileApi.refresh();
 	}
 
 	public static boolean tracking() {
@@ -95,6 +96,7 @@ public final class RawmatsTracker {
 		config.rawmatsItemId = id;
 		config.rawmatsHudEnabled = true;
 		config.save();
+		SkyblockProfileApi.refresh();
 		return id;
 	}
 

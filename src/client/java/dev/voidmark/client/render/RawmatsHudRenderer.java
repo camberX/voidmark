@@ -2,7 +2,9 @@ package dev.voidmark.client.render;
 
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
+import dev.voidmark.client.item.ItemStorage;
 import dev.voidmark.client.item.RawmatsTracker;
+import dev.voidmark.client.item.SkyblockProfileApi;
 import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.Theme;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -140,10 +142,8 @@ public final class RawmatsHudRenderer {
 			GuiDraw.small(graphics, font, "+" + (lines.size() - MAX_ROWS) + " more", PAD + 4, rowY + 1, Theme.MUTED);
 			rowY += 12;
 		}
-		if (!snap.sawEnder() || !snap.sawBackpack()) {
-			String hint = !snap.sawEnder() && !snap.sawBackpack()
-				? "Open Ender Chest and backpacks to count them"
-				: !snap.sawEnder() ? "Open Ender Chest to count it" : "Open backpacks to count them";
+		String hint = storageHint(snap);
+		if (hint != null) {
 			GuiDraw.small(graphics, font, hint, PAD + 4, rowY + 1, Theme.MUTED);
 		}
 		graphics.pose().popMatrix();
@@ -184,8 +184,25 @@ public final class RawmatsHudRenderer {
 		}
 		int rows = Math.min(MAX_ROWS, Math.max(1, snap.lines().size()));
 		boolean extra = snap.lines().size() > MAX_ROWS;
-		boolean hint = !snap.sawEnder() || !snap.sawBackpack();
+		boolean hint = storageHint(snap) != null;
 		return HEAD + PAD + rows * ROW + (extra ? 12 : 0) + (hint ? 12 : 0) + PAD;
+	}
+
+	private static String storageHint(RawmatsTracker.Snapshot snap) {
+		if (ItemStorage.hasApiStorage()) {
+			return null;
+		}
+		SkyblockProfileApi.Status status = SkyblockProfileApi.status();
+		if (status == SkyblockProfileApi.Status.LOADING || status == SkyblockProfileApi.Status.IDLE) {
+			return "Loading Ender Chest and backpacks";
+		}
+		if (status == SkyblockProfileApi.Status.ERROR) {
+			return "Couldn't load Ender Chest / backpacks";
+		}
+		if (!snap.sawEnder() || !snap.sawBackpack()) {
+			return "Open Ender Chest and backpacks to count them";
+		}
+		return null;
 	}
 
 	static String format(long value) {

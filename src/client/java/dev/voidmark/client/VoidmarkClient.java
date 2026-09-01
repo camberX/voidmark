@@ -13,6 +13,7 @@ import dev.voidmark.client.item.ItemIds;
 import dev.voidmark.client.item.RawmatsCommands;
 import dev.voidmark.client.item.RawmatsTracker;
 import dev.voidmark.client.item.SkyblockItems;
+import dev.voidmark.client.item.SkyblockProfileApi;
 import dev.voidmark.client.item.SkyblockRecipes;
 import dev.voidmark.client.media.MediaChat;
 import dev.voidmark.client.media.MediaSession;
@@ -128,6 +129,8 @@ public final class VoidmarkClient implements ClientModInitializer {
 			ConnectionPing.tick(client);
 			RawmatsTracker.tick(client);
 		});
+
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> SkyblockProfileApi.refresh());
 
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			SkyblockLocation.reset();

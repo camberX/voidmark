@@ -43,6 +43,9 @@ public final class RawmatsCommands {
 			if (lower.isEmpty() || "enchanted".startsWith(lower)) {
 				builder.suggest("enchanted");
 			}
+			if (lower.isEmpty() || "refresh".startsWith(lower)) {
+				builder.suggest("refresh");
+			}
 			if (lower.isEmpty()) {
 				return builder.buildFuture();
 			}
@@ -85,6 +88,12 @@ public final class RawmatsCommands {
 				.append(Component.literal(" cleared").withStyle(style(Theme.MUTED))));
 			return Command.SINGLE_SUCCESS;
 		}
+		if (trimmed.equalsIgnoreCase("refresh")) {
+			SkyblockProfileApi.refresh();
+			tell(brand().append(sep()).append(Component.literal("RAW MATS").withStyle(style(Theme.ACCENT).withBold(true)))
+				.append(Component.literal(" refreshing storage").withStyle(style(Theme.MUTED))));
+			return Command.SINGLE_SUCCESS;
+		}
 		if (trimmed.equalsIgnoreCase("raw") || trimmed.equalsIgnoreCase("enchanted") || trimmed.equalsIgnoreCase("ench")) {
 			VoidmarkConfig config = VoidmarkConfig.get();
 			config.rawmatsEnchanted = trimmed.toLowerCase(Locale.ROOT).startsWith("ench");
@@ -123,8 +132,8 @@ public final class RawmatsCommands {
 			tell(Component.literal("  " + row.name() + "  " + mark).withStyle(style(row.done() ? Theme.ACCENT : Theme.TEXT)));
 			shown++;
 		}
-		if (!snap.sawEnder() || !snap.sawBackpack()) {
-			tell(muted("Open your Ender Chest and backpacks once so stored items count."));
+		if (!ItemStorage.hasApiStorage() && (!snap.sawEnder() || !snap.sawBackpack())) {
+			tell(muted("Ender Chest and backpacks load from your Skyblock profile. /vm rawmats refresh if they look stale."));
 		}
 		return Command.SINGLE_SUCCESS;
 	}
