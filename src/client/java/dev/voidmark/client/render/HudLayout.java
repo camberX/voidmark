@@ -20,6 +20,7 @@ public final class HudLayout {
 		WATERMARK("Watermark"),
 		INVENTORY("Inventory"),
 		NODES("Nodes"),
+		MUSIC("Music"),
 		HOTBAR("Hotbar"),
 		HEALTH("Health"),
 		HUNGER("Hunger"),
@@ -109,6 +110,10 @@ public final class HudLayout {
 					float belowMark = WatermarkRenderer.occupiedHeight();
 					y = placed(config.hudNodesY) ? config.hudNodesY : MARGIN + belowMark;
 				}
+				case MUSIC -> {
+					x = placed(config.hudMusicX) ? config.hudMusicX : MARGIN;
+					y = placed(config.hudMusicY) ? config.hudMusicY : Math.max(MARGIN, guiH - h - 40);
+				}
 				default -> {
 					x = defaultX(id, font, guiW, w);
 					y = defaultY(id, font, guiH, h);
@@ -153,6 +158,10 @@ public final class HudLayout {
 				config.hudNodesX = x;
 				config.hudNodesY = y;
 			}
+			case MUSIC -> {
+				config.hudMusicX = x;
+				config.hudMusicY = y;
+			}
 			default -> {
 			}
 		}
@@ -168,6 +177,7 @@ public final class HudLayout {
 			case WATERMARK -> VoidmarkConfig.clampHudScale(config.hudWatermarkScale);
 			case INVENTORY -> VoidmarkConfig.clampHudScale(config.inventoryHudScale);
 			case NODES -> VoidmarkConfig.clampHudScale(config.hudNodesScale);
+			case MUSIC -> VoidmarkConfig.clampHudScale(config.hudMusicScale);
 			default -> 1.0f;
 		};
 	}
@@ -184,6 +194,7 @@ public final class HudLayout {
 			case WATERMARK -> config.hudWatermarkScale = value;
 			case INVENTORY -> config.inventoryHudScale = value;
 			case NODES -> config.hudNodesScale = value;
+			case MUSIC -> config.hudMusicScale = value;
 			default -> {
 			}
 		}
@@ -210,6 +221,10 @@ public final class HudLayout {
 				config.hudNodesX = -1f;
 				config.hudNodesY = -1f;
 			}
+			case MUSIC -> {
+				config.hudMusicX = -1f;
+				config.hudMusicY = -1f;
+			}
 			default -> {
 			}
 		}
@@ -221,6 +236,7 @@ public final class HudLayout {
 			case WATERMARK -> config.watermarkEnabled;
 			case INVENTORY -> config.inventoryHudEnabled;
 			case NODES -> config.hudEnabled;
+			case MUSIC -> config.musicHudEnabled;
 			case HOTBAR -> config.hudHotbar;
 			case HEALTH -> config.hudHealth;
 			case HUNGER -> config.hudHunger;
@@ -354,6 +370,7 @@ public final class HudLayout {
 			case WATERMARK -> WatermarkRenderer.width(font) * scale;
 			case INVENTORY -> InventoryHudRenderer.drawWidth() * scale;
 			case NODES -> NodeHudRenderer.drawWidth() * scale;
+			case MUSIC -> MusicHudRenderer.drawWidth() * scale;
 			case HOTBAR -> HotbarHudRenderer.drawWidth() * scale;
 			case HEALTH, HUNGER, ARMOR, AIR, MOUNT -> StatusHudRenderer.BAR_W * scale;
 			case EXPERIENCE -> StatusHudRenderer.xpWidth() * scale;
@@ -370,6 +387,7 @@ public final class HudLayout {
 			case WATERMARK -> WatermarkRenderer.HEIGHT * scale;
 			case INVENTORY -> InventoryHudRenderer.drawHeight() * scale;
 			case NODES -> NodeHudRenderer.drawHeight() * scale;
+			case MUSIC -> MusicHudRenderer.drawHeight() * scale;
 			case HOTBAR -> HotbarHudRenderer.HEIGHT * scale;
 			case HEALTH, HUNGER, ARMOR, AIR, MOUNT -> StatusHudRenderer.BAR_H * scale;
 			case EXPERIENCE -> StatusHudRenderer.XP_BOX_H * scale;

@@ -2,19 +2,23 @@ package dev.voidmark.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
 import dev.voidmark.client.net.ConnectionPing;
 import dev.voidmark.client.node.EnderNodeTracker;
-import dev.voidmark.client.render.NodeHudRenderer;
-import dev.voidmark.client.render.NodeWorldRenderer;
-import dev.voidmark.client.render.InventoryHudRenderer;
-import dev.voidmark.client.render.VanillaHud;
-import dev.voidmark.client.render.WatermarkRenderer;
 import dev.voidmark.client.item.ItemAppearance;
 import dev.voidmark.client.item.ItemIds;
 import dev.voidmark.client.item.SkyblockItems;
+import dev.voidmark.client.media.MediaChat;
+import dev.voidmark.client.media.MediaSession;
+import dev.voidmark.client.render.InventoryHudRenderer;
+import dev.voidmark.client.render.MusicHudRenderer;
+import dev.voidmark.client.render.NodeHudRenderer;
+import dev.voidmark.client.render.NodeWorldRenderer;
+import dev.voidmark.client.render.VanillaHud;
+import dev.voidmark.client.render.WatermarkRenderer;
 import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.ItemEditScreen;
 import dev.voidmark.client.ui.Theme;
@@ -23,6 +27,7 @@ import dev.voidmark.client.visual.CustomCape;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -46,7 +51,9 @@ public final class VoidmarkClient implements ClientModInitializer {
 		WatermarkRenderer.init();
 		InventoryHudRenderer.init();
 		NodeHudRenderer.init();
+		MusicHudRenderer.init();
 		VanillaHud.init();
+		MediaSession.init();
 
 		openGui = KeyMappingHelper.registerKeyMapping(new KeyMapping(
 			"key.voidmark.open",
@@ -70,9 +77,11 @@ public final class VoidmarkClient implements ClientModInitializer {
 				return Command.SINGLE_SUCCESS;
 			}));
 			root.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
+			root.then(musicCommand());
 			dispatcher.register(root);
 			var vm = ClientCommands.literal("vm").executes(context -> openScreen());
 			vm.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
+			vm.then(musicCommand());
 			dispatcher.register(vm);
 		});
 
@@ -113,6 +122,16 @@ public final class VoidmarkClient implements ClientModInitializer {
 			EnderNodeTracker.get().clear();
 			ConnectionPing.reset();
 		});
+	}
+
+	private static LiteralArgumentBuilder<FabricClientCommandSource> musicCommand() {
+		return ClientCommands.literal("music")
+			.executes(context -> MediaChat.nowPlaying())
+			.then(ClientCommands.literal("play").executes(context -> MediaChat.toggle()))
+			.then(ClientCommands.literal("pause").executes(context -> MediaChat.toggle()))
+			.then(ClientCommands.literal("next").executes(context -> MediaChat.skip(true)))
+			.then(ClientCommands.literal("prev").executes(context -> MediaChat.skip(false)))
+			.then(ClientCommands.literal("np").executes(context -> MediaChat.nowPlaying()));
 	}
 
 	private static int openScreen() {

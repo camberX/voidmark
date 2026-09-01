@@ -22,3 +22,4 @@ replay_*.log
 /logs
 agent-tools/
 libs/
+*.jar

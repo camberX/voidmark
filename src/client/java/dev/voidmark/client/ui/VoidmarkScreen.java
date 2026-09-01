@@ -99,6 +99,9 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Filled box", Tab.DISPLAY, "ESP"),
 		new SearchEntry("Watermark", Tab.DISPLAY, "HUD"),
 		new SearchEntry("Node HUD", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Music HUD", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Spotify", Tab.DISPLAY, "Music"),
+		new SearchEntry("YouTube Music", Tab.DISPLAY, "Music"),
 		new SearchEntry("Hotbar", Tab.HUD, "Vanilla HUD"),
 		new SearchEntry("Health", Tab.HUD, "Vanilla HUD"),
 		new SearchEntry("Hunger", Tab.HUD, "Vanilla HUD"),
@@ -647,6 +650,11 @@ public class VoidmarkScreen extends Screen {
 				config.hudNodesX = -1f;
 				config.hudNodesY = -1f;
 				config.hudNodesScale = 1.0f;
+				config.musicHudEnabled = true;
+				config.musicHideIdle = false;
+				config.hudMusicX = -1f;
+				config.hudMusicY = -1f;
+				config.hudMusicScale = 1.0f;
 				config.colorRgb = 0x2FB5FF;
 			}
 			case HUD -> {
@@ -771,7 +779,7 @@ public class VoidmarkScreen extends Screen {
 	private void drawBell(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		bellX = contentX() + contentW() - PANEL_W;
 		bellY = windowY + TOOLBAR_H + 2;
-		float h = 210;
+		float h = 224;
 		GuiDraw.panel(graphics, bellX, bellY, PANEL_W, h * Math.max(0.2f, bellT), 8, Anim.fade(Theme.PANEL, bellT), Theme.ACCENT);
 		if (bellT < 0.85f) {
 			return;
@@ -783,6 +791,7 @@ public class VoidmarkScreen extends Screen {
 		float ix = bellX + 8;
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Inventory HUD", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Music", config.musicHudEnabled, v -> config.musicHudEnabled = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "FPS", config.watermarkFps, v -> config.watermarkFps = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ping", config.watermarkPing, v -> config.watermarkPing = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Clock", config.watermarkTime, v -> config.watermarkTime = v);
@@ -880,9 +889,11 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Overlay");
+				y = featureCard(graphics, font, right, top, col, cardHeight(4), "Overlay");
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
-				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Music HUD", config.musicHudEnabled, v -> config.musicHudEnabled = v);
+				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
 			}
 			case HUD -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(7), "Bars");
@@ -1223,7 +1234,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.37");
+			.orElse("1.1.38");
 	}
 
 	@Override
@@ -1257,7 +1268,7 @@ public class VoidmarkScreen extends Screen {
 			settingsOpen = false;
 			return true;
 		}
-		if (bellOpen && !GuiDraw.hovered(event.x(), event.y(), bellX, bellY, PANEL_W, 144)) {
+		if (bellOpen && !GuiDraw.hovered(event.x(), event.y(), bellX, bellY, PANEL_W, 224)) {
 			bellOpen = false;
 			return true;
 		}
