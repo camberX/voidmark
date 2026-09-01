@@ -59,11 +59,11 @@ public record NowPlaying(
 		String mergedAlbum = firstNonBlank(base.album, other.album);
 		return new NowPlaying(
 			base.title,
-			preferArtist(mergedAlbum, other.artist, base.artist),
+			preferArtist(mergedAlbum, base.artist, other.artist),
 			mergedAlbum,
 			base.app,
 			base.source,
-			firstNonBlank(other.cover, base.cover),
+			firstNonBlank(base.cover, other.cover),
 			base.playing,
 			base.positionMs > 0L ? base.positionMs : other.positionMs,
 			base.durationMs > 0L ? base.durationMs : other.durationMs,
@@ -73,30 +73,17 @@ public record NowPlaying(
 
 	public NowPlaying withCatalog(String catalogTitle, String catalogArtist, String catalogAlbum, String catalogCover) {
 		NowPlaying base = cleaned();
-		boolean artistIsAlbum = !placeholder(base.album) && sameName(base.artist, base.album);
-		boolean untrusted = placeholder(base.artist) || artistIsAlbum || youtubeMusic();
-		String newTitle = base.title;
-		String newArtist = untrusted
+		boolean missingArtist = placeholder(base.artist) || (!placeholder(base.album) && sameName(base.artist, base.album));
+		String newArtist = missingArtist
 			? firstPerson(catalogArtist, base.artist)
-			: firstPerson(base.artist, catalogArtist);
-		if (untrusted && !placeholder(catalogArtist) && !sameName(catalogArtist, base.album)) {
-			newArtist = catalogArtist;
-		}
-		boolean swapped = titlesClose(base.title, catalogArtist) && !placeholder(catalogTitle);
-		if ((swapped || untrusted) && placeholder(base.title) && !placeholder(catalogTitle)) {
-			newTitle = catalogTitle;
-		}
-		String newAlbum = untrusted
-			? firstNonBlank(catalogAlbum, base.album)
-			: firstNonBlank(base.album, catalogAlbum);
-		String newCover = firstNonBlank(base.cover, catalogCover);
+			: base.artist;
 		return new NowPlaying(
-			newTitle,
+			base.title,
 			newArtist,
-			newAlbum,
+			firstNonBlank(base.album, catalogAlbum),
 			base.app,
 			base.source,
-			newCover,
+			firstNonBlank(base.cover, catalogCover),
 			base.playing,
 			base.positionMs,
 			base.durationMs,
@@ -182,17 +169,12 @@ public record NowPlaying(
 			subArtist = subtitle;
 		}
 		app = nullToEmpty(app);
-		boolean ytmSession = !"spotify".equals(kind) && !app.toLowerCase(Locale.ROOT).contains("spotify");
-		if (ytmSession && album.isEmpty() && !artist.isEmpty()) {
-			album = artist;
-			artist = "";
-		}
 		if (album.isEmpty()) {
 			album = blankIfPlaceholder(subAlbum);
 		}
-		artist = preferArtist(album, albumArtist, subArtist, artist);
+		artist = preferArtist(album, artist, albumArtist, subArtist);
 		if (sameName(artist, album)) {
-			artist = "";
+			artist = preferArtist(album, albumArtist, subArtist);
 		}
 		String source = kind == null || kind.isBlank() ? "windows" : kind;
 		return new NowPlaying(

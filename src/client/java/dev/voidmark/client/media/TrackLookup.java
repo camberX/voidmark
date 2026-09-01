@@ -43,6 +43,9 @@ final class TrackLookup {
 		if (track == null || !track.present()) {
 			return track == null ? NowPlaying.none() : track;
 		}
+		if (track.hasCover() && !NowPlaying.placeholder(track.artist()) && !NowPlaying.sameName(track.artist(), track.album())) {
+			return track;
+		}
 		String key = key(track.title(), track.artist(), track.album());
 		Hit hit = CACHE.get(key);
 		if (hit == null) {
