@@ -56,6 +56,8 @@ public final class VoidmarkConfig {
 	public boolean watermarkName = false;
 	public boolean musicHudEnabled = true;
 	public boolean musicHideIdle = false;
+	public boolean rawmatsHudEnabled = true;
+	public String rawmatsItemId = "";
 	public boolean inventoryHudEnabled = true;
 	public boolean inventoryHudHotbar = true;
 	public boolean inventoryHudArmor = true;
@@ -87,6 +89,7 @@ public final class VoidmarkConfig {
 	public float hudWatermarkScale = 1.0f;
 	public float hudNodesScale = 1.0f;
 	public float hudMusicScale = 1.0f;
+	public float hudRawmatsScale = 1.0f;
 	public float hudInventoryX = -1f;
 	public float hudInventoryY = -1f;
 	public float hudWatermarkX = -1f;
@@ -95,6 +98,8 @@ public final class VoidmarkConfig {
 	public float hudNodesY = -1f;
 	public float hudMusicX = -1f;
 	public float hudMusicY = -1f;
+	public float hudRawmatsX = -1f;
+	public float hudRawmatsY = -1f;
 	public float menuX = -1f;
 	public float menuY = -1f;
 	public boolean menuPlaced = false;
@@ -168,12 +173,16 @@ public final class VoidmarkConfig {
 				if (loaded.itemSkins == null) {
 					loaded.itemSkins = new java.util.ArrayList<>();
 				}
+				if (loaded.rawmatsItemId == null) {
+					loaded.rawmatsItemId = "";
+				}
 				loaded.menuTab = normalizeMenuTab(loaded.menuTab);
 				loaded.inventoryHudAnchor = normalizeInventoryHudAnchor(loaded.inventoryHudAnchor);
 				loaded.inventoryHudScale = clampHudScale(loaded.inventoryHudScale);
 				loaded.hudWatermarkScale = clampHudScale(loaded.hudWatermarkScale);
 				loaded.hudNodesScale = clampHudScale(loaded.hudNodesScale);
 				loaded.hudMusicScale = clampHudScale(loaded.hudMusicScale);
+				loaded.hudRawmatsScale = clampHudScale(loaded.hudRawmatsScale);
 				loaded.slotHotbar = hudSlot(loaded.slotHotbar);
 				loaded.slotHealth = hudSlot(loaded.slotHealth);
 				loaded.slotHunger = hudSlot(loaded.slotHunger);

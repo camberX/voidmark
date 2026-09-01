@@ -10,13 +10,17 @@ import dev.voidmark.client.net.ConnectionPing;
 import dev.voidmark.client.node.EnderNodeTracker;
 import dev.voidmark.client.item.ItemAppearance;
 import dev.voidmark.client.item.ItemIds;
+import dev.voidmark.client.item.RawmatsCommands;
+import dev.voidmark.client.item.RawmatsTracker;
 import dev.voidmark.client.item.SkyblockItems;
+import dev.voidmark.client.item.SkyblockRecipes;
 import dev.voidmark.client.media.MediaChat;
 import dev.voidmark.client.media.MediaSession;
 import dev.voidmark.client.render.InventoryHudRenderer;
 import dev.voidmark.client.render.MusicHudRenderer;
 import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.render.NodeHudRenderer;
+import dev.voidmark.client.render.RawmatsHudRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.VanillaHud;
 import dev.voidmark.client.render.WatermarkRenderer;
@@ -47,12 +51,15 @@ public final class VoidmarkClient implements ClientModInitializer {
 		VoidmarkConfig.load();
 		Theme.refresh();
 		SkyblockItems.load();
+		SkyblockRecipes.load();
+		RawmatsTracker.init();
 		CustomCape.init();
 		NodeWorldRenderer.init();
 		WatermarkRenderer.init();
 		InventoryHudRenderer.init();
 		NodeHudRenderer.init();
 		MusicHudRenderer.init();
+		RawmatsHudRenderer.init();
 		NametagRenderer.init();
 		VanillaHud.init();
 		MediaSession.init();
@@ -80,10 +87,12 @@ public final class VoidmarkClient implements ClientModInitializer {
 			}));
 			root.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
 			root.then(musicCommand());
+			root.then(RawmatsCommands.command());
 			dispatcher.register(root);
 			var vm = ClientCommands.literal("vm").executes(context -> openScreen());
 			vm.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
 			vm.then(musicCommand());
+			vm.then(RawmatsCommands.command());
 			dispatcher.register(vm);
 		});
 
@@ -117,12 +126,14 @@ public final class VoidmarkClient implements ClientModInitializer {
 			SkyblockLocation.tick(client);
 			EnderNodeTracker.get().tick(client);
 			ConnectionPing.tick(client);
+			RawmatsTracker.tick(client);
 		});
 
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			SkyblockLocation.reset();
 			EnderNodeTracker.get().clear();
 			ConnectionPing.reset();
+			RawmatsTracker.disconnect();
 		});
 	}
 

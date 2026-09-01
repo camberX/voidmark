@@ -21,6 +21,7 @@ public final class HudLayout {
 		INVENTORY("Inventory"),
 		NODES("Nodes"),
 		MUSIC("Music"),
+		RAWMATS("Raw mats"),
 		HOTBAR("Hotbar"),
 		HEALTH("Health"),
 		HUNGER("Hunger"),
@@ -114,6 +115,10 @@ public final class HudLayout {
 					x = placed(config.hudMusicX) ? config.hudMusicX : MARGIN;
 					y = placed(config.hudMusicY) ? config.hudMusicY : Math.max(MARGIN, guiH - h - 40);
 				}
+				case RAWMATS -> {
+					x = placed(config.hudRawmatsX) ? config.hudRawmatsX : Math.max(MARGIN, guiW - w - MARGIN);
+					y = placed(config.hudRawmatsY) ? config.hudRawmatsY : MARGIN;
+				}
 				default -> {
 					x = defaultX(id, font, guiW, w);
 					y = defaultY(id, font, guiH, h);
@@ -162,6 +167,10 @@ public final class HudLayout {
 				config.hudMusicX = x;
 				config.hudMusicY = y;
 			}
+			case RAWMATS -> {
+				config.hudRawmatsX = x;
+				config.hudRawmatsY = y;
+			}
 			default -> {
 			}
 		}
@@ -178,6 +187,7 @@ public final class HudLayout {
 			case INVENTORY -> VoidmarkConfig.clampHudScale(config.inventoryHudScale);
 			case NODES -> VoidmarkConfig.clampHudScale(config.hudNodesScale);
 			case MUSIC -> VoidmarkConfig.clampHudScale(config.hudMusicScale);
+			case RAWMATS -> VoidmarkConfig.clampHudScale(config.hudRawmatsScale);
 			default -> 1.0f;
 		};
 	}
@@ -195,6 +205,7 @@ public final class HudLayout {
 			case INVENTORY -> config.inventoryHudScale = value;
 			case NODES -> config.hudNodesScale = value;
 			case MUSIC -> config.hudMusicScale = value;
+			case RAWMATS -> config.hudRawmatsScale = value;
 			default -> {
 			}
 		}
@@ -225,6 +236,10 @@ public final class HudLayout {
 				config.hudMusicX = -1f;
 				config.hudMusicY = -1f;
 			}
+			case RAWMATS -> {
+				config.hudRawmatsX = -1f;
+				config.hudRawmatsY = -1f;
+			}
 			default -> {
 			}
 		}
@@ -237,6 +252,7 @@ public final class HudLayout {
 			case INVENTORY -> config.inventoryHudEnabled;
 			case NODES -> config.hudEnabled;
 			case MUSIC -> config.musicHudEnabled;
+			case RAWMATS -> config.rawmatsHudEnabled;
 			case HOTBAR -> config.hudHotbar;
 			case HEALTH -> config.hudHealth;
 			case HUNGER -> config.hudHunger;
@@ -371,6 +387,7 @@ public final class HudLayout {
 			case INVENTORY -> InventoryHudRenderer.drawWidth() * scale;
 			case NODES -> NodeHudRenderer.drawWidth() * scale;
 			case MUSIC -> MusicHudRenderer.drawWidth() * scale;
+			case RAWMATS -> RawmatsHudRenderer.drawWidth() * scale;
 			case HOTBAR -> HotbarHudRenderer.drawWidth() * scale;
 			case HEALTH, HUNGER, ARMOR, AIR, MOUNT -> StatusHudRenderer.BAR_W * scale;
 			case EXPERIENCE -> StatusHudRenderer.xpWidth() * scale;
@@ -388,6 +405,7 @@ public final class HudLayout {
 			case INVENTORY -> InventoryHudRenderer.drawHeight() * scale;
 			case NODES -> NodeHudRenderer.drawHeight() * scale;
 			case MUSIC -> MusicHudRenderer.drawHeight() * scale;
+			case RAWMATS -> RawmatsHudRenderer.drawHeight() * scale;
 			case HOTBAR -> HotbarHudRenderer.HEIGHT * scale;
 			case HEALTH, HUNGER, ARMOR, AIR, MOUNT -> StatusHudRenderer.BAR_H * scale;
 			case EXPERIENCE -> StatusHudRenderer.XP_BOX_H * scale;
