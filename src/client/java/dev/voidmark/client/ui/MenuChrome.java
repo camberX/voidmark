@@ -8,6 +8,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
 
 /**
  * Voidmark look for vanilla menus (world list, server list, options, pause, …).
@@ -61,7 +62,19 @@ public final class MenuChrome {
 		GuiDraw.fill(graphics, 0, height - 36, width, 1, Theme.withAlpha(Theme.LINE, 200));
 	}
 
+	public static Component bodyLabel(Component message, boolean active) {
+		Theme.refresh();
+		int color = (active ? Theme.TEXT : Theme.MUTED) & 0xFFFFFF;
+		return message.copy().withStyle(MenuFont.BODY.withColor(color));
+	}
+
+	public static Component titleLabel(Component message) {
+		Theme.refresh();
+		return message.copy().withStyle(MenuFont.BODY.withColor(Theme.HEADER & 0xFFFFFF));
+	}
+
 	public static void button(GuiGraphicsExtractor graphics, AbstractWidget widget) {
+		Theme.refresh();
 		float alpha = widget.getAlpha();
 		boolean hover = widget.active && widget.isHoveredOrFocused();
 		boolean compact = widget.getWidth() < 40 || widget.getHeight() < 18;

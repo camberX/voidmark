@@ -1,6 +1,7 @@
 package dev.voidmark.client.mixin;
 
 import dev.voidmark.client.ui.MenuChrome;
+import net.minecraft.client.gui.ActiveTextCollector;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -17,6 +18,20 @@ public abstract class AbstractButtonMixin {
 			return;
 		}
 		MenuChrome.button(graphics, (AbstractWidget) (Object) this);
+		ci.cancel();
+	}
+
+	@Inject(method = "extractDefaultLabel", at = @At("HEAD"), cancellable = true)
+	private void voidmark$label(ActiveTextCollector collector, CallbackInfo ci) {
+		if (!MenuChrome.enabled()) {
+			return;
+		}
+		AbstractWidget self = (AbstractWidget) (Object) this;
+		((AbstractWidgetInvoker) (Object) this).voidmark$extractScrollingStringOverContents(
+			collector,
+			MenuChrome.bodyLabel(self.getMessage(), self.active),
+			2
+		);
 		ci.cancel();
 	}
 }

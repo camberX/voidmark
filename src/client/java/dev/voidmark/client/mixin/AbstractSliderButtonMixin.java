@@ -26,7 +26,7 @@ public abstract class AbstractSliderButtonMixin {
 		MenuChrome.slider(graphics, self, value);
 		((AbstractWidgetInvoker) (Object) this).voidmark$extractScrollingStringOverContents(
 			graphics.textRendererForWidget(self, GuiGraphicsExtractor.HoveredTextEffects.NONE),
-			self.getMessage(),
+			MenuChrome.bodyLabel(self.getMessage(), self.active),
 			2
 		);
 		handleCursor(graphics);

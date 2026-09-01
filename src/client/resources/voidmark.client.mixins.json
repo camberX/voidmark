@@ -5,8 +5,6 @@
 	"client": [
 		"AbstractButtonMixin",
 		"AbstractClientPlayerMixin",
-		"AbstractScrollAreaMixin",
-		"AbstractSelectionListMixin",
 		"AbstractSliderButtonMixin",
 		"AbstractWidgetInvoker",
 		"AvatarRendererMixin",
@@ -26,7 +24,8 @@
 		"PlayerTabOverlayMixin",
 		"ProjectionMixin",
 		"ScreenMixin",
-		"SkyRendererMixin"
+		"SkyRendererMixin",
+		"StringWidgetMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
