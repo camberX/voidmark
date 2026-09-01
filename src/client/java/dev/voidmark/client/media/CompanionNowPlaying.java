@@ -206,28 +206,75 @@ final class CompanionNowPlaying {
 	}
 
 	private static long positionMs(JsonObject player, JsonObject root) {
-		double millis = number(player, "seekbarCurrentPositionMilliSeconds");
-		if (millis <= 0) {
-			millis = number(root, "elapsedSeconds", "position", "seekbarCurrentPosition", "currentTime");
-			if (millis > 0 && millis < 10_000) {
-				millis *= 1000.0;
-			}
+		long ms = roundPositive(number(
+			player,
+			"seekbarCurrentPositionMilliSeconds",
+			"elapsedMilliSeconds",
+			"positionMs",
+			"currentTimeMs"
+		));
+		if (ms <= 0L) {
+			ms = roundPositive(number(root, "elapsedMilliSeconds", "positionMs", "currentTimeMs"));
 		}
-		return Math.max(0L, Math.round(millis));
+		if (ms <= 0L) {
+			ms = secondsToMs(number(
+				player,
+				"seekbarCurrentPosition",
+				"elapsedSeconds",
+				"currentTime",
+				"position"
+			));
+		}
+		if (ms <= 0L) {
+			ms = secondsToMs(number(
+				root,
+				"elapsedSeconds",
+				"position",
+				"currentTime",
+				"seekbarCurrentPosition",
+				"currentPlaybackTime"
+			));
+		}
+		return ms;
 	}
 
 	private static long durationMs(JsonObject player, JsonObject track, JsonObject root) {
-		double value = number(player, "songDuration");
-		if (value <= 0) {
-			value = number(track, "duration", "durationMs", "durationSeconds");
+		long ms = roundPositive(number(
+			player,
+			"songDurationMilliSeconds",
+			"durationMs",
+			"durationInMillis"
+		));
+		if (ms <= 0L) {
+			ms = roundPositive(number(track, "durationMs", "durationInMillis", "lengthMs"));
 		}
-		if (value <= 0) {
-			value = number(root, "duration", "durationMs", "durationSeconds", "songDuration");
+		if (ms <= 0L) {
+			ms = roundPositive(number(root, "durationMs", "durationInMillis"));
 		}
-		if (value > 0 && value < 10_000) {
-			value *= 1000.0;
+		if (ms <= 0L) {
+			ms = secondsToMs(number(player, "songDuration", "duration", "durationSeconds"));
 		}
-		return Math.max(0L, Math.round(value));
+		if (ms <= 0L) {
+			ms = secondsToMs(number(track, "duration", "durationSeconds", "length"));
+		}
+		if (ms <= 0L) {
+			ms = secondsToMs(number(root, "duration", "durationSeconds", "songDuration"));
+		}
+		return ms;
+	}
+
+	private static long secondsToMs(double value) {
+		if (value <= 0d) {
+			return 0L;
+		}
+		if (value >= 10_000d) {
+			return Math.round(value);
+		}
+		return Math.round(value * 1000.0);
+	}
+
+	private static long roundPositive(double value) {
+		return value > 0d ? Math.round(value) : 0L;
 	}
 
 	private static String artists(JsonObject json) {

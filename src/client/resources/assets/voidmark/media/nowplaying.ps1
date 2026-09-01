@@ -212,15 +212,27 @@ while ($true) {
 			$playback = $best.GetPlaybackInfo()
 			if ($null -ne $playback) { $status = [string]$playback.PlaybackStatus }
 		} catch {}
-		$pos = 0L
-		$dur = 0L
+		$posMs = 0L
+		$durMs = 0L
 		try {
 			$timeline = $best.GetTimelineProperties()
 			if ($null -ne $timeline) {
-				$pos = [int64]$timeline.Position.Ticks
-				$end = [int64]$timeline.EndTime.Ticks
-				$max = [int64]$timeline.MaxSeekTime.Ticks
-				$dur = [Math]::Max($end, $max)
+				try { $posMs = [int64][Math]::Max(0, $timeline.Position.TotalMilliseconds) } catch { $posMs = 0L }
+				$endMs = 0L
+				$maxMs = 0L
+				try { $endMs = [int64][Math]::Max(0, $timeline.EndTime.TotalMilliseconds) } catch {}
+				try { $maxMs = [int64][Math]::Max(0, $timeline.MaxSeekTime.TotalMilliseconds) } catch {}
+				$durMs = [Math]::Max($endMs, $maxMs)
+				if ($posMs -le 0) {
+					try { $posMs = [int64]([Math]::Max(0, $timeline.Position.Ticks) / 10000) } catch {}
+				}
+				if ($durMs -le 0) {
+					try {
+						$end = [int64]$timeline.EndTime.Ticks
+						$max = [int64]$timeline.MaxSeekTime.Ticks
+						$durMs = [int64]([Math]::Max($end, $max) / 10000)
+					} catch {}
+				}
 			}
 		} catch {}
 		$title = ''
@@ -244,7 +256,7 @@ while ($true) {
 			continue
 		}
 		$kind = Kind-App $app
-		$playing = ($status -eq 'Playing')
+		$playing = -not ($status -eq 'Paused' -or $status -eq 'Stopped' -or $status -eq 'Closed' -or $status -eq 'Changing')
 		$artField = ''
 		if (-not [string]::IsNullOrWhiteSpace($artPath) -and $null -ne $props) {
 			$artKey = $title + '|' + $artist + '|' + $album
@@ -261,7 +273,7 @@ while ($true) {
 				$artField = ',"art":"' + (Json-Escape ($artPath.Replace('\', '/'))) + '"'
 			}
 		}
-		$line = '{"ok":true,"app":"' + (Json-Escape $app) + '","kind":"' + (Json-Escape $kind) + '","title":"' + (Json-Escape $title) + '","artist":"' + (Json-Escape $artist) + '","subtitle":"' + (Json-Escape $subtitle) + '","albumArtist":"' + (Json-Escape $albumArtist) + '","album":"' + (Json-Escape $album) + '","playing":' + ($(if ($playing) { 'true' } else { 'false' })) + ',"position":' + $pos + ',"duration":' + $dur + $artField + '}'
+		$line = '{"ok":true,"app":"' + (Json-Escape $app) + '","kind":"' + (Json-Escape $kind) + '","title":"' + (Json-Escape $title) + '","artist":"' + (Json-Escape $artist) + '","subtitle":"' + (Json-Escape $subtitle) + '","albumArtist":"' + (Json-Escape $albumArtist) + '","album":"' + (Json-Escape $album) + '","playing":' + ($(if ($playing) { 'true' } else { 'false' })) + ',"position":' + $posMs + ',"duration":' + $durMs + ',"positionMs":' + $posMs + ',"durationMs":' + $durMs + $artField + '}'
 		Emit $line
 	} catch {
 		Emit-Idle 'poll-error'

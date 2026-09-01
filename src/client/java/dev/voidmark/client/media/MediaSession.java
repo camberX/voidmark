@@ -96,16 +96,20 @@ public final class MediaSession {
 		NowPlaying companion = COMPANION.snapshot();
 		if (windows.present()) {
 			NowPlaying out = windows.cleaned();
-			if (companion.present() && NowPlaying.related(out, companion)) {
-				out = out.overlay(companion);
+			if (companion.present()) {
+				boolean same = NowPlaying.related(out, companion);
+				boolean needTime = out.durationMs() <= 0L || out.positionMs() <= 0L;
+				if (same || (needTime && out.youtubeMusic() && companion.durationMs() > 0L)) {
+					out = out.overlay(companion);
+				}
 			}
-			out = TrackLookup.enrich(out);
+			out = TrackLookup.enrich(out).carryTime(current);
 			route = "windows";
 			hint = out.sourceLabel();
 			return out;
 		}
 		if (companion.present()) {
-			NowPlaying out = TrackLookup.enrich(companion.cleaned());
+			NowPlaying out = TrackLookup.enrich(companion.cleaned()).carryTime(current);
 			route = companion.source();
 			hint = out.sourceLabel();
 			return out;
@@ -113,13 +117,17 @@ public final class MediaSession {
 		NowPlaying titled = TITLES.snapshot();
 		if (titled.present()) {
 			NowPlaying out = TrackLookup.enrich(titled.cleaned());
+			if (companion.present() && (NowPlaying.related(out, companion) || out.durationMs() <= 0L)) {
+				out = out.overlay(companion);
+			}
+			out = out.carryTime(current);
 			route = "window";
 			hint = out.sourceLabel();
 			return out;
 		}
 		NowPlaying linux = LINUX.snapshot();
 		if (linux.present()) {
-			NowPlaying out = TrackLookup.enrich(linux.cleaned());
+			NowPlaying out = TrackLookup.enrich(linux.cleaned()).carryTime(current);
 			route = "playerctl";
 			hint = out.sourceLabel();
 			return out;

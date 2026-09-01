@@ -43,7 +43,10 @@ final class TrackLookup {
 		if (track == null || !track.present()) {
 			return track == null ? NowPlaying.none() : track;
 		}
-		if (track.hasCover() && !NowPlaying.placeholder(track.artist()) && !NowPlaying.sameName(track.artist(), track.album())) {
+		boolean needArtist = NowPlaying.placeholder(track.artist()) || NowPlaying.sameName(track.artist(), track.album());
+		boolean needCover = !track.hasCover();
+		boolean needDuration = track.durationMs() <= 0L;
+		if (!needArtist && !needCover && !needDuration) {
 			return track;
 		}
 		String key = key(track.title(), track.artist(), track.album());
@@ -55,7 +58,7 @@ final class TrackLookup {
 		if (!hit.usable()) {
 			return track;
 		}
-		return track.withCatalog(hit.title, hit.artist, hit.album, hit.cover);
+		return track.withCatalog(hit.title, hit.artist, hit.album, hit.cover, hit.durationMs);
 	}
 
 	static Hit peek(String title, String artist, String album) {
@@ -162,9 +165,15 @@ final class TrackLookup {
 			String meta = flexText(item, 1);
 			String rowArtist = "";
 			String rowAlbum = "";
+			long rowDuration = 0L;
 			for (String part : meta.split("\\s+[•·|]\\s+")) {
 				String piece = part.trim();
-				if (piece.isEmpty() || piece.matches("\\d+:\\d{2}") || piece.toLowerCase(Locale.ROOT).contains("play")) {
+				if (piece.isEmpty() || piece.toLowerCase(Locale.ROOT).contains("play")) {
+					continue;
+				}
+				long clock = parseClockMs(piece);
+				if (clock > 0L) {
+					rowDuration = clock;
 					continue;
 				}
 				if (rowArtist.isEmpty()) {
@@ -183,7 +192,7 @@ final class TrackLookup {
 				score += 4;
 			}
 			if (score > best.score && !art.isBlank()) {
-				best = new Hit(rowTitle, rowArtist, rowAlbum, art, score);
+				best = new Hit(rowTitle, rowArtist, rowAlbum, art, score, rowDuration);
 			}
 		}
 		return best.usable() ? best : Hit.NONE;
@@ -332,7 +341,7 @@ final class TrackLookup {
 			}
 			int score = matchScore(rowTitle, rowArtist, title, artist);
 			if (score > best.score) {
-				best = new Hit(rowTitle, rowArtist, "", cover, score);
+				best = new Hit(rowTitle, rowArtist, "", cover, score, numberMs(row, "length"));
 			}
 		}
 		return best.usable() ? best : Hit.NONE;
@@ -353,6 +362,7 @@ final class TrackLookup {
 			String rowArtist;
 			String rowAlbum;
 			String art;
+			long durationMs;
 			if (deezer) {
 				rowTitle = text(row, "title", "title_short");
 				rowArtist = nested(row, "artist", "name");
@@ -362,6 +372,7 @@ final class TrackLookup {
 					nested(row, "album", "cover_big"),
 					nested(row, "album", "cover")
 				);
+				durationMs = secondsField(row, "duration");
 			} else {
 				rowTitle = text(row, "trackName", "collectionName");
 				rowArtist = text(row, "artistName");
@@ -370,10 +381,11 @@ final class TrackLookup {
 				if (!art.isBlank()) {
 					art = art.replace("100x100bb", "300x300bb").replace("60x60bb", "300x300bb");
 				}
+				durationMs = numberMs(row, "trackTimeMillis");
 			}
 			int score = matchScore(rowTitle, rowArtist, title, artist);
 			if (score > best.score) {
-				best = new Hit(rowTitle, rowArtist, rowAlbum, art, score);
+				best = new Hit(rowTitle, rowArtist, rowAlbum, art, score, durationMs);
 			}
 		}
 		return best.usable() ? best : Hit.NONE;
@@ -553,9 +565,56 @@ final class TrackLookup {
 		return value == null ? "" : value.trim();
 	}
 
-	record Hit(String title, String artist, String album, String cover, int score) {
-		private static final Hit NONE = new Hit("", "", "", "", 0);
-		private static final Hit RETRY = new Hit("", "", "", "", -1);
+	private static long parseClockMs(String value) {
+		if (value == null || !value.matches("\\d+:\\d{2}(:\\d{2})?")) {
+			return 0L;
+		}
+		String[] parts = value.split(":");
+		try {
+			if (parts.length == 2) {
+				return (Long.parseLong(parts[0]) * 60L + Long.parseLong(parts[1])) * 1000L;
+			}
+			if (parts.length == 3) {
+				return (Long.parseLong(parts[0]) * 3600L + Long.parseLong(parts[1]) * 60L + Long.parseLong(parts[2])) * 1000L;
+			}
+		} catch (NumberFormatException ignored) {
+		}
+		return 0L;
+	}
+
+	private static long numberMs(JsonObject json, String key) {
+		if (json == null || !json.has(key) || !json.get(key).isJsonPrimitive()) {
+			return 0L;
+		}
+		try {
+			long value = json.get(key).getAsLong();
+			return value > 0L ? value : 0L;
+		} catch (Exception exception) {
+			return 0L;
+		}
+	}
+
+	private static long secondsField(JsonObject json, String key) {
+		if (json == null || !json.has(key) || !json.get(key).isJsonPrimitive()) {
+			return 0L;
+		}
+		try {
+			double value = json.get(key).getAsDouble();
+			if (value <= 0d) {
+				return 0L;
+			}
+			if (value >= 10_000d) {
+				return Math.round(value);
+			}
+			return Math.round(value * 1000.0);
+		} catch (Exception exception) {
+			return 0L;
+		}
+	}
+
+	record Hit(String title, String artist, String album, String cover, int score, long durationMs) {
+		private static final Hit NONE = new Hit("", "", "", "", 0, 0L);
+		private static final Hit RETRY = new Hit("", "", "", "", -1, 0L);
 
 		boolean usable() {
 			return score >= 3 && !NowPlaying.placeholder(artist);

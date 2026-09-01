@@ -72,7 +72,10 @@ public class VoidmarkTitleScreen extends Screen {
 		int top = 0xFF05070D;
 		int bot = 0xFF000000 | Theme.mix(0x0B0E14, Theme.ACCENT & 0xFFFFFF, 0.06f);
 		GuiDraw.fillGradient(graphics, 0, 0, width, height, top, bot);
-		Starfield.drawSky(graphics, width, height);
+		try {
+			Starfield.drawSky(graphics, width, height);
+		} catch (Throwable ignored) {
+		}
 		GuiDraw.fill(graphics, 0, 0, width, 48, 0x66000000);
 		GuiDraw.fill(graphics, 0, height - 36, width, 36, 0x88000000);
 	}
@@ -257,7 +260,7 @@ public class VoidmarkTitleScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.56");
+			.orElse("1.1.57");
 	}
 
 	private record Hit(float x, float y, float w, float h, Runnable click) {

@@ -9,8 +9,7 @@ import java.util.Random;
  * Slow-drifting, twinkling stars for the click-GUI pane and the title-screen sky.
  */
 public final class Starfield {
-	private static final Star[] PANE = bake(86, 0x51A4F1E1L, 6.5f, 3.4f);
-	private static final Star[] SKY = bake(160, 0xC0FFEE11L, 9.5f, 4.8f);
+	// PALETTE must be initialized before PANE/SKY. bake() reads it during <clinit>.
 	private static final float[] PALETTE = {
 		0xF4F7FF,
 		0xD7E6FF,
@@ -18,6 +17,8 @@ public final class Starfield {
 		0xFFE9C8,
 		0xB8D4FF
 	};
+	private static final Star[] PANE = bake(86, 0x51A4F1E1L, 6.5f, 3.4f);
+	private static final Star[] SKY = bake(160, 0xC0FFEE11L, 9.5f, 4.8f);
 
 	private Starfield() {
 	}
@@ -31,12 +32,18 @@ public final class Starfield {
 		float radius,
 		float appear
 	) {
-		paint(graphics, PANE, x, y, w, h, radius, appear, 0.72f, 18f, true);
+		try {
+			paint(graphics, PANE, x, y, w, h, radius, appear, 0.72f, 18f, true);
+		} catch (Throwable ignored) {
+		}
 	}
 
 	public static void drawSky(GuiGraphicsExtractor graphics, float w, float h) {
-		paint(graphics, SKY, 0f, 0f, w, h, 0f, 1f, 0.92f, Math.max(22f, w * 0.045f), true);
-		paint(graphics, PANE, 0f, 0f, w, h, 0f, 1f, 0.55f, 18f, false);
+		try {
+			paint(graphics, SKY, 0f, 0f, w, h, 0f, 1f, 0.92f, Math.max(22f, w * 0.045f), true);
+			paint(graphics, PANE, 0f, 0f, w, h, 0f, 1f, 0.55f, 18f, false);
+		} catch (Throwable ignored) {
+		}
 	}
 
 	private static void paint(
@@ -52,7 +59,7 @@ public final class Starfield {
 		float trail,
 		boolean shooting
 	) {
-		if (appear < 0.04f || w < 12f || h < 12f) {
+		if (stars == null || stars.length == 0 || appear < 0.04f || w < 12f || h < 12f) {
 			return;
 		}
 		float r = Math.min(radius, Math.min(w, h) / 2f);
@@ -91,8 +98,11 @@ public final class Starfield {
 	private static Star[] bake(int count, long seed, float driftX, float driftY) {
 		Random rng = new Random(seed);
 		Star[] stars = new Star[count];
+		float[] palette = PALETTE;
+		int paletteLen = palette == null || palette.length == 0 ? 0 : palette.length;
 		for (int i = 0; i < count; i++) {
 			boolean bright = rng.nextFloat() < 0.18f;
+			int rgb = paletteLen == 0 ? 0xF4F7FF : (int) palette[rng.nextInt(paletteLen)];
 			stars[i] = new Star(
 				rng.nextFloat(),
 				rng.nextFloat(),
@@ -102,7 +112,7 @@ public final class Starfield {
 				bright ? 0.42f + rng.nextFloat() * 0.38f : 0.18f + rng.nextFloat() * 0.32f,
 				rng.nextFloat() * ((float) Math.PI * 2f),
 				0.55f + rng.nextFloat() * 1.85f,
-				(int) PALETTE[rng.nextInt(PALETTE.length)],
+				rgb,
 				bright
 			);
 		}

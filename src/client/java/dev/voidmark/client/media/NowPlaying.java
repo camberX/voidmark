@@ -57,6 +57,12 @@ public record NowPlaying(
 		}
 		NowPlaying other = extra.cleaned();
 		String mergedAlbum = firstNonBlank(base.album, other.album);
+		boolean useOtherTime = base.durationMs <= 0L || base.positionMs <= 0L;
+		long pos = base.positionMs > 0L ? base.positionMs : other.positionMs;
+		long dur = base.durationMs > 0L ? base.durationMs : other.durationMs;
+		long sampled = useOtherTime && other.positionMs > 0L && base.positionMs <= 0L
+			? other.sampledAtNanos
+			: base.sampledAtNanos;
 		return new NowPlaying(
 			base.title,
 			preferArtist(mergedAlbum, base.artist, other.artist),
@@ -65,13 +71,13 @@ public record NowPlaying(
 			base.source,
 			firstNonBlank(base.cover, other.cover),
 			base.playing,
-			base.positionMs > 0L ? base.positionMs : other.positionMs,
-			base.durationMs > 0L ? base.durationMs : other.durationMs,
-			base.sampledAtNanos
+			pos,
+			dur,
+			sampled > 0L ? sampled : System.nanoTime()
 		);
 	}
 
-	public NowPlaying withCatalog(String catalogTitle, String catalogArtist, String catalogAlbum, String catalogCover) {
+	public NowPlaying withCatalog(String catalogTitle, String catalogArtist, String catalogAlbum, String catalogCover, long catalogDurationMs) {
 		NowPlaying base = cleaned();
 		boolean missingArtist = placeholder(base.artist) || (!placeholder(base.album) && sameName(base.artist, base.album));
 		String newArtist = missingArtist
@@ -86,8 +92,52 @@ public record NowPlaying(
 			firstNonBlank(base.cover, catalogCover),
 			base.playing,
 			base.positionMs,
-			base.durationMs,
+			base.durationMs > 0L ? base.durationMs : Math.max(0L, catalogDurationMs),
 			base.sampledAtNanos
+		);
+	}
+
+	public NowPlaying carryTime(NowPlaying previous) {
+		if (previous == null || !previous.present() || !titlesClose(title, previous.title)) {
+			return sampledAtNanos > 0L ? this : withTimeline(positionMs, durationMs, System.nanoTime());
+		}
+		long dur = durationMs > 0L ? durationMs : previous.durationMs;
+		long pos = positionMs;
+		long sampled = sampledAtNanos > 0L ? sampledAtNanos : System.nanoTime();
+		if (pos <= 0L) {
+			pos = previous.positionMs;
+			if (previous.sampledAtNanos > 0L) {
+				sampled = previous.sampledAtNanos;
+			}
+		} else if (previous.playing && previous.sampledAtNanos > 0L) {
+			long expected = previous.displayPositionMs();
+			if (Math.abs(pos - expected) < 2500L) {
+				pos = previous.positionMs;
+				sampled = previous.sampledAtNanos;
+			}
+		}
+		if (!playing && previous.playing) {
+			pos = previous.displayPositionMs();
+			sampled = System.nanoTime();
+		} else if (playing && !previous.playing && positionMs <= 0L) {
+			pos = previous.displayPositionMs();
+			sampled = System.nanoTime();
+		}
+		return withTimeline(pos, dur, sampled);
+	}
+
+	private NowPlaying withTimeline(long positionMs, long durationMs, long sampledAtNanos) {
+		return new NowPlaying(
+			title,
+			artist,
+			album,
+			app,
+			source,
+			cover,
+			playing,
+			Math.max(0L, positionMs),
+			Math.max(0L, durationMs),
+			sampledAtNanos > 0L ? sampledAtNanos : System.nanoTime()
 		);
 	}
 
@@ -233,7 +283,7 @@ public record NowPlaying(
 		if (durationMs > 0L) {
 			return elapsed + "/" + clock(durationMs);
 		}
-		return elapsed;
+		return elapsed + "/--:--";
 	}
 
 	public float progress() {

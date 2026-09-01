@@ -134,6 +134,14 @@ final class WindowsNowPlaying {
 				return NowPlaying.none();
 			}
 			lastError = "";
+			long positionMs = firstPositive(
+				millisField(json, "positionMs"),
+				ticksToMs(json, "position")
+			);
+			long durationMs = firstPositive(
+				millisField(json, "durationMs"),
+				ticksToMs(json, "duration")
+			);
 			return NowPlaying.fromSmtc(
 				title,
 				text(json, "artist"),
@@ -144,27 +152,52 @@ final class WindowsNowPlaying {
 				text(json, "kind"),
 				text(json, "art"),
 				!json.has("playing") || json.get("playing").getAsBoolean(),
-				ticksToMs(json, "position"),
-				ticksToMs(json, "duration")
+				positionMs,
+				durationMs
 			);
 		} catch (Exception exception) {
 			return null;
 		}
 	}
 
-	private static long ticksToMs(JsonObject json, String key) {
-		if (!json.has(key)) {
+	private static long firstPositive(long... values) {
+		for (long value : values) {
+			if (value > 0L) {
+				return value;
+			}
+		}
+		return 0L;
+	}
+
+	private static long millisField(JsonObject json, String key) {
+		if (!json.has(key) || json.get(key).isJsonNull()) {
 			return 0L;
 		}
 		try {
-			long raw = json.get(key).getAsLong();
-			if (raw <= 0L) {
+			double raw = json.get(key).getAsDouble();
+			if (raw <= 0d) {
 				return 0L;
 			}
-			if (raw < 10_000_000L) {
-				return raw;
+			return Math.round(raw);
+		} catch (Exception exception) {
+			return 0L;
+		}
+	}
+
+	private static long ticksToMs(JsonObject json, String key) {
+		if (!json.has(key) || json.get(key).isJsonNull()) {
+			return 0L;
+		}
+		try {
+			double raw = json.get(key).getAsDouble();
+			if (raw <= 0d) {
+				return 0L;
 			}
-			return raw / TICKS_PER_MS;
+			// TimeSpan ticks: 10_000 per millisecond. Values this large are ticks.
+			if (raw >= 10_000_000d) {
+				return Math.round(raw / TICKS_PER_MS);
+			}
+			return Math.round(raw);
 		} catch (Exception exception) {
 			return 0L;
 		}
