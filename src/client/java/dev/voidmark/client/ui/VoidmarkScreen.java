@@ -126,6 +126,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Hypixel", Tab.STATUS, "Server"),
 		new SearchEntry("Nick hider", Tab.NICK, "Name"),
 		new SearchEntry("Nametags", Tab.NICK, "Players"),
+		new SearchEntry("Nametag size", Tab.NICK, "Players"),
 		new SearchEntry("Cape", Tab.CAPE, "Texture")
 	};
 
@@ -712,6 +713,7 @@ public class VoidmarkScreen extends Screen {
 				config.nametagThroughWalls = false;
 				config.nametagDistance = true;
 				config.nametagRange = 128;
+				config.nametagScale = 1.0f;
 			}
 			case CAPE -> {
 				capeUrlDraft = "";
@@ -970,10 +972,11 @@ public class VoidmarkScreen extends Screen {
 				GuiDraw.menu(graphics, font, "Right Shift", rx, y + 28, Theme.HEADER);
 			}
 			case NICK -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Nametags");
+				float y = featureCard(graphics, font, left, top, col, cardHeight(5), "Nametags");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.nametagsEnabled, v -> config.nametagsEnabled = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.nametagThroughWalls, v -> config.nametagThroughWalls = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Show distance", config.nametagDistance, v -> config.nametagDistance = v);
+				y = slider(graphics, font, ix, y, iw, "Size", Math.round(config.nametagScale * 100) + "%", (config.nametagScale - 0.50f) / 1.50f, v -> config.nametagScale = VoidmarkConfig.clamp(0.50f + v * 1.50f, 0.50f, 2.00f));
 				slider(graphics, font, ix, y, iw, "Range", config.nametagRange + "m", (config.nametagRange - 64) / 192f, v -> config.nametagRange = VoidmarkConfig.clamp(64 + Math.round(v * 192f), 64, 256));
 
 				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Hider");
@@ -981,7 +984,7 @@ public class VoidmarkScreen extends Screen {
 				GuiDraw.small(graphics, font, "Chat, tab, scoreboard. Use &6 &l.", rx, y + 2, Theme.MUTED);
 
 				float full = contentW();
-				float inputY = top + cardHeight(4) + 8;
+				float inputY = top + cardHeight(5) + 8;
 				nickFieldX = left;
 				nickFieldY = inputY;
 				nickFieldW = full;
@@ -1033,7 +1036,7 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private float featureCard(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, float h, String title) {
-		GuiDraw.panel(graphics, x, y, w, h, Math.min(14f, h / 2f), Theme.CARD, Theme.LINE, Theme.ACCENT);
+		GuiDraw.panel(graphics, x, y, w, h, Math.min(14f, h / 2f), Theme.CARD, Theme.LINE);
 		GuiDraw.small(graphics, font, title, x + CARD_PAD, y + 5, Theme.HEADER);
 		GuiDraw.hline(graphics, x + CARD_PAD, y + 16, w - CARD_PAD * 2, Theme.LINE);
 		return y + CARD_HEAD;

@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.66.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.67.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -29,7 +29,7 @@ Java **25** is required.
 - **HUD** (HUD tab, or the bell) restyles vanilla HUD layers in the same pane/accent look as the click GUI. Each piece has its own switch. Turning one on hides that vanilla layer so they do not stack: hotbar, health, hunger, armor, air, experience, mount health, scoreboard, boss bar, status effects, and the held-item name. Turn a switch off to get the original Minecraft HUD back. Drag and scale each piece in the HUD editor. The inventory HUD on the Inventory tab is a separate overlay, not the hotbar replacement.
 - **Inventory HUD** (Inventory tab, or the bell) draws your armor, storage, and hotbar on-screen. Hotbar, armor/offhand, and the `n/41` count can each be toggled there. Move and scale it in the HUD editor. It reads the live inventory every frame. Hide it with F1; it also hides while a chest or the vanilla inventory is open.
 - The **Cape** tab previews a custom cape. Paste a PNG URL or click **Local file...** for a native file picker. It is client-side on you only. Vanilla **64×32** (and 128×64, 256×128, …) cape templates are used as-is. Any other PNG, including photos like 352×272, is fitted into the cape’s front and back faces so it does not stretch into bands.
-- **Nick** replaces your username in chat, tab, the scoreboard, and nametags. `&6` `&l` `&r` (and the rest of the legacy codes) work in the input; the preview under it is what other HUD text will look like. The same tab has **Nametags**: Voidmark-styled name plates that keep drawing past vanilla’s 64-block cutoff (range 64–256m). Optional distance text and through-walls. Vanilla tags are hidden while this is on so they do not stack.
+- **Nick** replaces your username in chat, tab, the scoreboard, and nametags. `&6` `&l` `&r` (and the rest of the legacy codes) work in the input; the preview under it is what other HUD text will look like. The same tab has **Nametags**: Voidmark-styled name plates that keep drawing past vanilla’s 64-block cutoff (range 64–256m). They scale with distance and a Size slider (50–200%). Optional distance text (not on your own tag) and through-walls. In F5, a **VOIDMARK Dev** badge sits above your name. Vanilla tags are hidden while this is on so they do not stack.
 
 ### Visuals → World
 

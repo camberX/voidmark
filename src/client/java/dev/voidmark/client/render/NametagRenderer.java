@@ -14,6 +14,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
@@ -27,10 +28,14 @@ import java.util.List;
 
 /**
  * Voidmark-styled player nametags that keep drawing past vanilla's 64-block cutoff.
+ * Tags scale with camera distance, then by the Size slider.
  */
 public final class NametagRenderer {
-	private static final float TAG_H = 14f;
-	private static final float NAME_MAX = 92f;
+	private static final float TAG_H = 16f;
+	private static final float TAG_GAP = 3f;
+	private static final float PAD_X = 7f;
+	private static final String BADGE_BRAND = "VOIDMARK";
+	private static final String BADGE_ROLE = "Dev";
 
 	private NametagRenderer() {
 	}
@@ -86,12 +91,13 @@ public final class NametagRenderer {
 			float x = (float) ((ndc.x * 0.5 + 0.5) * graphics.guiWidth());
 			float y = (float) ((-ndc.y * 0.5 + 0.5) * graphics.guiHeight());
 			double dist = Math.sqrt(player.distanceToSqr(camPos));
-			tags.add(new Tag(label(player), dist, x, y));
+			tags.add(new Tag(label(player), dist, x, y, player == client.player));
 		}
 		tags.sort(Comparator.comparingDouble((Tag tag) -> tag.dist).reversed());
 		Font font = client.font;
+		float userScale = VoidmarkConfig.clampHudScale(config.nametagScale);
 		for (Tag tag : tags) {
-			drawTag(graphics, font, tag, config.nametagDistance);
+			drawStack(graphics, font, tag, config.nametagDistance, userScale);
 		}
 	}
 
@@ -138,25 +144,75 @@ public final class NametagRenderer {
 		return name == null ? Component.literal(player.getScoreboardName()) : name;
 	}
 
-	private static void drawTag(GuiGraphicsExtractor graphics, Font font, Tag tag, boolean showDist) {
-		String dist = GuiDraw.meters(tag.dist);
-		Component name = tag.name;
-		float nameW = Math.min(NAME_MAX, font.width(name));
-		float distW = showDist ? GuiDraw.smallWidth(font, dist) + 5f : 0f;
-		float w = 8f + nameW + distW + 6f;
-		float x = tag.x - w * 0.5f;
-		float y = tag.y - TAG_H - 2f;
-		GuiDraw.panel(graphics, x, y, w, TAG_H, 4, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
-		boolean clipped = GuiDraw.scissor(graphics, x + 6f, y, nameW, TAG_H);
-		GuiDraw.text(graphics, font, name, x + 6f, GuiDraw.middle(y, TAG_H), 0xFFFFFFFF, false);
-		if (clipped) {
-			GuiDraw.disableScissor(graphics);
+	private static void drawStack(GuiGraphicsExtractor graphics, Font font, Tag tag, boolean showDistance, float userScale) {
+		float scale = distanceScale(tag.dist) * userScale;
+		boolean showDist = showDistance && !tag.self;
+		float nameW = pillWidth(font.width(tag.name), showDist ? distWidth(font, tag.dist) : 0f);
+		float cursorY = -2f;
+
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(tag.x, tag.y);
+		if (scale != 1.0f) {
+			graphics.pose().scale(scale, scale);
 		}
+
+		if (tag.self) {
+			float badgeW = badgeWidth(font);
+			cursorY -= TAG_H;
+			drawBadge(graphics, font, -badgeW * 0.5f, cursorY, badgeW);
+			cursorY -= TAG_GAP;
+		}
+
+		cursorY -= TAG_H;
+		drawName(graphics, font, tag, -nameW * 0.5f, cursorY, nameW, showDist);
+		graphics.pose().popMatrix();
+	}
+
+	private static void drawName(
+		GuiGraphicsExtractor graphics,
+		Font font,
+		Tag tag,
+		float x,
+		float y,
+		float w,
+		boolean showDist
+	) {
+		GuiDraw.panel(graphics, x, y, w, TAG_H, 4, Theme.WINDOW, Theme.LINE);
+		float textY = y + (TAG_H - font.lineHeight) * 0.5f;
+		GuiDraw.text(graphics, font, tag.name, x + PAD_X, textY, 0xFFFFFFFF, false);
 		if (showDist) {
-			GuiDraw.small(graphics, font, dist, x + 6f + nameW + 4f, GuiDraw.middle(y, TAG_H) + 1f, Theme.MUTED);
+			String dist = GuiDraw.meters(tag.dist);
+			float distX = x + w - PAD_X - GuiDraw.smallWidth(font, dist);
+			GuiDraw.small(graphics, font, dist, distX, GuiDraw.middle(y, TAG_H) + 1f, Theme.MUTED);
 		}
 	}
 
-	private record Tag(Component name, double dist, float x, float y) {
+	private static void drawBadge(GuiGraphicsExtractor graphics, Font font, float x, float y, float w) {
+		GuiDraw.panel(graphics, x, y, w, TAG_H, 4, Theme.WINDOW, Theme.LINE);
+		float textY = GuiDraw.middle(y, TAG_H);
+		float cx = x + PAD_X;
+		GuiDraw.menu(graphics, font, BADGE_BRAND, cx, textY, Theme.ACCENT);
+		cx += GuiDraw.menuWidth(font, BADGE_BRAND) + 3f;
+		GuiDraw.small(graphics, font, BADGE_ROLE, cx, textY, Theme.WARN);
+	}
+
+	private static float pillWidth(float nameW, float distW) {
+		return PAD_X + nameW + (distW > 0f ? 5f + distW : 0f) + PAD_X;
+	}
+
+	private static float distWidth(Font font, double dist) {
+		return GuiDraw.smallWidth(font, GuiDraw.meters(dist));
+	}
+
+	private static float badgeWidth(Font font) {
+		return PAD_X + GuiDraw.menuWidth(font, BADGE_BRAND) + 3f + GuiDraw.smallWidth(font, BADGE_ROLE) + PAD_X;
+	}
+
+	/** Larger up close, smaller far away. Anchored so ~12m reads as 1.0 before the Size slider. */
+	private static float distanceScale(double dist) {
+		return Mth.clamp(24f / (12f + (float) dist), 0.52f, 1.35f);
+	}
+
+	private record Tag(Component name, double dist, float x, float y, boolean self) {
 	}
 }

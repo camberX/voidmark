@@ -114,6 +114,7 @@ public final class VoidmarkConfig {
 	public boolean nametagThroughWalls = false;
 	public boolean nametagDistance = true;
 	public int nametagRange = 128;
+	public float nametagScale = 1.0f;
 	public java.util.List<ItemSkin> itemSkins = new java.util.ArrayList<>();
 
 	private VoidmarkConfig() {
@@ -171,6 +172,7 @@ public final class VoidmarkConfig {
 					loaded.nick = "";
 				}
 				loaded.nametagRange = clamp(loaded.nametagRange <= 0 ? 128 : loaded.nametagRange, 64, 256);
+				loaded.nametagScale = clampHudScale(loaded.nametagScale);
 				if (loaded.itemSkins == null) {
 					loaded.itemSkins = new java.util.ArrayList<>();
 				}
