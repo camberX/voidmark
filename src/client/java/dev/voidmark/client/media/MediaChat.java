@@ -42,6 +42,21 @@ public final class MediaChat {
 		};
 	}
 
+	public static boolean songChanged(NowPlaying track) {
+		if (track == null || !track.present()) {
+			return false;
+		}
+		Minecraft client = Minecraft.getInstance();
+		if (client.player == null || client.gui == null) {
+			return false;
+		}
+		MutableComponent line = Component.literal("NOW PLAYING").withStyle(ChatFormatting.AQUA)
+			.append(Component.literal(" - ").withStyle(ChatFormatting.DARK_GRAY))
+			.append(Component.literal(track.title()).withStyle(ChatFormatting.WHITE));
+		tell(line);
+		return true;
+	}
+
 	public static int nowPlaying() {
 		NowPlaying track = MediaSession.current();
 		if (!track.present()) {

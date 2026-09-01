@@ -1,6 +1,7 @@
 package dev.voidmark.client.media;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.minecraft.client.Minecraft;
 
 public final class MediaSession {
 	private static final WindowsNowPlaying WINDOWS = new WindowsNowPlaying();
@@ -11,6 +12,8 @@ public final class MediaSession {
 	private static volatile NowPlaying current = NowPlaying.none();
 	private static volatile String route = "";
 	private static volatile String hint = "Play a track in Spotify or YouTube Music";
+	private static volatile String lastAnnounced = "";
+	private static volatile String pendingAnnounce = "";
 	private static long lastRestartNs;
 
 	private MediaSession() {
@@ -74,13 +77,16 @@ public final class MediaSession {
 					lastRestartNs = System.nanoTime();
 					WINDOWS.start();
 				}
-				current = pick();
+				NowPlaying next = pick();
+				announceIfChanged(next);
+				current = next;
 				Thread.sleep(current.present() ? 400 : 700);
 			} catch (InterruptedException interrupted) {
 				Thread.currentThread().interrupt();
 				return;
 			} catch (Exception exception) {
 				current = NowPlaying.none();
+				lastAnnounced = "";
 			}
 		}
 	}
@@ -126,5 +132,24 @@ public final class MediaSession {
 			hint = "Play a track in Spotify or YouTube Music";
 		}
 		return NowPlaying.none();
+	}
+
+	private static void announceIfChanged(NowPlaying next) {
+		if (next == null || !next.present()) {
+			lastAnnounced = "";
+			pendingAnnounce = "";
+			return;
+		}
+		if (NowPlaying.titlesClose(lastAnnounced, next.title()) || NowPlaying.titlesClose(pendingAnnounce, next.title())) {
+			return;
+		}
+		pendingAnnounce = next.title();
+		NowPlaying snap = next;
+		Minecraft.getInstance().execute(() -> {
+			if (MediaChat.songChanged(snap)) {
+				lastAnnounced = snap.title();
+			}
+			pendingAnnounce = "";
+		});
 	}
 }

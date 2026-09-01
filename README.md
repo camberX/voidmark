@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.52.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.53.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -17,7 +17,7 @@ Java **25** is required.
 
 - `/voidmark` or `/vm` opens the config screen. Drag the title bar or top chrome to move it; the position and last tab are saved to config.
 - `/vm edit` or `/voidmark edit` opens the item id window. It shows the item you are holding, with its `minecraft:` id or Skyblock `sb:` id in a text box and a large preview above it. Typing another id reskins that item on your client: hand, hotbar, and inventory all show the new look. The server still has the real item. Vanilla ids look like `minecraft:diamond_sword`; Skyblock ids look like `sb:HYPERION`. Tab or click a suggestion to fill it. Type the original id again to clear the reskin.
-- The **Music HUD** (Display tab, or the bell) shows the song that is playing in Spotify or YouTube Music: cover art, title, artist, source, and a progress bar. Open Minecraft chat (`T`) to click **previous / play-pause / next** on the HUD. You can also type `.np` `.play` `.pause` `.skip` `.prev` in chat (those stay client-side) or `/vm music`. On Windows it reads the system now-playing session (including SMTC album art), Spotify / YouTube Music window titles, and local companion APIs (YouTube Music Desktop on 9863, th-ch YouTube Music on 26558). Linux uses `playerctl` metadata and `mpris:artUrl`.
+- The **Music HUD** (Display tab, or the bell) shows the song that is playing in Spotify or YouTube Music: cover art, title, artist, source, and a progress bar. When the track changes, chat shows a client-side `NOW PLAYING -` line with the title. Open Minecraft chat (`T`) to click **previous / play-pause / next** on the HUD. You can also type `.np` `.play` `.pause` `.skip` `.prev` in chat (those stay client-side) or `/vm music`. On Windows it reads the system now-playing session (including SMTC album art), Spotify / YouTube Music window titles, and local companion APIs (YouTube Music Desktop on 9863, th-ch YouTube Music on 26558). Linux uses `playerctl` metadata and `mpris:artUrl`.
 - Right Shift is the default keybind (Controls → Voidmark). Press it again to close (the menu eases out).
 - `/voidmark toggle` flips node markers without opening the menu.
 - Toolbar **HUD** opens the HUD editor: drag any overlay (inventory, watermark, nodes) and every custom vanilla HUD piece (hotbar, bars, scoreboard, boss, effects, held item). They snap to screen axes and to each other; hold **Shift** to move freely. Click a panel, then drag the **Scale** bar or scroll the mouse wheel (50%–200%). **Reset** on the HUD tab restores default positions.
