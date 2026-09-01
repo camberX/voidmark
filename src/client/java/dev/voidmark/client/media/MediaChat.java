@@ -3,7 +3,6 @@ package dev.voidmark.client.media;
 import dev.voidmark.client.ui.Theme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
@@ -110,12 +109,10 @@ public final class MediaChat {
 		MutableComponent line = brand()
 			.append(sep())
 			.append(Component.literal("NOW PLAYING").withStyle(style(Theme.ACCENT).withBold(true)))
-			.append(Component.literal("  " + track.title()).withStyle(style(Theme.TEXT)));
+			.append(Component.literal(" " + track.title()).withStyle(style(Theme.TEXT)));
 		if (!track.artistLine().isBlank()) {
-			line.append(Component.literal("  ·  " + track.artistLine()).withStyle(style(Theme.MUTED)));
+			line.append(Component.literal(" · " + track.artistLine()).withStyle(style(Theme.MUTED)));
 		}
-		line.append(Component.literal("  " + track.clockLine()).withStyle(style(Theme.HEADER)));
-		line.append(Component.literal("  " + track.sourceLabel()).withStyle(style(Theme.ACCENT)));
 		String hover = track.title();
 		if (!track.artistLine().isBlank()) {
 			hover += "\n" + track.artistLine();
@@ -132,7 +129,7 @@ public final class MediaChat {
 	}
 
 	private static MutableComponent sep() {
-		return Component.literal("  │  ").withStyle(style(Theme.LINE));
+		return Component.literal(" | ").withStyle(style(Theme.MUTED));
 	}
 
 	private static MutableComponent muted(String value) {
