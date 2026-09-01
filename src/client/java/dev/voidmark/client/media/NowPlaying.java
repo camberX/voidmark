@@ -62,24 +62,26 @@ public record NowPlaying(
 		NowPlaying other = extra.cleaned();
 		String mergedAlbum = firstNonBlank(base.album, other.album);
 		long expected = previous != null && previous.present() ? previous.displayPositionMs() : -1L;
+		long otherPos = livePosition(other.positionMs, expected);
+		long basePos = livePosition(base.positionMs, expected);
 		long pos;
 		long sampled;
-		if (other.positionMs >= 0L && base.positionMs >= 0L && expected >= 0L) {
-			long otherDelta = Math.abs(other.positionMs - expected);
-			long baseDelta = Math.abs(base.positionMs - expected);
+		if (otherPos >= 0L && basePos >= 0L && expected >= 0L) {
+			long otherDelta = Math.abs(otherPos - expected);
+			long baseDelta = Math.abs(basePos - expected);
 			if (otherDelta >= SEEK_MS || baseDelta >= SEEK_MS) {
 				boolean useOther = otherDelta >= baseDelta;
-				pos = useOther ? other.positionMs : base.positionMs;
+				pos = useOther ? otherPos : basePos;
 				sampled = useOther ? other.sampledAtNanos : base.sampledAtNanos;
 			} else {
-				pos = other.positionMs;
+				pos = otherPos;
 				sampled = other.sampledAtNanos;
 			}
-		} else if (other.positionMs >= 0L) {
-			pos = other.positionMs;
+		} else if (otherPos >= 0L) {
+			pos = otherPos;
 			sampled = other.sampledAtNanos;
-		} else if (base.positionMs >= 0L) {
-			pos = base.positionMs;
+		} else if (basePos >= 0L) {
+			pos = basePos;
 			sampled = base.sampledAtNanos;
 		} else {
 			pos = -1L;
@@ -122,6 +124,24 @@ public record NowPlaying(
 
 	private static final long SEEK_MS = 800L;
 
+	/**
+	 * YouTube Music's Windows session often reports 0 forever. After the HUD
+	 * clock has moved on, that 0 is unknown, not a scrub back to the start.
+	 */
+	private static long livePosition(long reported, long expected) {
+		if (reported < 0L) {
+			return -1L;
+		}
+		if (reported == 0L && expected >= SEEK_MS) {
+			return -1L;
+		}
+		return reported;
+	}
+
+	private static boolean deadClock(long reported, long previousReported) {
+		return reported <= 0L && previousReported <= 0L;
+	}
+
 	public NowPlaying carryTime(NowPlaying previous) {
 		if (previous == null || !previous.present() || !titlesClose(title, previous.title)) {
 			return sampledAtNanos > 0L ? this : withTimeline(positionMs, durationMs, System.nanoTime());
@@ -130,7 +150,10 @@ public record NowPlaying(
 		long expected = previous.displayPositionMs();
 		long pos;
 		long sampled;
-		if (positionMs < 0L) {
+		if (deadClock(positionMs, previous.positionMs)) {
+			pos = previous.positionMs;
+			sampled = previous.sampledAtNanos > 0L ? previous.sampledAtNanos : sampledAtNanos;
+		} else if (positionMs < 0L) {
 			pos = previous.positionMs;
 			sampled = previous.sampledAtNanos > 0L ? previous.sampledAtNanos : sampledAtNanos;
 		} else if (Math.abs(positionMs - expected) >= SEEK_MS) {
@@ -144,7 +167,9 @@ public record NowPlaying(
 			pos = previous.displayPositionMs();
 			sampled = System.nanoTime();
 		} else if (playing && !previous.playing) {
-			if (positionMs >= 0L && Math.abs(positionMs - previous.displayPositionMs()) >= SEEK_MS) {
+			if (!deadClock(positionMs, previous.positionMs)
+				&& positionMs >= 0L
+				&& Math.abs(positionMs - previous.displayPositionMs()) >= SEEK_MS) {
 				pos = positionMs;
 			} else {
 				pos = previous.positionMs >= 0L ? previous.positionMs : previous.displayPositionMs();
