@@ -134,15 +134,17 @@ final class WindowsNowPlaying {
 				return NowPlaying.none();
 			}
 			lastError = "";
-			String artist = firstPerson(
+			String album = text(json, "album");
+			String artist = NowPlaying.preferArtist(
+				album,
 				text(json, "artist"),
-				text(json, "subtitle"),
-				text(json, "albumArtist")
+				text(json, "albumArtist"),
+				text(json, "subtitle")
 			);
 			return new NowPlaying(
 				title,
 				artist,
-				text(json, "album"),
+				album,
 				text(json, "app"),
 				"windows",
 				text(json, "art"),
@@ -172,15 +174,6 @@ final class WindowsNowPlaying {
 		} catch (Exception exception) {
 			return 0L;
 		}
-	}
-
-	private static String firstPerson(String... values) {
-		for (String value : values) {
-			if (!NowPlaying.placeholder(value)) {
-				return value.trim();
-			}
-		}
-		return "";
 	}
 
 	private static String text(JsonObject json, String key) {

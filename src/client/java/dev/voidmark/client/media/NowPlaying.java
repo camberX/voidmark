@@ -68,12 +68,15 @@ public record NowPlaying(
 
 	public NowPlaying withCatalog(String catalogTitle, String catalogArtist, String catalogAlbum, String catalogCover) {
 		NowPlaying base = cleaned();
+		boolean artistIsAlbum = !placeholder(base.album) && sameName(base.artist, base.album);
 		String newTitle = base.title;
-		String newArtist = firstPerson(base.artist, catalogArtist);
+		String newArtist = placeholder(base.artist) || artistIsAlbum
+			? firstPerson(catalogArtist, base.artist)
+			: firstPerson(base.artist, catalogArtist);
 		boolean swapped = titlesClose(base.title, catalogArtist) && !placeholder(catalogTitle);
-		boolean missing = placeholder(base.artist) && !placeholder(catalogArtist);
-		if ((swapped || missing) && !placeholder(catalogTitle)) {
-			newTitle = catalogTitle;
+		boolean missing = placeholder(base.artist) || artistIsAlbum;
+		if ((swapped || missing) && !placeholder(catalogTitle) && !placeholder(catalogArtist)) {
+			newTitle = placeholder(base.title) ? catalogTitle : base.title;
 			newArtist = catalogArtist;
 		}
 		return new NowPlaying(
@@ -101,13 +104,10 @@ public record NowPlaying(
 	}
 
 	public String artistLine() {
-		if (!placeholder(artist) && artist != null && !artist.isBlank()) {
-			return artist;
+		if (placeholder(artist)) {
+			return "";
 		}
-		if (!placeholder(album) && album != null && !album.isBlank()) {
-			return album;
-		}
-		return "";
+		return artist.trim();
 	}
 
 	public String sourceLabel() {
@@ -159,6 +159,12 @@ public record NowPlaying(
 		return m + ":" + (s < 10 ? "0" : "") + s;
 	}
 
+	static boolean sameName(String left, String right) {
+		String a = normalizeTitle(left);
+		String b = normalizeTitle(right);
+		return !a.isEmpty() && a.equals(b);
+	}
+
 	static boolean titlesClose(String left, String right) {
 		String a = normalizeTitle(left);
 		String b = normalizeTitle(right);
@@ -186,6 +192,19 @@ public record NowPlaying(
 			|| lower.equals("media")
 			|| lower.equals("unknown")
 			|| lower.equals("various artists");
+	}
+
+	static String preferArtist(String album, String... people) {
+		for (String value : people) {
+			if (placeholder(value)) {
+				continue;
+			}
+			if (!placeholder(album) && sameName(value, album)) {
+				continue;
+			}
+			return value.trim();
+		}
+		return "";
 	}
 
 	private static String firstPerson(String... values) {

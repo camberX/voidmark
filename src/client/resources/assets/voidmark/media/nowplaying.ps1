@@ -226,9 +226,15 @@ while ($true) {
 			$album = [string]$props.AlbumTitle
 			try { $subtitle = [string]$props.Subtitle } catch { $subtitle = '' }
 			try { $albumArtist = [string]$props.AlbumArtist } catch { $albumArtist = '' }
-			if ([string]::IsNullOrWhiteSpace($artist)) {
+		if ([string]::IsNullOrWhiteSpace($artist) -or ($album -ne '' -and $artist -eq $album)) {
+			if (-not [string]::IsNullOrWhiteSpace($albumArtist) -and $albumArtist -ne $album) {
 				$artist = $albumArtist
+			} elseif (-not [string]::IsNullOrWhiteSpace($subtitle) -and $subtitle -ne $album -and $subtitle -ne $title) {
+				$artist = $subtitle
+			} elseif ($album -ne '' -and $artist -eq $album) {
+				$artist = ''
 			}
+		}
 		}
 		if ([string]::IsNullOrWhiteSpace($title)) {
 			Emit-Idle ('empty-title:' + $app)

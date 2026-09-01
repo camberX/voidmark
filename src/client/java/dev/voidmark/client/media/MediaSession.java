@@ -27,10 +27,7 @@ public final class MediaSession {
 
 	public static NowPlaying current() {
 		NowPlaying value = current;
-		if (value == null || !value.present()) {
-			return NowPlaying.none();
-		}
-		return TrackLookup.enrich(value);
+		return value == null || !value.present() ? NowPlaying.none() : value;
 	}
 
 	public static String hint() {

@@ -17,16 +17,19 @@ import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Fills missing artist/cover from Deezer and iTunes. The query includes
- * title and artist when the player sends them; ranking still prefers a
- * title match so a cover shows even if the artist string is messy.
+ * Fills missing artist/cover from iTunes, then Deezer, then MusicBrainz.
+ * One in-flight search per track; quota errors are retried later instead of
+ * being cached as a miss.
  */
 final class TrackLookup {
+	private static final String USER_AGENT = "Voidmark/1.1.47 (https://github.com/Noamm9/NoammAddons)";
+	private static final long RETRY_MS = 45_000L;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.connectTimeout(Duration.ofSeconds(6))
 		.build();
 	private static final ConcurrentHashMap<String, Hit> CACHE = new ConcurrentHashMap<>();
+	private static final ConcurrentHashMap<String, Long> RETRY_AFTER = new ConcurrentHashMap<>();
 	private static final ConcurrentHashMap<String, Boolean> PENDING = new ConcurrentHashMap<>();
 
 	private TrackLookup() {
@@ -48,25 +51,31 @@ final class TrackLookup {
 		return track.withCatalog(hit.title, hit.artist, hit.album, hit.cover);
 	}
 
-	static Hit resolve(String title, String artist, String album) {
-		String key = key(title, artist, album);
-		Hit cached = CACHE.get(key);
-		if (cached != null) {
-			return cached;
-		}
-		Hit hit = search(title, artist, album);
-		CACHE.put(key, hit);
-		PENDING.remove(key);
-		return hit;
+	static Hit peek(String title, String artist, String album) {
+		Hit hit = CACHE.get(key(title, artist, album));
+		return hit == null ? Hit.NONE : hit;
 	}
 
 	private static void request(String key, String title, String artist, String album) {
+		if (CACHE.containsKey(key)) {
+			return;
+		}
+		Long wait = RETRY_AFTER.get(key);
+		if (wait != null && System.currentTimeMillis() < wait) {
+			return;
+		}
 		if (PENDING.putIfAbsent(key, Boolean.TRUE) != null) {
 			return;
 		}
 		Util.nonCriticalIoPool().execute(() -> {
 			try {
-				CACHE.putIfAbsent(key, search(title, artist, album));
+				Hit hit = search(title, artist, album);
+				if (hit.retry()) {
+					RETRY_AFTER.put(key, System.currentTimeMillis() + RETRY_MS);
+					return;
+				}
+				CACHE.putIfAbsent(key, hit);
+				RETRY_AFTER.remove(key);
 			} finally {
 				PENDING.remove(key);
 			}
@@ -74,64 +83,111 @@ final class TrackLookup {
 	}
 
 	private static Hit search(String title, String artist, String album) {
-		Hit hit = deezer(title, artist, album);
-		if (!hit.usable() && !safe(artist).isBlank()) {
-			hit = deezer(artist, title, album);
+		boolean limited = false;
+		Hit hit = trySource(() -> itunes(title, artist));
+		if (hit.usable()) {
+			return hit;
 		}
-		if (!hit.usable()) {
-			hit = itunes(title, artist, album);
+		limited |= hit.retry();
+		hit = trySource(() -> deezer(title, artist));
+		if (hit.usable()) {
+			return hit;
 		}
-		if (!hit.usable() && !safe(artist).isBlank()) {
-			hit = itunes(artist, title, album);
+		limited |= hit.retry();
+		hit = trySource(() -> musicbrainz(title, artist));
+		if (hit.usable()) {
+			return hit;
 		}
-		return hit;
+		limited |= hit.retry();
+		return limited ? Hit.RETRY : Hit.NONE;
 	}
 
-	private static Hit deezer(String title, String artist, String album) {
-		String query = query(title, artist, album);
-		if (query.length() < 3) {
-			return Hit.NONE;
-		}
+	private static Hit trySource(Source source) {
 		try {
-			String body = get("https://api.deezer.com/search?limit=8&q=" + encode(query));
-			JsonObject root = JsonParser.parseString(body).getAsJsonObject();
-			if (!root.has("data") || !root.get("data").isJsonArray()) {
-				return Hit.NONE;
-			}
-			return best(root.getAsJsonArray("data"), title, artist, true);
+			return source.lookup();
+		} catch (LimitedException limited) {
+			return Hit.RETRY;
 		} catch (Exception exception) {
 			return Hit.NONE;
 		}
 	}
 
-	private static Hit itunes(String title, String artist, String album) {
-		String query = query(title, artist, album);
+	@FunctionalInterface
+	private interface Source {
+		Hit lookup();
+	}
+
+	private static Hit deezer(String title, String artist) {
+		String query = query(title, artist);
 		if (query.length() < 3) {
 			return Hit.NONE;
 		}
-		Hit best = Hit.NONE;
-		for (String country : new String[]{"de", "us", "gb", "at", "ch"}) {
-			try {
-				String body = get("https://itunes.apple.com/search?entity=song&limit=8&country=" + country + "&term=" + encode(query));
-				JsonObject root = JsonParser.parseString(body).getAsJsonObject();
-				if (!root.has("results") || !root.get("results").isJsonArray()) {
-					continue;
-				}
-				Hit hit = best(root.getAsJsonArray("results"), title, artist, false);
-				if (hit.score > best.score) {
-					best = hit;
-				}
-				if (best.score >= 6) {
-					return best;
-				}
-			} catch (Exception ignored) {
+		String body = get("https://api.deezer.com/search?limit=8&q=" + encode(query));
+		JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+		if (root.has("error") && root.get("error").isJsonObject()) {
+			JsonObject error = root.getAsJsonObject("error");
+			int code = error.has("code") && error.get("code").isJsonPrimitive() ? error.get("code").getAsInt() : 0;
+			if (code == 4 || code == 700) {
+				return Hit.RETRY;
 			}
+			return Hit.NONE;
 		}
-		return best;
+		if (!root.has("data") || !root.get("data").isJsonArray()) {
+			return Hit.NONE;
+		}
+		return best(root.getAsJsonArray("data"), title, artist, true);
 	}
 
-	private static String query(String title, String artist, String album) {
-		return (safe(title) + " " + safe(artist) + " " + safe(album)).trim();
+	private static Hit itunes(String title, String artist) {
+		String query = query(title, artist);
+		if (query.length() < 3) {
+			return Hit.NONE;
+		}
+		String body = get("https://itunes.apple.com/search?entity=song&limit=8&term=" + encode(query));
+		JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+		if (!root.has("results") || !root.get("results").isJsonArray()) {
+			return Hit.NONE;
+		}
+		return best(root.getAsJsonArray("results"), title, artist, false);
+	}
+
+	private static Hit musicbrainz(String title, String artist) {
+		String track = safe(title);
+		if (track.length() < 2) {
+			return Hit.NONE;
+		}
+		String q = "recording:\"" + track + "\"";
+		String person = safe(artist);
+		if (!person.isBlank()) {
+			q += " AND artist:\"" + person + "\"";
+		}
+		String body = get("https://musicbrainz.org/ws/2/recording/?limit=5&fmt=json&query=" + encode(q));
+		JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+		if (!root.has("recordings") || !root.get("recordings").isJsonArray()) {
+			return Hit.NONE;
+		}
+		Hit best = Hit.NONE;
+		for (JsonElement el : root.getAsJsonArray("recordings")) {
+			if (!el.isJsonObject()) {
+				continue;
+			}
+			JsonObject row = el.getAsJsonObject();
+			String rowTitle = text(row, "title");
+			String rowArtist = creditName(row);
+			String cover = releaseCover(row);
+			if (cover.isBlank()) {
+				continue;
+			}
+			int score = matchScore(rowTitle, rowArtist, title, artist);
+			if (score > best.score) {
+				best = new Hit(rowTitle, rowArtist, "", cover, score);
+			}
+		}
+		return best.usable() ? best : Hit.NONE;
+	}
+
+	private static String query(String title, String artist) {
+		return (safe(title) + " " + safe(artist)).trim();
 	}
 
 	private static Hit best(JsonArray results, String title, String artist, boolean deezer) {
@@ -199,7 +255,7 @@ final class TrackLookup {
 	}
 
 	private static String key(String title, String artist, String album) {
-		return norm(title) + "|" + norm(artist) + "|" + norm(album);
+		return norm(title) + "|" + norm(album);
 	}
 
 	private static String nested(JsonObject row, String objectKey, String field) {
@@ -207,6 +263,42 @@ final class TrackLookup {
 			return "";
 		}
 		return text(row.getAsJsonObject(objectKey), field);
+	}
+
+	private static String creditName(JsonObject recording) {
+		if (recording == null || !recording.has("artist-credit") || !recording.get("artist-credit").isJsonArray()) {
+			return "";
+		}
+		for (JsonElement el : recording.getAsJsonArray("artist-credit")) {
+			if (!el.isJsonObject()) {
+				continue;
+			}
+			JsonObject credit = el.getAsJsonObject();
+			String name = text(credit, "name");
+			if (name.isBlank()) {
+				name = nested(credit, "artist", "name");
+			}
+			if (!name.isBlank()) {
+				return name;
+			}
+		}
+		return "";
+	}
+
+	private static String releaseCover(JsonObject recording) {
+		if (recording == null || !recording.has("releases") || !recording.get("releases").isJsonArray()) {
+			return "";
+		}
+		for (JsonElement el : recording.getAsJsonArray("releases")) {
+			if (!el.isJsonObject()) {
+				continue;
+			}
+			String id = text(el.getAsJsonObject(), "id");
+			if (!id.isBlank()) {
+				return "https://coverartarchive.org/release/" + id + "/front-250";
+			}
+		}
+		return "";
 	}
 
 	private static String text(JsonObject json, String... keys) {
@@ -234,17 +326,29 @@ final class TrackLookup {
 		return "";
 	}
 
-	private static String get(String url) throws Exception {
-		HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-			.timeout(Duration.ofSeconds(8))
-			.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-			.GET()
-			.build();
-		HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-		if (response.statusCode() < 200 || response.statusCode() >= 300) {
-			throw new IllegalStateException("HTTP " + response.statusCode());
+	private static String get(String url) {
+		try {
+			HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+				.timeout(Duration.ofSeconds(8))
+				.header("User-Agent", USER_AGENT)
+				.GET()
+				.build();
+			HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+			int code = response.statusCode();
+			if (code == 429 || code == 503) {
+				throw new LimitedException();
+			}
+			if (code < 200 || code >= 300) {
+				throw new IllegalStateException("HTTP " + code);
+			}
+			return response.body();
+		} catch (LimitedException limited) {
+			throw limited;
+		} catch (IllegalStateException illegal) {
+			throw illegal;
+		} catch (Exception exception) {
+			throw new LimitedException();
 		}
-		return response.body();
 	}
 
 	private static String encode(String value) {
@@ -264,9 +368,17 @@ final class TrackLookup {
 
 	record Hit(String title, String artist, String album, String cover, int score) {
 		private static final Hit NONE = new Hit("", "", "", "", 0);
+		private static final Hit RETRY = new Hit("", "", "", "", -1);
 
 		boolean usable() {
 			return score >= 3 && !NowPlaying.placeholder(artist);
 		}
+
+		boolean retry() {
+			return score < 0;
+		}
+	}
+
+	private static final class LimitedException extends RuntimeException {
 	}
 }

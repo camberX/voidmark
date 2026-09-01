@@ -24,7 +24,7 @@ import java.util.Base64;
 /**
  * Loads the current track's album art onto a dynamic GUI texture.
  * Uses a provided URL/path when the player exposes one, otherwise looks the
- * cover up from Deezer / iTunes using the title and artist.
+ * cover up from iTunes / Deezer / MusicBrainz using the title and artist.
  */
 public final class CoverArt {
 	private static final Identifier TEXTURE_ID = Voidmark.id("music_cover");
@@ -37,6 +37,7 @@ public final class CoverArt {
 
 	private static volatile String boundKey = "";
 	private static volatile boolean ready;
+	private static volatile boolean loading;
 	private static volatile int texSize;
 	private static volatile long lastTryNs;
 	private static int generation;
@@ -49,6 +50,7 @@ public final class CoverArt {
 			if (!boundKey.isEmpty()) {
 				boundKey = "";
 				ready = false;
+				loading = false;
 				texSize = 0;
 				generation++;
 			}
@@ -62,24 +64,35 @@ public final class CoverArt {
 		String key = cover + "|" + title + "|" + artist + "|" + album + "|" + stamp;
 		long now = System.nanoTime();
 		if (key.equals(boundKey)) {
-			if (ready) {
+			if (ready || loading) {
 				return;
 			}
-			if (now - lastTryNs < 2_000_000_000L) {
+			if (now - lastTryNs < 800_000_000L) {
 				return;
 			}
-		}
-		boundKey = key;
-		lastTryNs = now;
-		ready = false;
-		texSize = 0;
-		if (cover.startsWith("data:") && !cover.startsWith("data:image")) {
+		} else {
+			boundKey = key;
+			ready = false;
+			texSize = 0;
 			generation++;
+		}
+		lastTryNs = now;
+		if (cover.startsWith("data:") && !cover.startsWith("data:image")) {
+			loading = false;
 			return;
 		}
-		int gen = ++generation;
+		loading = true;
+		int gen = generation;
 		String spec = cover;
-		Util.nonCriticalIoPool().execute(() -> load(gen, spec, title, artist, album));
+		Util.nonCriticalIoPool().execute(() -> {
+			try {
+				load(gen, spec, title, artist, album);
+			} finally {
+				if (gen == generation) {
+					loading = false;
+				}
+			}
+		});
 	}
 
 	public static boolean ready() {
@@ -98,8 +111,10 @@ public final class CoverArt {
 		try {
 			byte[] bytes = readSpec(spec);
 			if (!looksLikeImage(bytes)) {
-				TrackLookup.Hit hit = TrackLookup.resolve(title, artist, album);
-				bytes = readSpec(hit.cover());
+				TrackLookup.Hit hit = TrackLookup.peek(title, artist, album);
+				if (hit.usable() && hit.cover() != null && !hit.cover().isBlank()) {
+					bytes = readSpec(hit.cover());
+				}
 			}
 			if (!looksLikeImage(bytes)) {
 				return;
@@ -173,56 +188,7 @@ public final class CoverArt {
 		} else {
 			src.resizeSubRectTo(sx, sy, side, side, out);
 		}
-		roundCorners(out);
 		return out;
-	}
-
-	/**
-	 * Matches {@code MusicHudRenderer} cover radius 5 on a 42px tile so the
-	 * photo follows the same rounded chrome as the rest of the HUD.
-	 */
-	private static void roundCorners(NativeImage image) {
-		int n = image.getWidth();
-		if (n != image.getHeight() || n < 4) {
-			return;
-		}
-		float radius = n * (5f / 42f);
-		int span = Math.min(n / 2, Math.max(1, (int) Math.ceil(radius + 1.5f)));
-		punchCorner(image, n, radius, 0, 0, radius, radius, span);
-		punchCorner(image, n, radius, n - span, 0, n - radius, radius, span);
-		punchCorner(image, n, radius, 0, n - span, radius, n - radius, span);
-		punchCorner(image, n, radius, n - span, n - span, n - radius, n - radius, span);
-	}
-
-	private static void punchCorner(
-		NativeImage image,
-		int n,
-		float radius,
-		int x0,
-		int y0,
-		float cx,
-		float cy,
-		int span
-	) {
-		int x1 = Math.min(n, x0 + span);
-		int y1 = Math.min(n, y0 + span);
-		for (int y = Math.max(0, y0); y < y1; y++) {
-			for (int x = Math.max(0, x0); x < x1; x++) {
-				float dx = (x + 0.5f) - cx;
-				float dy = (y + 0.5f) - cy;
-				float coverage = radius + 0.5f - (float) Math.sqrt(dx * dx + dy * dy);
-				if (coverage >= 1f) {
-					continue;
-				}
-				if (coverage <= 0f) {
-					image.setPixel(x, y, 0);
-					continue;
-				}
-				int rgb = image.getPixel(x, y) & 0x00FFFFFF;
-				int alpha = Math.round(255f * coverage);
-				image.setPixel(x, y, (alpha << 24) | rgb);
-			}
-		}
 	}
 
 	private static byte[] readSpec(String spec) {
