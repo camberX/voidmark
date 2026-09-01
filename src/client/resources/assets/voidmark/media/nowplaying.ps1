@@ -131,6 +131,15 @@ function Await-Op($op, $timeoutMs) {
 	}
 }
 
+function Kind-App([string]$id) {
+	$lower = ([string]$id).ToLowerInvariant()
+	if ($lower -match 'spotify') { return 'spotify' }
+	if ($lower -match 'youtubemusic|youtube\.music|youtube-music|ytm|cider') { return 'ytm' }
+	if ($lower -match 'chrome|msedge|brave|firefox|opera|vivaldi') { return 'browser' }
+	if ($lower -match 'electron') { return 'ytm' }
+	return 'windows'
+}
+
 function Score-App([string]$id) {
 	$lower = ([string]$id).ToLowerInvariant()
 	if ($lower -match 'spotify') { return 120 }
@@ -226,15 +235,6 @@ while ($true) {
 			$album = [string]$props.AlbumTitle
 			try { $subtitle = [string]$props.Subtitle } catch { $subtitle = '' }
 			try { $albumArtist = [string]$props.AlbumArtist } catch { $albumArtist = '' }
-		if ([string]::IsNullOrWhiteSpace($artist) -or ($album -ne '' -and $artist -eq $album)) {
-			if (-not [string]::IsNullOrWhiteSpace($albumArtist) -and $albumArtist -ne $album) {
-				$artist = $albumArtist
-			} elseif (-not [string]::IsNullOrWhiteSpace($subtitle) -and $subtitle -ne $album -and $subtitle -ne $title) {
-				$artist = $subtitle
-			} elseif ($album -ne '' -and $artist -eq $album) {
-				$artist = ''
-			}
-		}
 		}
 		if ([string]::IsNullOrWhiteSpace($title)) {
 			Emit-Idle ('empty-title:' + $app)
@@ -243,6 +243,7 @@ while ($true) {
 			Start-Sleep -Milliseconds 500
 			continue
 		}
+		$kind = Kind-App $app
 		$playing = ($status -eq 'Playing')
 		$artField = ''
 		if (-not [string]::IsNullOrWhiteSpace($artPath) -and $null -ne $props) {
@@ -260,7 +261,7 @@ while ($true) {
 				$artField = ',"art":"' + (Json-Escape ($artPath.Replace('\', '/'))) + '"'
 			}
 		}
-		$line = '{"ok":true,"app":"' + (Json-Escape $app) + '","title":"' + (Json-Escape $title) + '","artist":"' + (Json-Escape $artist) + '","subtitle":"' + (Json-Escape $subtitle) + '","albumArtist":"' + (Json-Escape $albumArtist) + '","album":"' + (Json-Escape $album) + '","playing":' + ($(if ($playing) { 'true' } else { 'false' })) + ',"position":' + $pos + ',"duration":' + $dur + $artField + '}'
+		$line = '{"ok":true,"app":"' + (Json-Escape $app) + '","kind":"' + (Json-Escape $kind) + '","title":"' + (Json-Escape $title) + '","artist":"' + (Json-Escape $artist) + '","subtitle":"' + (Json-Escape $subtitle) + '","albumArtist":"' + (Json-Escape $albumArtist) + '","album":"' + (Json-Escape $album) + '","playing":' + ($(if ($playing) { 'true' } else { 'false' })) + ',"position":' + $pos + ',"duration":' + $dur + $artField + '}'
 		Emit $line
 	} catch {
 		Emit-Idle 'poll-error'

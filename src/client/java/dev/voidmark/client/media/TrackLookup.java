@@ -22,7 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * being cached as a miss.
  */
 final class TrackLookup {
-	private static final String USER_AGENT = "Voidmark/1.1.47 (https://github.com/Noamm9/NoammAddons)";
+	private static final String BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+	private static final String APP_UA = "Voidmark/1.1.48 (https://github.com/Noamm9/NoammAddons)";
 	private static final long RETRY_MS = 45_000L;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
@@ -83,18 +84,22 @@ final class TrackLookup {
 	}
 
 	private static Hit search(String title, String artist, String album) {
+		String rawPerson = safe(artist);
+		final String person = NowPlaying.placeholder(rawPerson) || NowPlaying.sameName(rawPerson, album)
+			? ""
+			: rawPerson;
 		boolean limited = false;
-		Hit hit = trySource(() -> itunes(title, artist));
+		Hit hit = trySource(() -> itunes(title, person));
 		if (hit.usable()) {
 			return hit;
 		}
 		limited |= hit.retry();
-		hit = trySource(() -> deezer(title, artist));
+		hit = trySource(() -> deezer(title, person));
 		if (hit.usable()) {
 			return hit;
 		}
 		limited |= hit.retry();
-		hit = trySource(() -> musicbrainz(title, artist));
+		hit = trySource(() -> musicbrainz(title, person));
 		if (hit.usable()) {
 			return hit;
 		}
@@ -143,7 +148,7 @@ final class TrackLookup {
 		if (query.length() < 3) {
 			return Hit.NONE;
 		}
-		String body = get("https://itunes.apple.com/search?entity=song&limit=8&term=" + encode(query));
+		String body = get("https://itunes.apple.com/search?entity=song&media=music&limit=8&term=" + encode(query));
 		JsonObject root = JsonParser.parseString(body).getAsJsonObject();
 		if (!root.has("results") || !root.get("results").isJsonArray()) {
 			return Hit.NONE;
@@ -330,7 +335,7 @@ final class TrackLookup {
 		try {
 			HttpRequest request = HttpRequest.newBuilder(URI.create(url))
 				.timeout(Duration.ofSeconds(8))
-				.header("User-Agent", USER_AGENT)
+				.header("User-Agent", userAgent(url))
 				.GET()
 				.build();
 			HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -349,6 +354,13 @@ final class TrackLookup {
 		} catch (Exception exception) {
 			throw new LimitedException();
 		}
+	}
+
+	private static String userAgent(String url) {
+		if (url.contains("musicbrainz.org") || url.contains("coverartarchive.org")) {
+			return APP_UA;
+		}
+		return BROWSER_UA;
 	}
 
 	private static String encode(String value) {

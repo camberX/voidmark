@@ -134,24 +134,18 @@ final class WindowsNowPlaying {
 				return NowPlaying.none();
 			}
 			lastError = "";
-			String album = text(json, "album");
-			String artist = NowPlaying.preferArtist(
-				album,
-				text(json, "artist"),
-				text(json, "albumArtist"),
-				text(json, "subtitle")
-			);
-			return new NowPlaying(
+			return NowPlaying.fromSmtc(
 				title,
-				artist,
-				album,
+				text(json, "artist"),
+				text(json, "album"),
+				text(json, "albumArtist"),
+				text(json, "subtitle"),
 				text(json, "app"),
-				"windows",
+				text(json, "kind"),
 				text(json, "art"),
 				!json.has("playing") || json.get("playing").getAsBoolean(),
 				ticksToMs(json, "position"),
-				ticksToMs(json, "duration"),
-				System.nanoTime()
+				ticksToMs(json, "duration")
 			);
 		} catch (Exception exception) {
 			return null;

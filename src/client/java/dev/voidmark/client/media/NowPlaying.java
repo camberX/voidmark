@@ -31,11 +31,15 @@ public record NowPlaying(
 	public NowPlaying cleaned() {
 		Split split = Split.of(title);
 		String cleanedTitle = split.title;
-		String cleanedArtist = firstPerson(artist, split.artist);
+		String cleanedAlbum = placeholder(album) ? "" : nullToEmpty(album);
+		String cleanedArtist = preferArtist(cleanedAlbum, artist, split.artist);
+		if (sameName(cleanedArtist, cleanedAlbum)) {
+			cleanedArtist = "";
+		}
 		return new NowPlaying(
 			cleanedTitle,
 			cleanedArtist,
-			placeholder(album) ? "" : nullToEmpty(album),
+			cleanedAlbum,
 			nullToEmpty(app),
 			nullToEmpty(source),
 			nullToEmpty(cover),
@@ -52,10 +56,11 @@ public record NowPlaying(
 			return base;
 		}
 		NowPlaying other = extra.cleaned();
+		String mergedAlbum = firstNonBlank(base.album, other.album);
 		return new NowPlaying(
 			base.title,
-			firstPerson(base.artist, other.artist),
-			firstNonBlank(base.album, other.album),
+			preferArtist(mergedAlbum, other.artist, base.artist),
+			mergedAlbum,
 			base.app,
 			base.source,
 			firstNonBlank(other.cover, base.cover),
@@ -69,23 +74,29 @@ public record NowPlaying(
 	public NowPlaying withCatalog(String catalogTitle, String catalogArtist, String catalogAlbum, String catalogCover) {
 		NowPlaying base = cleaned();
 		boolean artistIsAlbum = !placeholder(base.album) && sameName(base.artist, base.album);
+		boolean untrusted = placeholder(base.artist) || artistIsAlbum || youtubeMusic();
 		String newTitle = base.title;
-		String newArtist = placeholder(base.artist) || artistIsAlbum
+		String newArtist = untrusted
 			? firstPerson(catalogArtist, base.artist)
 			: firstPerson(base.artist, catalogArtist);
-		boolean swapped = titlesClose(base.title, catalogArtist) && !placeholder(catalogTitle);
-		boolean missing = placeholder(base.artist) || artistIsAlbum;
-		if ((swapped || missing) && !placeholder(catalogTitle) && !placeholder(catalogArtist)) {
-			newTitle = placeholder(base.title) ? catalogTitle : base.title;
+		if (untrusted && !placeholder(catalogArtist) && !sameName(catalogArtist, base.album)) {
 			newArtist = catalogArtist;
 		}
+		boolean swapped = titlesClose(base.title, catalogArtist) && !placeholder(catalogTitle);
+		if ((swapped || untrusted) && placeholder(base.title) && !placeholder(catalogTitle)) {
+			newTitle = catalogTitle;
+		}
+		String newAlbum = untrusted
+			? firstNonBlank(catalogAlbum, base.album)
+			: firstNonBlank(base.album, catalogAlbum);
+		String newCover = firstNonBlank(base.cover, catalogCover);
 		return new NowPlaying(
 			newTitle,
 			newArtist,
-			firstNonBlank(base.album, catalogAlbum),
+			newAlbum,
 			base.app,
 			base.source,
-			firstNonBlank(base.cover, catalogCover),
+			newCover,
 			base.playing,
 			base.positionMs,
 			base.durationMs,
@@ -115,19 +126,105 @@ public record NowPlaying(
 		if (raw.contains("spotify")) {
 			return "SPOTIFY";
 		}
-		if (raw.contains("cider") || raw.contains("youtubemusic") || raw.contains("youtube music") || raw.contains("youtube.music")) {
+		if (raw.contains("cider")
+			|| raw.contains("youtubemusic")
+			|| raw.contains("youtube music")
+			|| raw.contains("youtube.music")
+			|| raw.contains("ytm")
+			|| raw.contains("ytmd")
+			|| "browser".equals(source)
+			|| "ytm".equals(source)
+			|| raw.contains("electron")) {
 			return "YOUTUBE MUSIC";
 		}
 		if (raw.contains("youtube")) {
 			return "YOUTUBE";
 		}
-		if (raw.contains("window") || raw.contains("ytm") || raw.contains("electron")) {
-			return "YOUTUBE MUSIC";
-		}
-		if (source != null && !source.isBlank()) {
+		if (source != null && !source.isBlank() && !"windows".equals(source)) {
 			return source.toUpperCase(Locale.ROOT);
 		}
 		return "MEDIA";
+	}
+
+	static NowPlaying fromSmtc(
+		String title,
+		String artist,
+		String album,
+		String albumArtist,
+		String subtitle,
+		String app,
+		String kind,
+		String cover,
+		boolean playing,
+		long positionMs,
+		long durationMs
+	) {
+		title = nullToEmpty(title).trim();
+		artist = blankIfPlaceholder(artist);
+		album = blankIfPlaceholder(album);
+		albumArtist = blankIfPlaceholder(albumArtist);
+		subtitle = blankIfPlaceholder(subtitle);
+		String subArtist = "";
+		String subAlbum = "";
+		String[] seps = {" • ", " · ", " – ", " — ", " | "};
+		for (String sep : seps) {
+			int at = subtitle.indexOf(sep);
+			if (at > 0 && at + sep.length() < subtitle.length()) {
+				subArtist = subtitle.substring(0, at).trim();
+				subAlbum = subtitle.substring(at + sep.length()).trim();
+				break;
+			}
+		}
+		if (subArtist.isEmpty() && !subtitle.isEmpty() && !sameName(subtitle, title) && !sameName(subtitle, album)) {
+			subArtist = subtitle;
+		}
+		boolean ytmSession = "ytm".equals(kind) || "browser".equals(kind) || browserApp(app);
+		if (ytmSession && album.isEmpty() && !artist.isEmpty()) {
+			album = artist;
+			artist = "";
+		}
+		if (album.isEmpty()) {
+			album = blankIfPlaceholder(subAlbum);
+		}
+		artist = preferArtist(album, albumArtist, subArtist, artist);
+		if (sameName(artist, album)) {
+			artist = "";
+		}
+		String source = kind == null || kind.isBlank() ? "windows" : kind;
+		return new NowPlaying(
+			title,
+			artist,
+			album,
+			nullToEmpty(app),
+			source,
+			nullToEmpty(cover),
+			playing,
+			positionMs,
+			durationMs,
+			System.nanoTime()
+		);
+	}
+
+	private static boolean browserApp(String app) {
+		String raw = app == null ? "" : app.toLowerCase(Locale.ROOT);
+		return raw.contains("chrome")
+			|| raw.contains("msedge")
+			|| raw.contains("brave")
+			|| raw.contains("firefox")
+			|| raw.contains("opera")
+			|| raw.contains("vivaldi")
+			|| raw.contains("youtube")
+			|| raw.contains("ytm")
+			|| raw.contains("cider")
+			|| raw.contains("electron");
+	}
+
+	private static String blankIfPlaceholder(String value) {
+		return placeholder(value) ? "" : value.trim();
+	}
+
+	public boolean youtubeMusic() {
+		return "YOUTUBE MUSIC".equals(sourceLabel()) || browserApp(app);
 	}
 
 	public long displayPositionMs() {

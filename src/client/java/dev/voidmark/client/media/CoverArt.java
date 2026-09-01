@@ -254,6 +254,7 @@ public final class CoverArt {
 		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
 			.timeout(Duration.ofSeconds(8))
 			.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+			.header("Accept", "image/jpeg,image/png,image/webp,image/*,*/*")
 			.GET();
 		if (url.contains("googleusercontent") || url.contains("ytimg") || url.contains("ggpht")) {
 			builder.header("Referer", "https://music.youtube.com/");
