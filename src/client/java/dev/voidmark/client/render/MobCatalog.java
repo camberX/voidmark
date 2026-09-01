@@ -2,31 +2,41 @@ package dev.voidmark.client.render;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.entity.Avatar;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.MobCategory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Every living mob in the vanilla entity registry, minus players and armor stands.
+ * {@link EntityType#getBaseClass()} is a stub that always returns Entity, so listing
+ * uses spawn category plus a few MISC golems.
  */
 public final class MobCatalog {
 	public static final String DEFAULT_ID = "minecraft:zombie";
 
-	private static List<Entry> cache;
+	private static final Set<String> SKIP = Set.of(
+		"player",
+		"mannequin",
+		"armor_stand"
+	);
+	private static final Set<String> MISC_MOBS = Set.of(
+		"iron_golem",
+		"snow_golem",
+		"copper_golem"
+	);
+
+	private static List<Entry> cache = List.of();
 
 	private MobCatalog() {
 	}
 
 	public static List<Entry> all() {
-		if (cache == null) {
+		if (cache.isEmpty()) {
 			cache = build();
 		}
 		return cache;
@@ -53,7 +63,7 @@ public final class MobCatalog {
 			return null;
 		}
 		EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(key);
-		return isListable(type) ? type : null;
+		return isListable(key, type) ? type : null;
 	}
 
 	public static String normalizeId(String id) {
@@ -79,7 +89,7 @@ public final class MobCatalog {
 		List<Entry> out = new ArrayList<>();
 		for (Identifier id : BuiltInRegistries.ENTITY_TYPE.keySet()) {
 			EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
-			if (!isListable(type)) {
+			if (!isListable(id, type)) {
 				continue;
 			}
 			out.add(new Entry(id, label(type), type));
@@ -88,18 +98,18 @@ public final class MobCatalog {
 		return List.copyOf(out);
 	}
 
-	private static boolean isListable(EntityType<?> type) {
-		if (type == null) {
+	private static boolean isListable(Identifier id, EntityType<?> type) {
+		if (id == null || type == null) {
 			return false;
 		}
-		Class<? extends Entity> base = type.getBaseClass();
-		if (base == null || !LivingEntity.class.isAssignableFrom(base)) {
+		String path = id.getPath();
+		if (SKIP.contains(path)) {
 			return false;
 		}
-		if (Player.class.isAssignableFrom(base) || Avatar.class.isAssignableFrom(base)) {
-			return false;
+		if (type.getCategory() != MobCategory.MISC) {
+			return true;
 		}
-		return !ArmorStand.class.isAssignableFrom(base);
+		return MISC_MOBS.contains(path);
 	}
 
 	private static String label(EntityType<?> type) {

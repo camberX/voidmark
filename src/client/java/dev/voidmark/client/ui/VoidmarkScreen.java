@@ -421,8 +421,9 @@ public class VoidmarkScreen extends Screen {
 		String selected = clip(font, MobCatalog.displayName(config.mobGlowId), (int) iw - 4);
 		GuiDraw.menu(graphics, font, selected, ix + 1, GuiDraw.middle(y, ROW), Theme.ACCENT);
 
+		List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
 		float listH = windowY + windowH - PAD - top;
-		featureCard(graphics, font, right, top, col, listH, "Mobs");
+		featureCard(graphics, font, right, top, col, listH, entries.isEmpty() ? "Mobs" : "Mobs  " + entries.size());
 		float searchY = top + CARD_HEAD;
 		mobFieldX = rx;
 		mobFieldY = searchY;
@@ -442,7 +443,6 @@ public class VoidmarkScreen extends Screen {
 		mobListY = searchY + 18;
 		mobListW = iw;
 		mobListH = Math.max(16, listH - CARD_HEAD - 22);
-		List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
 		float contentH = entries.size() * ROW;
 		float maxScroll = Math.max(0f, contentH - mobListH);
 		if (ensureMobVisible) {
@@ -1402,7 +1402,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.71");
+			.orElse("1.1.72");
 	}
 
 	@Override
