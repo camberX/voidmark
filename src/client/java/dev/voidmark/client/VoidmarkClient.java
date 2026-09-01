@@ -11,7 +11,9 @@ import dev.voidmark.client.render.NodeHudRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.InventoryHudRenderer;
 import dev.voidmark.client.render.WatermarkRenderer;
+import dev.voidmark.client.item.SkyblockItems;
 import dev.voidmark.client.ui.HudEditorScreen;
+import dev.voidmark.client.ui.ItemEditScreen;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.ui.VoidmarkScreen;
 import dev.voidmark.client.visual.CustomCape;
@@ -34,6 +36,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		VoidmarkConfig.load();
 		Theme.refresh();
+		SkyblockItems.load();
 		CustomCape.init();
 		NodeWorldRenderer.init();
 		WatermarkRenderer.init();
@@ -61,8 +64,11 @@ public final class VoidmarkClient implements ClientModInitializer {
 				}
 				return Command.SINGLE_SUCCESS;
 			}));
+			root.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
 			dispatcher.register(root);
-			dispatcher.register(ClientCommands.literal("vm").executes(context -> openScreen()));
+			var vm = ClientCommands.literal("vm").executes(context -> openScreen());
+			vm.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
+			dispatcher.register(vm);
 		});
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -71,6 +77,8 @@ public final class VoidmarkClient implements ClientModInitializer {
 					client.setScreen(new VoidmarkScreen());
 				} else if (client.screen instanceof VoidmarkScreen screen) {
 					screen.requestClose();
+				} else if (client.screen instanceof ItemEditScreen) {
+					client.setScreen(null);
 				} else {
 					openScreen();
 				}
@@ -97,6 +105,12 @@ public final class VoidmarkClient implements ClientModInitializer {
 				client.setScreen(new VoidmarkScreen());
 			}
 		});
+		return Command.SINGLE_SUCCESS;
+	}
+
+	private static int openItemEdit() {
+		Minecraft client = Minecraft.getInstance();
+		client.execute(() -> client.setScreen(new ItemEditScreen()));
 		return Command.SINGLE_SUCCESS;
 	}
 }
