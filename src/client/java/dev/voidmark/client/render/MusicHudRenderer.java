@@ -17,9 +17,11 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 
 public final class MusicHudRenderer {
-	public static final float WIDTH = 228;
+	public static final float WIDTH = 248;
 	public static final float HEIGHT = 54;
 	public static final float HEIGHT_IDLE = 36;
+	private static final float COVER = 42;
+	private static final float COVER_PAD = 6;
 
 	private static final String ICON = "\uE405";
 	private static final String PREV = "\uE045";
@@ -113,24 +115,28 @@ public final class MusicHudRenderer {
 		}
 
 		GuiDraw.panel(graphics, 0, 0, WIDTH, h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
-		drawCover(graphics, font, track, live);
+		float cover = drawCover(graphics, font, track, live, h);
+		float textX = COVER_PAD + cover + 6;
 
 		if (!live) {
-			GuiDraw.menu(graphics, font, HudLayout.editorOpen() ? "Music" : "Nothing playing", 32, 8, Theme.TEXT);
-			GuiDraw.small(graphics, font, ellipsize(font, MediaSession.hint(), WIDTH - 44, true), 32, 20, Theme.MUTED);
+			GuiDraw.menu(graphics, font, HudLayout.editorOpen() ? "Music" : "Nothing playing", textX, 8, Theme.TEXT);
+			GuiDraw.small(graphics, font, ellipsize(font, MediaSession.hint(), WIDTH - textX - 12, true), textX, 20, Theme.MUTED);
 			clearHits();
 			graphics.pose().popMatrix();
 			return;
 		}
 
-		String title = ellipsize(font, track.title(), WIDTH - 90, false);
-		String artist = ellipsize(font, track.artistLine(), WIDTH - 90, true);
-		GuiDraw.menu(graphics, font, title, 32, 6, Theme.TEXT);
-		GuiDraw.small(graphics, font, artist, 32, 16, Theme.MUTED);
-		GuiDraw.small(graphics, font, track.sourceLabel(), WIDTH - 8 - GuiDraw.smallWidth(font, track.sourceLabel()), 6, Theme.ACCENT);
+		String source = track.sourceLabel();
+		float sourceW = GuiDraw.smallWidth(font, source);
+		float titleMax = WIDTH - textX - sourceW - 16;
+		String title = ellipsize(font, track.title(), titleMax, false);
+		String artist = ellipsize(font, track.artistLine(), WIDTH - textX - 12, true);
+		GuiDraw.menu(graphics, font, title, textX, 6, Theme.TEXT);
+		GuiDraw.small(graphics, font, artist, textX, 16, Theme.MUTED);
+		GuiDraw.small(graphics, font, source, WIDTH - 8 - sourceW, 6, Theme.ACCENT);
 
-		float barX = 32;
-		float barW = WIDTH - 40;
+		float barX = textX;
+		float barW = WIDTH - textX - 8;
 		float barY = 29;
 		GuiDraw.rounded(graphics, barX, barY, barW, 3, 1.5f, Theme.TRACK);
 		float filled = Math.max(live ? 2f : 0f, barW * track.progress());
@@ -163,15 +169,19 @@ public final class MusicHudRenderer {
 		graphics.pose().popMatrix();
 	}
 
-	private static void drawCover(GuiGraphicsExtractor graphics, Font font, NowPlaying track, boolean live) {
+	private static float drawCover(GuiGraphicsExtractor graphics, Font font, NowPlaying track, boolean live, float panelH) {
+		float size = Math.min(COVER, panelH - COVER_PAD * 2f);
+		float x = COVER_PAD;
+		float y = (panelH - size) * 0.5f;
 		CoverArt.bind(track);
-		GuiDraw.rounded(graphics, 6, 6, 20, 20, 4, Theme.CARD);
+		GuiDraw.rounded(graphics, x, y, size, size, 5, Theme.CARD);
 		if (CoverArt.ready()) {
-			int size = CoverArt.size();
-			GuiDraw.blit(graphics, CoverArt.id(), 6, 6, 20, 20, 0f, 0f, size, size, size, size);
-			return;
+			int tex = CoverArt.size();
+			GuiDraw.blit(graphics, CoverArt.id(), x, y, size, size, 0f, 0f, tex, tex, tex, tex);
+			return size;
 		}
-		GuiDraw.icon(graphics, font, ICON, 10, 10, live ? Theme.ACCENT : Theme.MUTED);
+		GuiDraw.icon(graphics, font, ICON, x + size * 0.5f - 5f, y + size * 0.5f - 5f, live ? Theme.ACCENT : Theme.MUTED);
+		return size;
 	}
 
 	private static Rect screenRect(float originX, float originY, float scale, float lx, float ly, float lw, float lh) {
