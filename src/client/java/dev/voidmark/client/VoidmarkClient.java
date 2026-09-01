@@ -12,8 +12,9 @@ import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.InventoryHudRenderer;
 import dev.voidmark.client.render.VanillaHud;
 import dev.voidmark.client.render.WatermarkRenderer;
-import dev.voidmark.client.item.SkyblockItems;
 import dev.voidmark.client.item.ItemAppearance;
+import dev.voidmark.client.item.ItemIds;
+import dev.voidmark.client.item.SkyblockItems;
 import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.ItemEditScreen;
 import dev.voidmark.client.ui.Theme;
@@ -33,13 +34,13 @@ import net.minecraft.resources.Identifier;
 public final class VoidmarkClient implements ClientModInitializer {
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(Voidmark.MOD_ID, "main"));
 	private static KeyMapping openGui;
+	private static boolean itemAppearancesLoaded;
 
 	@Override
 	public void onInitializeClient() {
 		VoidmarkConfig.load();
 		Theme.refresh();
 		SkyblockItems.load();
-		ItemAppearance.reload();
 		CustomCape.init();
 		NodeWorldRenderer.init();
 		WatermarkRenderer.init();
@@ -73,6 +74,20 @@ public final class VoidmarkClient implements ClientModInitializer {
 			var vm = ClientCommands.literal("vm").executes(context -> openScreen());
 			vm.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
 			dispatcher.register(vm);
+		});
+
+		ClientTickEvents.START_CLIENT_TICK.register(client -> {
+			if (itemAppearancesLoaded) {
+				return;
+			}
+			if (!ItemIds.componentsReady()) {
+				return;
+			}
+			try {
+				ItemAppearance.reload();
+				itemAppearancesLoaded = true;
+			} catch (RuntimeException ignored) {
+			}
 		});
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {

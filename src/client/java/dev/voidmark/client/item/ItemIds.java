@@ -53,6 +53,15 @@ public final class ItemIds {
 	private ItemIds() {
 	}
 
+	public static boolean componentsReady() {
+		try {
+			Item paper = BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace("paper"));
+			return paper != null && !new ItemStack(paper).isEmpty();
+		} catch (RuntimeException ignored) {
+			return false;
+		}
+	}
+
 	public static ItemStack held(Player player) {
 		if (player == null) {
 			return ItemStack.EMPTY;
@@ -208,8 +217,12 @@ public final class ItemIds {
 			return Preview.unknown("minecraft:" + path);
 		}
 		Item item = BuiltInRegistries.ITEM.getValue(id);
-		ItemStack stack = new ItemStack(item);
-		return new Preview(stack, id.toString(), Kind.VANILLA, stack.getHoverName().getString());
+		try {
+			ItemStack stack = new ItemStack(item);
+			return new Preview(stack, id.toString(), Kind.VANILLA, stack.getHoverName().getString());
+		} catch (RuntimeException exception) {
+			return Preview.unknown(id.toString());
+		}
 	}
 
 	private static Preview skyblock(String raw) {
@@ -226,7 +239,16 @@ public final class ItemIds {
 		if (entry == null) {
 			return Preview.unknown(canonical);
 		}
-		return new Preview(fromCatalog(entry), canonical, Kind.SKYBLOCK, entry.name());
+		ItemStack catalog;
+		try {
+			catalog = fromCatalog(entry);
+		} catch (RuntimeException ignored) {
+			return Preview.unknown(canonical);
+		}
+		if (catalog == null || catalog.isEmpty()) {
+			return Preview.unknown(canonical);
+		}
+		return new Preview(catalog, canonical, Kind.SKYBLOCK, entry.name());
 	}
 
 	private static ItemStack fromCatalog(SkyblockItems.Entry entry) {
@@ -234,25 +256,30 @@ public final class ItemIds {
 		Item item = BuiltInRegistries.ITEM.containsKey(itemId)
 			? BuiltInRegistries.ITEM.getValue(itemId)
 			: BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace("paper"));
-		ItemStack stack = new ItemStack(item);
-		CompoundTag tag = new CompoundTag();
-		tag.putString("id", entry.id());
-		stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-		stack.set(DataComponents.CUSTOM_NAME, Component.literal(entry.name()).withStyle(tierColor(entry.rarity())));
-		Rarity rarity = vanillaRarity(entry.rarity());
-		if (rarity != Rarity.COMMON) {
-			stack.set(DataComponents.RARITY, rarity);
+		ItemStack stack;
+		try {
+			stack = new ItemStack(item);
+			CompoundTag tag = new CompoundTag();
+			tag.putString("id", entry.id());
+			stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+			stack.set(DataComponents.CUSTOM_NAME, Component.literal(entry.name()).withStyle(tierColor(entry.rarity())));
+			Rarity rarity = vanillaRarity(entry.rarity());
+			if (rarity != Rarity.COMMON) {
+				stack.set(DataComponents.RARITY, rarity);
+			}
+			if (entry.dyeRgb() >= 0) {
+				stack.set(DataComponents.DYED_COLOR, new DyedItemColor(entry.dyeRgb()));
+			}
+			if (entry.model() != null && shouldApplyModel(entry.model())) {
+				stack.set(DataComponents.ITEM_MODEL, entry.model());
+			}
+			if (entry.skinHash() != null && !entry.skinHash().isBlank()) {
+				applySkull(stack, entry.id(), entry.skinHash());
+			}
+			return stack;
+		} catch (RuntimeException exception) {
+			return ItemStack.EMPTY;
 		}
-		if (entry.dyeRgb() >= 0) {
-			stack.set(DataComponents.DYED_COLOR, new DyedItemColor(entry.dyeRgb()));
-		}
-		if (entry.model() != null && shouldApplyModel(entry.model())) {
-			stack.set(DataComponents.ITEM_MODEL, entry.model());
-		}
-		if (entry.skinHash() != null && !entry.skinHash().isBlank()) {
-			applySkull(stack, entry.id(), entry.skinHash());
-		}
-		return stack;
 	}
 
 	private static boolean shouldApplyModel(Identifier model) {

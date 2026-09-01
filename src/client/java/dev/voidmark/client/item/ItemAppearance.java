@@ -100,8 +100,16 @@ public final class ItemAppearance {
 			if (entry == null || entry.displayId == null || entry.displayId.isBlank()) {
 				continue;
 			}
-			ItemIds.Preview preview = ItemIds.resolve(entry.displayId);
+			ItemIds.Preview preview;
+			try {
+				preview = ItemIds.resolve(entry.displayId);
+			} catch (RuntimeException ignored) {
+				continue;
+			}
 			if (preview.kind() != ItemIds.Kind.VANILLA && preview.kind() != ItemIds.Kind.SKYBLOCK) {
+				continue;
+			}
+			if (preview.stack() == null || preview.stack().isEmpty()) {
 				continue;
 			}
 			Skin skin = new Skin();
