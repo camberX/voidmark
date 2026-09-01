@@ -69,6 +69,17 @@ public final class VoidmarkConfig {
 	public boolean hudEffects = true;
 	public boolean hudHeldItem = true;
 	public boolean hudMountHealth = true;
+	public HudSlot slotHotbar = new HudSlot();
+	public HudSlot slotHealth = new HudSlot();
+	public HudSlot slotHunger = new HudSlot();
+	public HudSlot slotArmor = new HudSlot();
+	public HudSlot slotAir = new HudSlot();
+	public HudSlot slotExperience = new HudSlot();
+	public HudSlot slotMount = new HudSlot();
+	public HudSlot slotScoreboard = new HudSlot();
+	public HudSlot slotBoss = new HudSlot();
+	public HudSlot slotEffects = new HudSlot();
+	public HudSlot slotHeldItem = new HudSlot();
 	public String inventoryHudAnchor = "bottom_right";
 	public float inventoryHudScale = 1.0f;
 	public float hudWatermarkScale = 1.0f;
@@ -152,6 +163,17 @@ public final class VoidmarkConfig {
 				loaded.inventoryHudScale = clampHudScale(loaded.inventoryHudScale);
 				loaded.hudWatermarkScale = clampHudScale(loaded.hudWatermarkScale);
 				loaded.hudNodesScale = clampHudScale(loaded.hudNodesScale);
+				loaded.slotHotbar = hudSlot(loaded.slotHotbar);
+				loaded.slotHealth = hudSlot(loaded.slotHealth);
+				loaded.slotHunger = hudSlot(loaded.slotHunger);
+				loaded.slotArmor = hudSlot(loaded.slotArmor);
+				loaded.slotAir = hudSlot(loaded.slotAir);
+				loaded.slotExperience = hudSlot(loaded.slotExperience);
+				loaded.slotMount = hudSlot(loaded.slotMount);
+				loaded.slotScoreboard = hudSlot(loaded.slotScoreboard);
+				loaded.slotBoss = hudSlot(loaded.slotBoss);
+				loaded.slotEffects = hudSlot(loaded.slotEffects);
+				loaded.slotHeldItem = hudSlot(loaded.slotHeldItem);
 				loaded.themePaneOpacity = loaded.themePaneOpacity <= 0f
 					? 0.90f
 					: clamp(loaded.themePaneOpacity, 0.20f, 1f);
@@ -245,12 +267,40 @@ public final class VoidmarkConfig {
 		return clamp(value, 0.50f, 2.00f);
 	}
 
+	public static HudSlot hudSlot(HudSlot slot) {
+		if (slot == null) {
+			return new HudSlot();
+		}
+		slot.scale = clampHudScale(slot.scale);
+		return slot;
+	}
+
+	public void resetHudSlots() {
+		slotHotbar = new HudSlot();
+		slotHealth = new HudSlot();
+		slotHunger = new HudSlot();
+		slotArmor = new HudSlot();
+		slotAir = new HudSlot();
+		slotExperience = new HudSlot();
+		slotMount = new HudSlot();
+		slotScoreboard = new HudSlot();
+		slotBoss = new HudSlot();
+		slotEffects = new HudSlot();
+		slotHeldItem = new HudSlot();
+	}
+
 	public static int clamp(int value, int min, int max) {
 		return Math.max(min, Math.min(max, value));
 	}
 
 	public static float clamp(float value, float min, float max) {
 		return Math.max(min, Math.min(max, value));
+	}
+
+	public static final class HudSlot {
+		public float x = -1f;
+		public float y = -1f;
+		public float scale = 1f;
 	}
 
 	public static final class ItemSkin {

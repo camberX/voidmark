@@ -11,125 +11,118 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.food.FoodData;
 
 public final class StatusHudRenderer {
-	private static final float BAR_W = 81;
-	private static final float BAR_H = 12;
-	private static final float XP_H = 8;
+	public static final float BAR_W = 81;
+	public static final float BAR_H = 12;
+	public static final float XP_H = 8;
+	public static final float XP_BOX_H = 18;
 
 	private StatusHudRenderer() {
 	}
 
+	public static float xpWidth() {
+		return HotbarHudRenderer.WIDTH;
+	}
+
 	public static void extractHealth(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-		if (!VanillaHud.survivalBars()) {
+		if (!VanillaHud.survivalBars() && !HudLayout.editorOpen()) {
 			return;
 		}
 		LocalPlayer player = Minecraft.getInstance().player;
-		if (player == null) {
-			return;
-		}
-		float health = player.getHealth();
-		float max = Math.max(1f, player.getMaxHealth());
-		float absorption = player.getAbsorptionAmount();
+		float health = player == null ? 20f : player.getHealth();
+		float max = player == null ? 20f : Math.max(1f, player.getMaxHealth());
+		float absorption = player == null ? 0f : player.getAbsorptionAmount();
 		float total = max + Math.max(0f, absorption);
 		int color = health / max <= 0.25f ? Theme.DANGER : health / max <= 0.5f ? Theme.WARN : Theme.ACCENT;
 		String value = format(health) + (absorption > 0.05f ? "+" + format(absorption) : "");
-		bar(graphics, leftX(graphics.guiWidth()), rowY(graphics.guiHeight(), 0), "HP", value, (health + absorption) / total, color);
+		placedBar(graphics, HudLayout.Id.HEALTH, "HP", value, (health + absorption) / total, color);
 	}
 
 	public static void extractHunger(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-		if (!VanillaHud.survivalBars() || VanillaHud.mount() != null) {
+		if ((!VanillaHud.survivalBars() || VanillaHud.mount() != null) && !HudLayout.editorOpen()) {
 			return;
 		}
 		LocalPlayer player = Minecraft.getInstance().player;
-		if (player == null) {
-			return;
-		}
-		FoodData food = player.getFoodData();
-		int hunger = food.getFoodLevel();
-		bar(graphics, rightX(graphics.guiWidth()), rowY(graphics.guiHeight(), 0), "FOOD", hunger + "", hunger / 20f, Theme.WARN);
+		int hunger = player == null ? 20 : player.getFoodData().getFoodLevel();
+		placedBar(graphics, HudLayout.Id.HUNGER, "FOOD", hunger + "", hunger / 20f, Theme.WARN);
 	}
 
 	public static void extractArmor(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-		if (!VanillaHud.survivalBars()) {
-			return;
-		}
 		LocalPlayer player = Minecraft.getInstance().player;
-		if (player == null) {
+		int armor = player == null ? 0 : player.getArmorValue();
+		if (armor <= 0 && !HudLayout.editorOpen()) {
 			return;
 		}
-		int armor = player.getArmorValue();
-		if (armor <= 0) {
+		if (!VanillaHud.survivalBars() && !HudLayout.editorOpen()) {
 			return;
 		}
-		bar(graphics, leftX(graphics.guiWidth()), rowY(graphics.guiHeight(), 1), "ARMOR", armor + "", Math.min(1f, armor / 20f), Theme.HEADER);
+		placedBar(graphics, HudLayout.Id.ARMOR, "ARMOR", armor + "", Math.min(1f, armor / 20f), Theme.HEADER);
 	}
 
 	public static void extractAir(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-		if (!VanillaHud.survivalBars()) {
-			return;
-		}
 		LocalPlayer player = Minecraft.getInstance().player;
 		if (player == null) {
+			if (!HudLayout.editorOpen()) {
+				return;
+			}
+			placedBar(graphics, HudLayout.Id.AIR, "AIR", "100%", 1f, Theme.ACCENT);
+			return;
+		}
+		if (!VanillaHud.survivalBars() && !HudLayout.editorOpen()) {
 			return;
 		}
 		int air = player.getAirSupply();
 		int max = Math.max(1, player.getMaxAirSupply());
-		if (air >= max) {
+		if (air >= max && !HudLayout.editorOpen()) {
 			return;
 		}
 		float t = Mth.clamp(air / (float) max, 0f, 1f);
-		bar(graphics, rightX(graphics.guiWidth()), rowY(graphics.guiHeight(), 1), "AIR", Math.round(t * 100) + "%", t, Theme.ACCENT);
+		placedBar(graphics, HudLayout.Id.AIR, "AIR", Math.round(t * 100) + "%", t, Theme.ACCENT);
 	}
 
 	public static void extractMount(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-		if (!VanillaHud.survivalBars()) {
-			return;
-		}
 		LivingEntity mount = VanillaHud.mount();
-		if (mount == null) {
+		if (mount == null && !HudLayout.editorOpen()) {
 			return;
 		}
-		float health = mount.getHealth();
-		float max = Math.max(1f, mount.getMaxHealth());
-		bar(graphics, rightX(graphics.guiWidth()), rowY(graphics.guiHeight(), 0), "MOUNT", format(health), health / max, Theme.ACCENT_DIM);
+		if (!VanillaHud.survivalBars() && !HudLayout.editorOpen()) {
+			return;
+		}
+		float health = mount == null ? 20f : mount.getHealth();
+		float max = mount == null ? 20f : Math.max(1f, mount.getMaxHealth());
+		placedBar(graphics, HudLayout.Id.MOUNT, "MOUNT", format(health), health / max, Theme.ACCENT_DIM);
 	}
 
 	public static void extractExperience(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-		if (!VanillaHud.hasExperience()) {
+		if (!VanillaHud.hasExperience() && !HudLayout.editorOpen()) {
 			return;
 		}
 		LocalPlayer player = Minecraft.getInstance().player;
-		if (player == null) {
-			return;
-		}
-		int guiW = graphics.guiWidth();
-		int guiH = graphics.guiHeight();
-		float w = 182;
-		float x = (guiW - w) * 0.5f;
-		float y = VanillaHud.hotbarTop(guiH) - XP_H - 3;
-		float t = Mth.clamp(player.experienceProgress, 0f, 1f);
-		GuiDraw.panel(graphics, x, y, w, XP_H, 4, Theme.WINDOW, Theme.LINE);
-		if (t > 0.01f) {
-			GuiDraw.rounded(graphics, x + 1, y + 1, Math.max(2f, (w - 2f) * t), XP_H - 2, 3, Theme.ACCENT);
-		}
+		Font font = Minecraft.getInstance().font;
+		float t = player == null ? 0f : Mth.clamp(player.experienceProgress, 0f, 1f);
+		int level = player == null ? 0 : player.experienceLevel;
+		HudLayout.apply(graphics, font, HudLayout.Id.EXPERIENCE, () -> {
+			float w = xpWidth();
+			float barY = XP_BOX_H - XP_H;
+			GuiDraw.panel(graphics, 0, barY, w, XP_H, 4, Theme.WINDOW, Theme.LINE);
+			if (t > 0.01f) {
+				GuiDraw.rounded(graphics, 1, barY + 1, Math.max(2f, (w - 2f) * t), XP_H - 2, 3, Theme.ACCENT);
+			}
+			String text = Integer.toString(level);
+			float tx = (w - GuiDraw.titleWidth(font, text)) * 0.5f;
+			GuiDraw.title(graphics, font, text, tx, 1, Theme.ACCENT);
+		});
 	}
 
 	public static void extractExperienceLevel(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-		if (!VanillaHud.hasExperience()) {
-			return;
-		}
-		LocalPlayer player = Minecraft.getInstance().player;
-		if (player == null) {
-			return;
-		}
-		Font font = Minecraft.getInstance().font;
-		String level = Integer.toString(player.experienceLevel);
-		float y = VanillaHud.hotbarTop(graphics.guiHeight()) - XP_H - 12;
-		float x = (graphics.guiWidth() - GuiDraw.smallWidth(font, level)) * 0.5f;
-		GuiDraw.small(graphics, font, level, x, y, Theme.ACCENT);
+		// Level is drawn with the XP bar so both stay in one editor box.
 	}
 
-	private static void bar(GuiGraphicsExtractor graphics, float x, float y, String label, String value, float t, int fill) {
+	private static void placedBar(GuiGraphicsExtractor graphics, HudLayout.Id id, String label, String value, float t, int fill) {
 		Font font = Minecraft.getInstance().font;
+		HudLayout.apply(graphics, font, id, () -> bar(graphics, font, 0, 0, label, value, t, fill));
+	}
+
+	private static void bar(GuiGraphicsExtractor graphics, Font font, float x, float y, String label, String value, float t, int fill) {
 		t = Mth.clamp(t, 0f, 1f);
 		GuiDraw.panel(graphics, x, y, BAR_W, BAR_H, 4, Theme.WINDOW, Theme.LINE);
 		if (t > 0.01f) {
@@ -137,18 +130,6 @@ public final class StatusHudRenderer {
 		}
 		GuiDraw.small(graphics, font, label, x + 4, y + 2, Theme.TEXT);
 		GuiDraw.small(graphics, font, value, x + BAR_W - 4 - GuiDraw.smallWidth(font, value), y + 2, Theme.TEXT);
-	}
-
-	private static float leftX(int guiW) {
-		return guiW * 0.5f - 91;
-	}
-
-	private static float rightX(int guiW) {
-		return guiW * 0.5f + 91 - BAR_W;
-	}
-
-	private static float rowY(int guiH, int row) {
-		return VanillaHud.hotbarTop(guiH) - 16 - row * (BAR_H + 2);
 	}
 
 	private static String format(float value) {

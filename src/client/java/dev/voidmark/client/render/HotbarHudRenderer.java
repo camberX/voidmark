@@ -12,13 +12,18 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
 public final class HotbarHudRenderer {
-	public static final float HEIGHT = 26;
 	private static final int SLOT = 18;
 	private static final int GAP = 2;
 	private static final int PAD = 4;
 	private static final int COLS = 9;
+	public static final float HEIGHT = PAD * 2 + SLOT;
+	public static final float WIDTH = PAD * 2 + COLS * SLOT + (COLS - 1) * GAP;
 
 	private HotbarHudRenderer() {
+	}
+
+	public static float drawWidth() {
+		return WIDTH;
 	}
 
 	public static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
@@ -34,31 +39,17 @@ public final class HotbarHudRenderer {
 		boolean leftHanded = player.getMainArm() == HumanoidArm.LEFT;
 		boolean showOffhand = !offhand.isEmpty();
 
-		int gridW = COLS * SLOT + (COLS - 1) * GAP;
-		int panelW = PAD * 2 + gridW;
-		int panelH = PAD * 2 + SLOT;
-		int guiW = graphics.guiWidth();
-		int guiH = graphics.guiHeight();
-		float x = (guiW - panelW) * 0.5f;
-		float y = VanillaHud.hotbarTop(guiH);
-
-		graphics.pose().pushMatrix();
-		graphics.pose().translate(x, y);
-		GuiDraw.panel(graphics, 0, 0, panelW, panelH, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
-		for (int col = 0; col < COLS; col++) {
-			slot(graphics, font, player, inventory.getItem(col), PAD + col * (SLOT + GAP), PAD, col, col == selected);
-		}
-		graphics.pose().popMatrix();
-
-		if (showOffhand) {
-			float ox = leftHanded ? x + panelW + GAP + 1 : x - SLOT - GAP - PAD * 2 - 1;
-			float oy = y;
-			graphics.pose().pushMatrix();
-			graphics.pose().translate(ox, oy);
-			GuiDraw.panel(graphics, 0, 0, SLOT + PAD * 2, panelH, 5, Theme.WINDOW, Theme.LINE);
-			slot(graphics, font, player, offhand, PAD, PAD, 40, false);
-			graphics.pose().popMatrix();
-		}
+		HudLayout.apply(graphics, font, HudLayout.Id.HOTBAR, () -> {
+			GuiDraw.panel(graphics, 0, 0, WIDTH, HEIGHT, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+			for (int col = 0; col < COLS; col++) {
+				slot(graphics, font, player, inventory.getItem(col), PAD + col * (SLOT + GAP), PAD, col, col == selected);
+			}
+			if (showOffhand) {
+				float ox = leftHanded ? WIDTH + GAP : -(SLOT + PAD * 2) - GAP;
+				GuiDraw.panel(graphics, ox, 0, SLOT + PAD * 2, HEIGHT, 5, Theme.WINDOW, Theme.LINE);
+				slot(graphics, font, player, offhand, Math.round(ox) + PAD, PAD, 40, false);
+			}
+		});
 	}
 
 	private static void slot(

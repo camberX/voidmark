@@ -4,6 +4,7 @@ import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.ui.HudEditorScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
@@ -18,7 +19,18 @@ public final class HudLayout {
 	public enum Id {
 		WATERMARK("Watermark"),
 		INVENTORY("Inventory"),
-		NODES("Nodes");
+		NODES("Nodes"),
+		HOTBAR("Hotbar"),
+		HEALTH("Health"),
+		HUNGER("Hunger"),
+		ARMOR("Armor"),
+		AIR("Air"),
+		EXPERIENCE("Experience"),
+		MOUNT("Mount"),
+		SCOREBOARD("Scoreboard"),
+		BOSS("Boss bar"),
+		EFFECTS("Effects"),
+		HELD_ITEM("Held item");
 
 		public final String label;
 
@@ -69,32 +81,38 @@ public final class HudLayout {
 
 	public static Box box(Id id, Font font, int guiW, int guiH) {
 		float w = width(id, font);
-		float h = height(id);
+		float h = height(id, font);
 		float x;
 		float y;
 		VoidmarkConfig config = VoidmarkConfig.get();
-		switch (id) {
-			case WATERMARK -> {
-				x = placed(config.hudWatermarkX) ? config.hudWatermarkX : MARGIN;
-				y = placed(config.hudWatermarkY) ? config.hudWatermarkY : MARGIN;
-			}
-			case INVENTORY -> {
-				if (placed(config.hudInventoryX) && placed(config.hudInventoryY)) {
-					x = config.hudInventoryX;
-					y = config.hudInventoryY;
-				} else {
-					x = InventoryHudRenderer.defaultX(guiW, w, config.inventoryHudAnchor);
-					y = InventoryHudRenderer.defaultY(guiH, h, config.inventoryHudAnchor);
+		VoidmarkConfig.HudSlot slot = slot(id);
+		if (slot != null && placed(slot.x) && placed(slot.y)) {
+			x = slot.x;
+			y = slot.y;
+		} else {
+			switch (id) {
+				case WATERMARK -> {
+					x = placed(config.hudWatermarkX) ? config.hudWatermarkX : MARGIN;
+					y = placed(config.hudWatermarkY) ? config.hudWatermarkY : MARGIN;
 				}
-			}
-			case NODES -> {
-				x = placed(config.hudNodesX) ? config.hudNodesX : MARGIN;
-				float belowMark = WatermarkRenderer.occupiedHeight();
-				y = placed(config.hudNodesY) ? config.hudNodesY : MARGIN + belowMark;
-			}
-			default -> {
-				x = MARGIN;
-				y = MARGIN;
+				case INVENTORY -> {
+					if (placed(config.hudInventoryX) && placed(config.hudInventoryY)) {
+						x = config.hudInventoryX;
+						y = config.hudInventoryY;
+					} else {
+						x = InventoryHudRenderer.defaultX(guiW, w, config.inventoryHudAnchor);
+						y = InventoryHudRenderer.defaultY(guiH, h, config.inventoryHudAnchor);
+					}
+				}
+				case NODES -> {
+					x = placed(config.hudNodesX) ? config.hudNodesX : MARGIN;
+					float belowMark = WatermarkRenderer.occupiedHeight();
+					y = placed(config.hudNodesY) ? config.hudNodesY : MARGIN + belowMark;
+				}
+				default -> {
+					x = defaultX(id, font, guiW, w);
+					y = defaultY(id, font, guiH, h);
+				}
 			}
 		}
 		x = Mth.clamp(x, 0f, Math.max(0f, guiW - w));
@@ -102,8 +120,26 @@ public final class HudLayout {
 		return new Box(id, x, y, w, h);
 	}
 
+	public static void apply(GuiGraphicsExtractor graphics, Font font, Id id, Runnable draw) {
+		Box box = box(id, font, graphics.guiWidth(), graphics.guiHeight());
+		float scale = scale(id);
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(box.x(), box.y());
+		if (scale != 1.0f) {
+			graphics.pose().scale(scale, scale);
+		}
+		draw.run();
+		graphics.pose().popMatrix();
+	}
+
 	public static void set(Id id, float x, float y) {
 		VoidmarkConfig config = VoidmarkConfig.get();
+		VoidmarkConfig.HudSlot slot = slot(id);
+		if (slot != null) {
+			slot.x = x;
+			slot.y = y;
+			return;
+		}
 		switch (id) {
 			case WATERMARK -> {
 				config.hudWatermarkX = x;
@@ -117,30 +153,50 @@ public final class HudLayout {
 				config.hudNodesX = x;
 				config.hudNodesY = y;
 			}
+			default -> {
+			}
 		}
 	}
 
 	public static float scale(Id id) {
 		VoidmarkConfig config = VoidmarkConfig.get();
+		VoidmarkConfig.HudSlot slot = slot(id);
+		if (slot != null) {
+			return VoidmarkConfig.clampHudScale(slot.scale);
+		}
 		return switch (id) {
 			case WATERMARK -> VoidmarkConfig.clampHudScale(config.hudWatermarkScale);
 			case INVENTORY -> VoidmarkConfig.clampHudScale(config.inventoryHudScale);
 			case NODES -> VoidmarkConfig.clampHudScale(config.hudNodesScale);
+			default -> 1.0f;
 		};
 	}
 
 	public static void setScale(Id id, float scale) {
 		float value = VoidmarkConfig.clampHudScale(scale);
 		VoidmarkConfig config = VoidmarkConfig.get();
+		VoidmarkConfig.HudSlot slot = slot(id);
+		if (slot != null) {
+			slot.scale = value;
+			return;
+		}
 		switch (id) {
 			case WATERMARK -> config.hudWatermarkScale = value;
 			case INVENTORY -> config.inventoryHudScale = value;
 			case NODES -> config.hudNodesScale = value;
+			default -> {
+			}
 		}
 	}
 
 	public static void reset(Id id) {
 		VoidmarkConfig config = VoidmarkConfig.get();
+		VoidmarkConfig.HudSlot slot = slot(id);
+		if (slot != null) {
+			slot.x = -1f;
+			slot.y = -1f;
+			return;
+		}
 		switch (id) {
 			case WATERMARK -> {
 				config.hudWatermarkX = -1f;
@@ -154,6 +210,8 @@ public final class HudLayout {
 				config.hudNodesX = -1f;
 				config.hudNodesY = -1f;
 			}
+			default -> {
+			}
 		}
 	}
 
@@ -163,6 +221,17 @@ public final class HudLayout {
 			case WATERMARK -> config.watermarkEnabled;
 			case INVENTORY -> config.inventoryHudEnabled;
 			case NODES -> config.hudEnabled;
+			case HOTBAR -> config.hudHotbar;
+			case HEALTH -> config.hudHealth;
+			case HUNGER -> config.hudHunger;
+			case ARMOR -> config.hudArmor;
+			case AIR -> config.hudAir;
+			case EXPERIENCE -> config.hudExperience;
+			case MOUNT -> config.hudMountHealth;
+			case SCOREBOARD -> config.hudScoreboard;
+			case BOSS -> config.hudBossBar;
+			case EFFECTS -> config.hudEffects;
+			case HELD_ITEM -> config.hudHeldItem;
 		};
 	}
 
@@ -212,6 +281,52 @@ public final class HudLayout {
 		return new Snap(x, y, vLine, hLine);
 	}
 
+	private static VoidmarkConfig.HudSlot slot(Id id) {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		return switch (id) {
+			case HOTBAR -> config.slotHotbar;
+			case HEALTH -> config.slotHealth;
+			case HUNGER -> config.slotHunger;
+			case ARMOR -> config.slotArmor;
+			case AIR -> config.slotAir;
+			case EXPERIENCE -> config.slotExperience;
+			case MOUNT -> config.slotMount;
+			case SCOREBOARD -> config.slotScoreboard;
+			case BOSS -> config.slotBoss;
+			case EFFECTS -> config.slotEffects;
+			case HELD_ITEM -> config.slotHeldItem;
+			default -> null;
+		};
+	}
+
+	private static float defaultX(Id id, Font font, int guiW, float w) {
+		return switch (id) {
+			case HOTBAR -> (guiW - w) * 0.5f;
+			case HEALTH, ARMOR -> guiW * 0.5f - 91;
+			case HUNGER, AIR, MOUNT -> guiW * 0.5f + 91 - w;
+			case EXPERIENCE, HELD_ITEM -> (guiW - w) * 0.5f;
+			case SCOREBOARD, EFFECTS -> guiW - w - MARGIN;
+			case BOSS -> (guiW - w) * 0.5f;
+			default -> MARGIN;
+		};
+	}
+
+	private static float defaultY(Id id, Font font, int guiH, float h) {
+		float hotbar = guiH - HotbarHudRenderer.HEIGHT - 3;
+		float xp = hotbar - 1 - StatusHudRenderer.XP_BOX_H * scale(Id.EXPERIENCE);
+		float status = xp - 4 - StatusHudRenderer.BAR_H * scale(Id.HEALTH);
+		return switch (id) {
+			case HOTBAR -> hotbar;
+			case EXPERIENCE -> xp;
+			case HEALTH, HUNGER, MOUNT -> status;
+			case ARMOR, AIR -> status - 3 - h;
+			case HELD_ITEM -> status - 6 - h;
+			case SCOREBOARD, EFFECTS -> MARGIN;
+			case BOSS -> MARGIN;
+			default -> MARGIN;
+		};
+	}
+
 	private static void addV(List<Guide> list, float value, float line) {
 		list.add(new Guide(value, line));
 	}
@@ -239,15 +354,29 @@ public final class HudLayout {
 			case WATERMARK -> WatermarkRenderer.width(font) * scale;
 			case INVENTORY -> InventoryHudRenderer.drawWidth() * scale;
 			case NODES -> NodeHudRenderer.drawWidth() * scale;
+			case HOTBAR -> HotbarHudRenderer.drawWidth() * scale;
+			case HEALTH, HUNGER, ARMOR, AIR, MOUNT -> StatusHudRenderer.BAR_W * scale;
+			case EXPERIENCE -> StatusHudRenderer.xpWidth() * scale;
+			case SCOREBOARD -> ScoreboardHudRenderer.drawWidth(font) * scale;
+			case BOSS -> BossBarHudRenderer.drawWidth() * scale;
+			case EFFECTS -> EffectsHudRenderer.drawWidth(font) * scale;
+			case HELD_ITEM -> HeldItemHudRenderer.drawWidth(font) * scale;
 		};
 	}
 
-	private static float height(Id id) {
+	private static float height(Id id, Font font) {
 		float scale = scale(id);
 		return switch (id) {
 			case WATERMARK -> WatermarkRenderer.HEIGHT * scale;
 			case INVENTORY -> InventoryHudRenderer.drawHeight() * scale;
 			case NODES -> NodeHudRenderer.drawHeight() * scale;
+			case HOTBAR -> HotbarHudRenderer.HEIGHT * scale;
+			case HEALTH, HUNGER, ARMOR, AIR, MOUNT -> StatusHudRenderer.BAR_H * scale;
+			case EXPERIENCE -> StatusHudRenderer.XP_BOX_H * scale;
+			case SCOREBOARD -> ScoreboardHudRenderer.drawHeight(font) * scale;
+			case BOSS -> BossBarHudRenderer.drawHeight() * scale;
+			case EFFECTS -> EffectsHudRenderer.drawHeight() * scale;
+			case HELD_ITEM -> HeldItemHudRenderer.HEIGHT * scale;
 		};
 	}
 

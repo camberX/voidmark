@@ -661,6 +661,7 @@ public class VoidmarkScreen extends Screen {
 				config.hudEffects = true;
 				config.hudHeldItem = true;
 				config.hudMountHealth = true;
+				config.resetHudSlots();
 			}
 			case INVENTORY -> {
 				config.inventoryHudEnabled = true;
@@ -893,11 +894,13 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Experience", config.hudExperience, v -> config.hudExperience = v);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mount health", config.hudMountHealth, v -> config.hudMountHealth = v);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(4), "Info");
+				y = featureCard(graphics, font, right, top, col, cardHeight(4) + 28, "Info");
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Scoreboard", config.hudScoreboard, v -> config.hudScoreboard = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Boss bar", config.hudBossBar, v -> config.hudBossBar = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Effects", config.hudEffects, v -> config.hudEffects = v);
-				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Held item", config.hudHeldItem, v -> config.hudHeldItem = v);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Held item", config.hudHeldItem, v -> config.hudHeldItem = v);
+				GuiDraw.menu(graphics, font, "Move and scale each piece", rx, y + 4, Theme.MUTED);
+				GuiDraw.menu(graphics, font, "from the toolbar HUD editor.", rx, y + 16, Theme.MUTED);
 			}
 			case INVENTORY -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Inventory HUD");
@@ -1220,7 +1223,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.35");
+			.orElse("1.1.36");
 	}
 
 	@Override

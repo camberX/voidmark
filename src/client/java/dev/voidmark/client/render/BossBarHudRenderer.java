@@ -11,32 +11,75 @@ import net.minecraft.client.gui.components.LerpingBossEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public final class BossBarHudRenderer {
 	private static final float BAR_W = 184;
 	private static final float BAR_H = 16;
+	private static final float GAP = 4;
 	private static final int MAX = 5;
 
 	private BossBarHudRenderer() {
 	}
 
 	public static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-		Minecraft client = Minecraft.getInstance();
-		var events = ((BossHealthOverlayAccessor) client.gui.getBossOverlay()).voidmark$events();
-		if (events == null || events.isEmpty()) {
+		List<LerpingBossEvent> events = events();
+		if (events.isEmpty() && !HudLayout.editorOpen()) {
 			return;
 		}
-		Font font = client.font;
-		float x = (graphics.guiWidth() - BAR_W) * 0.5f;
-		float y = 8;
-		int drawn = 0;
-		for (LerpingBossEvent event : events.values()) {
-			draw(graphics, font, x, y, event);
-			y += BAR_H + 4;
-			drawn++;
-			if (drawn >= MAX) {
+		Font font = Minecraft.getInstance().font;
+		HudLayout.apply(graphics, font, HudLayout.Id.BOSS, () -> {
+			if (events.isEmpty()) {
+				drawEmpty(graphics, font, 0, 0);
+				return;
+			}
+			float y = 0;
+			int drawn = 0;
+			for (LerpingBossEvent event : events) {
+				draw(graphics, font, 0, y, event);
+				y += BAR_H + GAP;
+				drawn++;
+				if (drawn >= MAX) {
+					break;
+				}
+			}
+		});
+	}
+
+	public static float drawWidth() {
+		return BAR_W;
+	}
+
+	public static float drawHeight() {
+		int n = Math.max(1, Math.min(MAX, events().size()));
+		return n * BAR_H + (n - 1) * GAP;
+	}
+
+	private static List<LerpingBossEvent> events() {
+		Minecraft client = Minecraft.getInstance();
+		List<LerpingBossEvent> out = new ArrayList<>();
+		if (client.gui == null) {
+			return out;
+		}
+		var map = ((BossHealthOverlayAccessor) client.gui.getBossOverlay()).voidmark$events();
+		if (map == null) {
+			return out;
+		}
+		int n = 0;
+		for (LerpingBossEvent event : map.values()) {
+			out.add(event);
+			n++;
+			if (n >= MAX) {
 				break;
 			}
 		}
+		return out;
+	}
+
+	private static void drawEmpty(GuiGraphicsExtractor graphics, Font font, float x, float y) {
+		GuiDraw.panel(graphics, x, y, BAR_W, BAR_H, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		GuiDraw.small(graphics, font, "BOSS", x + 8, y + 4, Theme.MUTED);
 	}
 
 	private static void draw(GuiGraphicsExtractor graphics, Font font, float x, float y, LerpingBossEvent event) {

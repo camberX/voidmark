@@ -144,7 +144,7 @@ public final class GuiDraw {
 		}
 	}
 
-	/** Left accent rail that follows a rounded panel’s corner instead of a straight pill. */
+	/** Left accent rail: a straight bar that stops where the pane’s corner rounding starts. */
 	public static void accentLeft(
 		GuiGraphicsExtractor graphics,
 		float x,
@@ -157,17 +157,10 @@ public final class GuiDraw {
 	) {
 		float t = Math.max(1f, thickness);
 		float r = Math.min(radius, h * 0.5f);
-		if (r <= t + 0.75f) {
-			float inset = Math.max(0f, r);
-			rounded(graphics, x, y + inset, t, Math.max(t, h - inset * 2f), t * 0.5f, accent);
-			return;
-		}
-		fill(graphics, x, y + r, t, Math.max(0f, h - 2f * r), accent);
-		float inner = r - t;
-		corner(graphics, x, y, r, 0f, 0f, accent);
-		corner(graphics, x + t, y + t, inner, 0f, 0f, fill);
-		corner(graphics, x, y + h - r, r, 0f, CIRCLE_HALF, accent);
-		corner(graphics, x + t, y + h - r, inner, 0f, CIRCLE_HALF, fill);
+		float inset = Math.max(0f, r);
+		float y0 = y + inset;
+		float h0 = Math.max(t, h - inset * 2f);
+		rounded(graphics, x, y0, t, h0, t * 0.5f, accent);
 	}
 
 	public static void text(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color, boolean shadow) {

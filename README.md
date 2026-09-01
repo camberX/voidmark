@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.35.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.36.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -19,13 +19,12 @@ Java **25** is required.
 - `/vm edit` or `/voidmark edit` opens the item id window. It shows the item you are holding, with its `minecraft:` id or Skyblock `sb:` id in a text box and a large preview above it. Typing another id reskins that item on your client: hand, hotbar, and inventory all show the new look. The server still has the real item. Vanilla ids look like `minecraft:diamond_sword`; Skyblock ids look like `sb:HYPERION`. Tab or click a suggestion to fill it. Type the original id again to clear the reskin.
 - Right Shift is the default keybind (Controls → Voidmark). Press it again to close (the menu eases out).
 - `/voidmark toggle` flips node markers without opening the menu.
-- Toolbar **HUD** opens the HUD editor: drag the inventory, watermark, and node panels. They snap to screen axes and to each other; hold **Shift** to move freely. Click a panel, then drag the **Scale** bar or scroll the mouse wheel (50%–200%).
+- Toolbar **HUD** opens the HUD editor: drag any overlay (inventory, watermark, nodes) and every custom vanilla HUD piece (hotbar, bars, scoreboard, boss, effects, held item). They snap to screen axes and to each other; hold **Shift** to move freely. Click a panel, then drag the **Scale** bar or scroll the mouse wheel (50%–200%). **Reset** on the HUD tab restores default positions.
 - **Reset** restores only the page you are looking at.
 - The gear opens **Theme**: **Accent**, **Pane** color, and **Opacity** (the menu pane plus every HUD that uses that pane). Animation toggle is there too.
 - The bell toggles overlay HUD pieces: inventory, watermark (FPS, ping, clock, name), and each custom vanilla HUD replacement.
 - Search (`Ctrl+F` or the magnifier) jumps to a setting.
-- **HUD** (HUD tab, or the bell) restyles vanilla HUD layers in the same pane/accent look as the click GUI. Each piece has its own switch. Turning one on hides that vanilla layer so they do not stack: hotbar, health, hunger, armor, air, experience, mount health, scoreboard, boss bar, status effects, and the held-item name. Turn a switch off to get the original Minecraft HUD back. The inventory HUD on the Inventory tab is a separate overlay, not the hotbar replacement.
-- Search (`Ctrl+F` or the magnifier) jumps to a setting.
+- **HUD** (HUD tab, or the bell) restyles vanilla HUD layers in the same pane/accent look as the click GUI. Each piece has its own switch. Turning one on hides that vanilla layer so they do not stack: hotbar, health, hunger, armor, air, experience, mount health, scoreboard, boss bar, status effects, and the held-item name. Turn a switch off to get the original Minecraft HUD back. Drag and scale each piece in the HUD editor. The inventory HUD on the Inventory tab is a separate overlay, not the hotbar replacement.
 - **Inventory HUD** (Inventory tab, or the bell) draws your armor, storage, and hotbar on-screen. Hotbar, armor/offhand, and the `n/41` count can each be toggled there. Move and scale it in the HUD editor. It reads the live inventory every frame. Hide it with F1; it also hides while a chest or the vanilla inventory is open.
 - The **Cape** tab previews a custom cape. Paste a PNG URL or click **Local file...** for a native file picker. It is client-side on you only. Vanilla **64×32** (and 128×64, 256×128, …) cape templates are used as-is. Any other PNG, including photos like 352×272, is fitted into the cape’s front and back faces so it does not stretch into bands.
 - **Nick** replaces your username in chat, tab, the scoreboard, and nametags. `&6` `&l` `&r` (and the rest of the legacy codes) work in the input; the preview under it is what other HUD text will look like.

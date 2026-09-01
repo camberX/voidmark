@@ -1,6 +1,5 @@
 package dev.voidmark.client.render;
 
-import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.ui.Theme;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -24,53 +23,65 @@ public final class ScoreboardHudRenderer {
 	private static final float PAD = 7;
 	private static final float HEAD = 22;
 	private static final float ROW = 10;
+	private static final float MIN_W = 88;
+	private static final float MAX_W = 180;
+	private static final float EMPTY_H = PAD + HEAD + ROW + PAD;
 
 	private ScoreboardHudRenderer() {
 	}
 
 	public static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
-		if (client.level == null || client.player == null) {
-			return;
-		}
-		Objective objective = sidebar(client.level.getScoreboard(), client.player);
-		if (objective == null) {
-			return;
-		}
 		Font font = client.font;
-		Scoreboard scoreboard = objective.getScoreboard();
-		List<Line> lines = lines(scoreboard, objective, font);
-		if (lines.isEmpty()) {
+		Layout layout = layout(font);
+		if (layout.lines.isEmpty() && !HudLayout.editorOpen()) {
 			return;
 		}
+		HudLayout.apply(graphics, font, HudLayout.Id.SCOREBOARD, () -> draw(graphics, font, layout, 0, 0));
+	}
 
-		Component title = objective.getDisplayName();
-		float titleW = font.width(title);
-		float maxLine = titleW;
-		for (Line line : lines) {
-			maxLine = Math.max(maxLine, line.width);
-		}
-		float panelW = Math.min(180, Math.max(88, maxLine + PAD * 2 + 10));
-		float panelH = PAD + HEAD + lines.size() * ROW + PAD - 2;
-		float x = graphics.guiWidth() - panelW - HudLayout.MARGIN;
-		float y = HudLayout.MARGIN;
-		if (VoidmarkConfig.get().hudEffects) {
-			y += EffectsHudRenderer.stackHeight() + 6;
-		}
+	public static float drawWidth(Font font) {
+		return layout(font).w;
+	}
 
-		GuiDraw.panel(graphics, x, y, panelW, panelH, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+	public static float drawHeight(Font font) {
+		return layout(font).h;
+	}
+
+	private static void draw(GuiGraphicsExtractor graphics, Font font, Layout layout, float x, float y) {
+		GuiDraw.panel(graphics, x, y, layout.w, layout.h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
 		GuiDraw.small(graphics, font, "SCOREBOARD", x + PAD + 4, y + PAD - 1, Theme.ACCENT);
-		GuiDraw.text(graphics, font, title, x + PAD + 4, y + PAD + 8, 0xFFFFFFFF, false);
-
+		GuiDraw.text(graphics, font, layout.title, x + PAD + 4, y + PAD + 8, 0xFFFFFFFF, false);
 		float ly = y + PAD + HEAD + 2;
-		for (Line line : lines) {
+		for (Line line : layout.lines) {
 			GuiDraw.text(graphics, font, line.name, x + PAD + 4, ly, 0xFFFFFFFF, false);
 			if (line.score != null && font.width(line.score) > 0 && !line.score.getString().isBlank()) {
-				float sx = x + panelW - PAD - font.width(line.score);
+				float sx = x + layout.w - PAD - font.width(line.score);
 				GuiDraw.text(graphics, font, line.score, sx, ly, 0xFFFFFFFF, false);
 			}
 			ly += ROW;
 		}
+	}
+
+	private static Layout layout(Font font) {
+		Minecraft client = Minecraft.getInstance();
+		if (client.level == null || client.player == null) {
+			return new Layout(Component.literal("Skyblock"), List.of(), MIN_W, EMPTY_H);
+		}
+		Objective objective = sidebar(client.level.getScoreboard(), client.player);
+		if (objective == null) {
+			return new Layout(Component.literal("Skyblock"), List.of(), MIN_W, EMPTY_H);
+		}
+		List<Line> lines = lines(objective.getScoreboard(), objective, font);
+		Component title = objective.getDisplayName();
+		float maxLine = font.width(title);
+		for (Line line : lines) {
+			maxLine = Math.max(maxLine, line.width);
+		}
+		int rows = Math.max(1, lines.size());
+		float w = Math.min(MAX_W, Math.max(MIN_W, maxLine + PAD * 2 + 10));
+		float h = PAD + HEAD + rows * ROW + PAD - 2;
+		return new Layout(title, lines, w, h);
 	}
 
 	private static Objective sidebar(Scoreboard scoreboard, LocalPlayer player) {
@@ -111,5 +122,8 @@ public final class ScoreboardHudRenderer {
 	}
 
 	private record Line(Component name, Component score, float width) {
+	}
+
+	private record Layout(Component title, List<Line> lines, float w, float h) {
 	}
 }
