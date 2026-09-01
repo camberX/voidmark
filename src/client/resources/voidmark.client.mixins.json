@@ -3,12 +3,17 @@
 	"package": "dev.voidmark.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"AbstractButtonMixin",
 		"AbstractClientPlayerMixin",
+		"AbstractScrollAreaMixin",
+		"AbstractSelectionListMixin",
+		"AbstractSliderButtonMixin",
 		"AvatarRendererMixin",
 		"BossHealthOverlayAccessor",
 		"ChatComponentMixin",
 		"ChatScreenMixin",
 		"ConnectionMixin",
+		"EditBoxMixin",
 		"EntityRendererMixin",
 		"FogRendererMixin",
 		"FontMixin",
@@ -19,6 +24,7 @@
 		"ModelBlockRendererMixin",
 		"PlayerTabOverlayMixin",
 		"ProjectionMixin",
+		"ScreenMixin",
 		"SkyRendererMixin"
 	],
 	"injectors": {
