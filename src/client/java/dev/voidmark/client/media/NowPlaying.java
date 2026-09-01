@@ -14,10 +14,11 @@ public record NowPlaying(
 	boolean playing,
 	long positionMs,
 	long durationMs,
-	long sampledAtNanos
+	long sampledAtNanos,
+	long sourcePositionMs
 ) {
 	public static NowPlaying none() {
-		return new NowPlaying("", "", "", "", "", "", false, 0L, 0L, 0L);
+		return new NowPlaying("", "", "", "", "", "", false, 0L, 0L, 0L, -1L);
 	}
 
 	public boolean present() {
@@ -46,7 +47,8 @@ public record NowPlaying(
 			playing,
 			positionMs,
 			durationMs,
-			sampledAtNanos
+			sampledAtNanos,
+			sourcePositionMs
 		);
 	}
 
@@ -61,44 +63,24 @@ public record NowPlaying(
 		}
 		NowPlaying other = extra.cleaned();
 		String mergedAlbum = firstNonBlank(base.album, other.album);
-		long expected = previous != null && previous.present() ? previous.displayPositionMs() : -1L;
-		long otherPos = livePosition(other.positionMs, expected);
-		long basePos = livePosition(base.positionMs, expected);
-		long pos;
-		long sampled;
-		if (otherPos >= 0L && basePos >= 0L && expected >= 0L) {
-			long otherDelta = Math.abs(otherPos - expected);
-			long baseDelta = Math.abs(basePos - expected);
-			if (otherDelta >= SEEK_MS || baseDelta >= SEEK_MS) {
-				boolean useOther = otherDelta >= baseDelta;
-				pos = useOther ? otherPos : basePos;
-				sampled = useOther ? other.sampledAtNanos : base.sampledAtNanos;
-			} else {
-				pos = otherPos;
-				sampled = other.sampledAtNanos;
-			}
-		} else if (otherPos >= 0L) {
-			pos = otherPos;
-			sampled = other.sampledAtNanos;
-		} else if (basePos >= 0L) {
-			pos = basePos;
-			sampled = base.sampledAtNanos;
-		} else {
-			pos = -1L;
-			sampled = base.sampledAtNanos;
-		}
+		boolean companion = companionSource(other.source);
+		boolean playing = companion ? other.playing : base.playing;
+		long sourcePos = pickSourcePosition(other.sourcePositionMs, base.sourcePositionMs, companion);
+		long pos = sourcePos >= 0L ? sourcePos : Math.max(0L, base.positionMs);
 		long dur = other.durationMs > 0L ? other.durationMs : base.durationMs;
+		long sampled = other.sampledAtNanos > 0L ? other.sampledAtNanos : base.sampledAtNanos;
 		return new NowPlaying(
 			base.title,
 			preferArtist(mergedAlbum, base.artist, other.artist),
 			mergedAlbum,
-			base.app,
-			base.source,
+			firstNonBlank(other.app, base.app),
+			companion ? other.source : firstNonBlank(base.source, other.source),
 			firstNonBlank(base.cover, other.cover),
-			base.playing,
+			playing,
 			pos,
 			dur,
-			sampled > 0L ? sampled : System.nanoTime()
+			sampled > 0L ? sampled : System.nanoTime(),
+			sourcePos
 		);
 	}
 
@@ -118,68 +100,93 @@ public record NowPlaying(
 			base.playing,
 			base.positionMs,
 			base.durationMs > 0L ? base.durationMs : Math.max(0L, catalogDurationMs),
-			base.sampledAtNanos
+			base.sampledAtNanos,
+			base.sourcePositionMs
 		);
 	}
 
 	private static final long SEEK_MS = 800L;
 
-	/**
-	 * YouTube Music's Windows session often reports 0 forever. After the HUD
-	 * clock has moved on, that 0 is unknown, not a scrub back to the start.
-	 */
-	private static long livePosition(long reported, long expected) {
-		if (reported < 0L) {
-			return -1L;
+	static boolean companionSource(String source) {
+		if (source == null || source.isBlank()) {
+			return false;
 		}
-		if (reported == 0L && expected >= SEEK_MS) {
-			return -1L;
-		}
-		return reported;
+		String lower = source.toLowerCase(Locale.ROOT);
+		return lower.equals("ytm")
+			|| lower.equals("ytmd")
+			|| lower.equals("cider")
+			|| lower.equals("companion")
+			|| lower.equals("playerctl");
 	}
 
-	private static boolean deadClock(long reported, long previousReported) {
-		return reported <= 0L && previousReported <= 0L;
+	private static long pickSourcePosition(long other, long base, boolean companion) {
+		if (companion && other >= 0L) {
+			return other;
+		}
+		if (other > 0L) {
+			return other;
+		}
+		if (base > 0L) {
+			return base;
+		}
+		if (other >= 0L) {
+			return other;
+		}
+		return base;
+	}
+
+	/**
+	 * True only when the player itself moved the clock: a real timestamp that
+	 * jumped away from interpolation, including scrubbing backward. A stuck 0
+	 * from YouTube Music SMTC is not a seek.
+	 */
+	private static boolean isRealSeek(long source, long previousSource, long expected, String kind, String previousKind) {
+		if (source < 0L) {
+			return false;
+		}
+		if (Math.abs(source - expected) <= SEEK_MS) {
+			return false;
+		}
+		if (source == 0L && previousSource <= 0L) {
+			return false;
+		}
+		if (source == 0L && previousSource > SEEK_MS) {
+			if (companionSource(previousKind) && !companionSource(kind)) {
+				return false;
+			}
+			return true;
+		}
+		return Math.abs(source - previousSource) > SEEK_MS;
 	}
 
 	public NowPlaying carryTime(NowPlaying previous) {
 		if (previous == null || !previous.present() || !titlesClose(title, previous.title)) {
-			return sampledAtNanos > 0L ? this : withTimeline(positionMs, durationMs, System.nanoTime());
+			long start = sourcePositionMs > 0L ? sourcePositionMs : Math.max(0L, positionMs);
+			return withTimeline(start, durationMs, System.nanoTime(), sourcePositionMs);
 		}
 		long dur = durationMs > 0L ? durationMs : previous.durationMs;
 		long expected = previous.displayPositionMs();
-		long pos;
-		long sampled;
-		if (deadClock(positionMs, previous.positionMs)) {
-			pos = previous.positionMs;
-			sampled = previous.sampledAtNanos > 0L ? previous.sampledAtNanos : sampledAtNanos;
-		} else if (positionMs < 0L) {
-			pos = previous.positionMs;
-			sampled = previous.sampledAtNanos > 0L ? previous.sampledAtNanos : sampledAtNanos;
-		} else if (Math.abs(positionMs - expected) >= SEEK_MS) {
-			pos = positionMs;
-			sampled = sampledAtNanos > 0L ? sampledAtNanos : System.nanoTime();
-		} else {
-			pos = previous.positionMs >= 0L ? previous.positionMs : positionMs;
-			sampled = previous.sampledAtNanos > 0L ? previous.sampledAtNanos : sampledAtNanos;
+		long source = sourcePositionMs;
+		if (isRealSeek(source, previous.sourcePositionMs, expected, this.source, previous.source)) {
+			return withTimeline(source, dur, System.nanoTime(), source);
 		}
-		if (!playing && previous.playing) {
-			pos = previous.displayPositionMs();
-			sampled = System.nanoTime();
-		} else if (playing && !previous.playing) {
-			if (!deadClock(positionMs, previous.positionMs)
-				&& positionMs >= 0L
-				&& Math.abs(positionMs - previous.displayPositionMs()) >= SEEK_MS) {
-				pos = positionMs;
-			} else {
-				pos = previous.positionMs >= 0L ? previous.positionMs : previous.displayPositionMs();
-			}
+		if (!playing) {
+			return withTimeline(expected, dur, System.nanoTime(), source);
+		}
+		long origin = previous.sampledAtNanos > 0L ? previous.positionMs : expected;
+		long sampled = previous.sampledAtNanos > 0L ? previous.sampledAtNanos : System.nanoTime();
+		if (!previous.playing) {
+			origin = expected;
 			sampled = System.nanoTime();
 		}
-		return withTimeline(pos, dur, sampled);
+		return withTimeline(origin, dur, sampled, source);
 	}
 
-	private NowPlaying withTimeline(long positionMs, long durationMs, long sampledAtNanos) {
+	public NowPlaying withTimeline(long positionMs, long durationMs, long sampledAtNanos) {
+		return withTimeline(positionMs, durationMs, sampledAtNanos, sourcePositionMs);
+	}
+
+	public NowPlaying withTimeline(long positionMs, long durationMs, long sampledAtNanos, long sourcePositionMs) {
 		return new NowPlaying(
 			title,
 			artist,
@@ -188,9 +195,38 @@ public record NowPlaying(
 			source,
 			cover,
 			playing,
-			positionMs,
+			Math.max(0L, positionMs),
 			Math.max(0L, durationMs),
-			sampledAtNanos > 0L ? sampledAtNanos : System.nanoTime()
+			sampledAtNanos > 0L ? sampledAtNanos : System.nanoTime(),
+			sourcePositionMs
+		);
+	}
+
+	static NowPlaying sampled(
+		String title,
+		String artist,
+		String album,
+		String app,
+		String source,
+		String cover,
+		boolean playing,
+		long positionMs,
+		long durationMs
+	) {
+		long raw = positionMs;
+		long pos = positionMs < 0L ? 0L : positionMs;
+		return new NowPlaying(
+			title,
+			artist,
+			album,
+			app,
+			source,
+			cover,
+			playing,
+			pos,
+			Math.max(0L, durationMs),
+			System.nanoTime(),
+			raw
 		);
 	}
 
@@ -280,7 +316,7 @@ public record NowPlaying(
 			artist = preferArtist(album, albumArtist, subArtist);
 		}
 		String source = kind == null || kind.isBlank() ? "windows" : kind;
-		return new NowPlaying(
+		return sampled(
 			title,
 			artist,
 			album,
@@ -289,9 +325,8 @@ public record NowPlaying(
 			nullToEmpty(cover),
 			playing,
 			positionMs,
-			durationMs,
-			System.nanoTime()
-		);
+			durationMs
+		).cleaned();
 	}
 
 	private static boolean browserApp(String app) {

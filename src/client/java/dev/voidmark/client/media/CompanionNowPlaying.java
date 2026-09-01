@@ -133,10 +133,7 @@ final class CompanionNowPlaying {
 				join(info, "artistName", "artist", "artists"),
 				join(video, "author", "artist", "artists")
 			);
-			boolean paused = bool(player, "isPaused", false) || bool(root, "isPaused", false);
-			if (root.has("playing")) {
-				paused = !bool(root, "playing", true);
-			}
+			boolean paused = paused(player, root);
 			String app = kindOf(endpoint).equals("ytmd") ? "YouTube Music Desktop" : "YouTube Music";
 			String videoId = firstNonBlank(
 				join(root, "videoId"),
@@ -144,7 +141,8 @@ final class CompanionNowPlaying {
 				join(video, "id", "videoId"),
 				videoIdFromUrl(join(root, "url", "videoUrl", "link"))
 			);
-			return new NowPlaying(
+			long position = positionMs(player, root);
+			return NowPlaying.sampled(
 				title,
 				artist,
 				firstNonBlank(join(track, "album"), join(root, "album"), join(info, "albumName", "album"), join(video, "album")),
@@ -152,9 +150,8 @@ final class CompanionNowPlaying {
 				kindOf(endpoint),
 				cover(track, root, info, video, videoId),
 				!paused,
-				positionMs(player, root),
-				durationMs(player, track, root),
-				System.nanoTime()
+				position,
+				durationMs(player, track, root)
 			);
 		} catch (Exception exception) {
 			return NowPlaying.none();
@@ -211,10 +208,19 @@ final class CompanionNowPlaying {
 			"seekbarCurrentPositionMilliSeconds",
 			"elapsedMilliSeconds",
 			"positionMs",
-			"currentTimeMs"
+			"currentTimeMs",
+			"progressMs",
+			"playbackPositionMs"
 		);
 		if (ms == null) {
-			ms = optionalMillis(root, "elapsedMilliSeconds", "positionMs", "currentTimeMs");
+			ms = optionalMillis(
+				root,
+				"elapsedMilliSeconds",
+				"positionMs",
+				"currentTimeMs",
+				"progressMs",
+				"playbackPositionMs"
+			);
 		}
 		if (ms == null) {
 			ms = optionalSeconds(
@@ -222,7 +228,10 @@ final class CompanionNowPlaying {
 				"seekbarCurrentPosition",
 				"elapsedSeconds",
 				"currentTime",
-				"position"
+				"position",
+				"progress",
+				"playbackTime",
+				"currentPlaybackTime"
 			);
 		}
 		if (ms == null) {
@@ -232,10 +241,48 @@ final class CompanionNowPlaying {
 				"position",
 				"currentTime",
 				"seekbarCurrentPosition",
-				"currentPlaybackTime"
+				"currentPlaybackTime",
+				"progress",
+				"playbackTime"
 			);
 		}
 		return ms == null ? -1L : Math.max(0L, ms);
+	}
+
+	private static boolean paused(JsonObject player, JsonObject root) {
+		if (has(root, "playing")) {
+			return !bool(root, "playing", true);
+		}
+		if (has(player, "playing")) {
+			return !bool(player, "playing", true);
+		}
+		if (has(root, "isPlaying")) {
+			return !bool(root, "isPlaying", true);
+		}
+		if (has(player, "isPlaying")) {
+			return !bool(player, "isPlaying", true);
+		}
+		if (bool(player, "isPaused", false)
+			|| bool(root, "isPaused", false)
+			|| bool(player, "paused", false)
+			|| bool(root, "paused", false)) {
+			return true;
+		}
+		String status = firstNonBlank(
+			join(player, "status", "playbackStatus", "playerState"),
+			join(root, "status", "playbackStatus", "playerState")
+		).toLowerCase();
+		if (status.contains("pause") || status.contains("stop")) {
+			return true;
+		}
+		if (status.contains("play")) {
+			return false;
+		}
+		return false;
+	}
+
+	private static boolean has(JsonObject json, String key) {
+		return json != null && json.has(key) && !json.get(key).isJsonNull();
 	}
 
 	private static long durationMs(JsonObject player, JsonObject track, JsonObject root) {
@@ -374,11 +421,29 @@ final class CompanionNowPlaying {
 	}
 
 	private static boolean bool(JsonObject json, String key, boolean fallback) {
-		if (json == null || !json.has(key)) {
+		if (json == null || !json.has(key) || json.get(key).isJsonNull()) {
 			return fallback;
 		}
 		try {
-			return json.get(key).getAsBoolean();
+			JsonElement el = json.get(key);
+			if (!el.isJsonPrimitive()) {
+				return fallback;
+			}
+			var primitive = el.getAsJsonPrimitive();
+			if (primitive.isBoolean()) {
+				return primitive.getAsBoolean();
+			}
+			if (primitive.isNumber()) {
+				return primitive.getAsDouble() != 0d;
+			}
+			String raw = primitive.getAsString().trim().toLowerCase();
+			if (raw.equals("true") || raw.equals("playing") || raw.equals("1") || raw.equals("yes")) {
+				return true;
+			}
+			if (raw.equals("false") || raw.equals("paused") || raw.equals("stopped") || raw.equals("0") || raw.equals("no")) {
+				return false;
+			}
+			return fallback;
 		} catch (Exception exception) {
 			return fallback;
 		}

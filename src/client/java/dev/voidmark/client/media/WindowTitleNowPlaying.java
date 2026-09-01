@@ -68,7 +68,7 @@ final class WindowTitleNowPlaying {
 		}
 		String app = exe.isBlank() ? title : exe;
 		best.score = score;
-		best.track = new NowPlaying(
+		best.track = NowPlaying.sampled(
 			parsed.title,
 			NowPlaying.placeholder(parsed.artist) ? "" : parsed.artist,
 			"",
@@ -76,9 +76,8 @@ final class WindowTitleNowPlaying {
 			"window",
 			"",
 			true,
-			0L,
-			0L,
-			System.nanoTime()
+			-1L,
+			0L
 		);
 	}
 

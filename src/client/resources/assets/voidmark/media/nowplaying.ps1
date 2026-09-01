@@ -140,6 +140,50 @@ function Kind-App([string]$id) {
 	return 'windows'
 }
 
+function Playback-Code($status) {
+	if ($null -eq $status) {
+		return -1
+	}
+	$name = ([string]$status).Trim()
+	if ([string]::IsNullOrWhiteSpace($name)) {
+		return -1
+	}
+	switch ($name) {
+		'Closed' { return 0 }
+		'Opened' { return 1 }
+		'Changing' { return 2 }
+		'Stopped' { return 3 }
+		'Playing' { return 4 }
+		'Paused' { return 5 }
+		default {
+			if ($name -match '^\d+$') {
+				return [int]$name
+			}
+			try { return [int]$status.Value__ } catch {}
+			return -1
+		}
+	}
+}
+
+# SMTC PlaybackStatus: Closed=0 Opened=1 Changing=2 Stopped=3 Playing=4 Paused=5
+# PowerShell often stringifies these as "4" / "5" instead of Playing / Paused.
+function Is-Playing($playback) {
+	if ($null -eq $playback) {
+		return $true
+	}
+	$raw = $null
+	try { $raw = $playback.PlaybackStatus } catch { return $true }
+	$code = Playback-Code $raw
+	if ($code -eq 4) { return $true }
+	if ($code -ge 0) { return $false }
+	$name = ([string]$raw).Trim()
+	if ($name -eq 'Playing') { return $true }
+	if ($name -eq 'Paused' -or $name -eq 'Stopped' -or $name -eq 'Closed' -or $name -eq 'Opened' -or $name -eq 'Changing') {
+		return $false
+	}
+	return $true
+}
+
 function Score-App([string]$id) {
 	$lower = ([string]$id).ToLowerInvariant()
 	if ($lower -match 'spotify') { return 120 }
@@ -189,9 +233,9 @@ while ($true) {
 			$score = Score-App ([string]$session.SourceAppUserModelId)
 			try {
 				$playback = $session.GetPlaybackInfo()
-				$status = if ($null -ne $playback) { [string]$playback.PlaybackStatus } else { '' }
-				if ($status -eq 'Playing') { $score += 25 }
-				elseif ($status -eq 'Paused' -or $status -eq 'Opened') { $score += 8 }
+				$code = if ($null -ne $playback) { Playback-Code $playback.PlaybackStatus } else { -1 }
+				if ($code -eq 4) { $score += 25 }
+				elseif ($code -eq 5 -or $code -eq 1 -or $code -eq 3) { $score += 8 }
 			} catch {}
 			if ($score -gt $bestScore) {
 				$bestScore = $score
@@ -207,10 +251,10 @@ while ($true) {
 		}
 
 		$app = [string]$best.SourceAppUserModelId
-		$status = ''
+		$playing = $true
 		try {
 			$playback = $best.GetPlaybackInfo()
-			if ($null -ne $playback) { $status = [string]$playback.PlaybackStatus }
+			$playing = Is-Playing $playback
 		} catch {}
 		$posMs = 0L
 		$durMs = 0L
@@ -256,7 +300,6 @@ while ($true) {
 			continue
 		}
 		$kind = Kind-App $app
-		$playing = -not ($status -eq 'Paused' -or $status -eq 'Stopped' -or $status -eq 'Closed' -or $status -eq 'Changing')
 		$artField = ''
 		if (-not [string]::IsNullOrWhiteSpace($artPath) -and $null -ne $props) {
 			$artKey = $title + '|' + $artist + '|' + $album

@@ -96,15 +96,11 @@ public final class MediaSession {
 		NowPlaying companion = COMPANION.snapshot();
 		if (windows.present()) {
 			NowPlaying out = windows.cleaned();
-			if (companion.present()) {
-				boolean same = NowPlaying.related(out, companion);
-				boolean needTime = out.durationMs() <= 0L || out.positionMs() <= 0L;
-				if (same || (needTime && out.youtubeMusic() && companion.durationMs() > 0L)) {
-					out = out.overlay(companion, current);
-				}
+			if (companion.present() && (NowPlaying.related(out, companion) || out.youtubeMusic())) {
+				out = out.overlay(companion, current);
 			}
 			out = TrackLookup.enrich(out).carryTime(current);
-			route = "windows";
+			route = NowPlaying.companionSource(out.source()) ? companion.source() : "windows";
 			hint = out.sourceLabel();
 			return out;
 		}
@@ -117,7 +113,7 @@ public final class MediaSession {
 		NowPlaying titled = TITLES.snapshot();
 		if (titled.present()) {
 			NowPlaying out = TrackLookup.enrich(titled.cleaned());
-			if (companion.present() && (NowPlaying.related(out, companion) || out.durationMs() <= 0L || out.positionMs() <= 0L)) {
+			if (companion.present() && (NowPlaying.related(out, companion) || out.youtubeMusic())) {
 				out = out.overlay(companion, current);
 			}
 			out = out.carryTime(current);

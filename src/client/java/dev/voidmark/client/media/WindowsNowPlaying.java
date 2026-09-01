@@ -138,12 +138,21 @@ final class WindowsNowPlaying {
 				millisField(json, "durationMs"),
 				ticksToMs(json, "duration")
 			);
-			long positionMs = firstPositive(
-				millisField(json, "positionMs"),
-				ticksToMs(json, "position")
-			);
-			if (positionMs <= 0L && durationMs <= 0L) {
-				positionMs = -1L;
+			long positionMs = millisField(json, "positionMs");
+			if (positionMs <= 0L) {
+				positionMs = ticksToMs(json, "position");
+			}
+			boolean playing = true;
+			if (json.has("playing") && !json.get("playing").isJsonNull()) {
+				try {
+					playing = json.get("playing").getAsBoolean();
+				} catch (Exception ignored) {
+					try {
+						playing = json.get("playing").getAsDouble() != 0d;
+					} catch (Exception ignoredAgain) {
+						playing = true;
+					}
+				}
 			}
 			return NowPlaying.fromSmtc(
 				title,
@@ -154,7 +163,7 @@ final class WindowsNowPlaying {
 				text(json, "app"),
 				text(json, "kind"),
 				text(json, "art"),
-				!json.has("playing") || json.get("playing").getAsBoolean(),
+				playing,
 				positionMs,
 				durationMs
 			);

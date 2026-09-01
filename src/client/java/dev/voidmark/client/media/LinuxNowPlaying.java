@@ -43,7 +43,7 @@ final class LinuxNowPlaying {
 		if ("(null)".equals(cover)) {
 			cover = "";
 		}
-		return new NowPlaying(
+		return NowPlaying.sampled(
 			title,
 			artist,
 			"",
@@ -52,8 +52,7 @@ final class LinuxNowPlaying {
 			cover,
 			playing,
 			positionMs,
-			durationMs,
-			System.nanoTime()
+			durationMs
 		);
 	}
 
