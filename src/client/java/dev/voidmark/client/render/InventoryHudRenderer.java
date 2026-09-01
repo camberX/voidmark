@@ -98,8 +98,7 @@ public final class InventoryHudRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		GuiDraw.panel(graphics, 0, 0, layout.panelW, layout.panelH, 6, Theme.WINDOW, Theme.LINE);
-		GuiDraw.rounded(graphics, 1, 1, 3, layout.panelH - 2, 1.5f, Theme.ACCENT);
+		GuiDraw.panel(graphics, 0, 0, layout.panelW, layout.panelH, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
 		GuiDraw.small(graphics, font, "INVENTORY", PAD + 4, PAD + 1, Theme.ACCENT);
 		if (config.inventoryHudCount) {
 			String filled = filledLabel(player, inventory);

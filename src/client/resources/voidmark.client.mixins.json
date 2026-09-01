@@ -11,6 +11,7 @@
 		"FogRendererMixin",
 		"FontMixin",
 		"GuiGraphicsExtractorMixin",
+		"ItemModelResolverMixin",
 		"LightmapRenderStateExtractorMixin",
 		"ModelBlockRendererMixin",
 		"PlayerTabOverlayMixin",

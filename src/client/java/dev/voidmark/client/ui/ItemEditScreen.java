@@ -1,6 +1,7 @@
 package dev.voidmark.client.ui;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.voidmark.client.item.ItemAppearance;
 import dev.voidmark.client.item.ItemIds;
 import dev.voidmark.client.render.GuiDraw;
 import net.minecraft.client.Minecraft;
@@ -51,7 +52,8 @@ public class ItemEditScreen extends Screen {
 		ItemStack held = client.player == null ? ItemStack.EMPTY : ItemIds.held(client.player);
 		this.original = held.isEmpty() ? ItemStack.EMPTY : held.copy();
 		this.originalId = ItemIds.idOf(this.original);
-		this.query = originalId;
+		String shown = ItemAppearance.displayId(held);
+		this.query = shown == null || shown.isBlank() ? originalId : shown;
 		this.cursor = query.length();
 	}
 
@@ -84,8 +86,7 @@ public class ItemEditScreen extends Screen {
 		refresh();
 
 		GuiDraw.fill(graphics, 0, 0, width, height, 0x14000000);
-		GuiDraw.panel(graphics, windowX, windowY, windowW, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW, Theme.LINE);
-		GuiDraw.rounded(graphics, windowX + 1, windowY + 1, 3, windowH - 2, 1.5f, Theme.ACCENT);
+		GuiDraw.panel(graphics, windowX, windowY, windowW, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
 		GuiDraw.title(graphics, font, "ITEM", windowX + 12, windowY + 8, Theme.TEXT);
 		GuiDraw.small(graphics, font, "ID", windowX + 12 + GuiDraw.titleWidth(font, "ITEM") + 4, windowY + 10, Theme.ACCENT);
 		hits.add(new Hit(windowX, windowY, windowW, 22, mx -> startDrag()));
@@ -222,6 +223,28 @@ public class ItemEditScreen extends Screen {
 			&& !trimmed.isEmpty()
 			&& (trimmed.equalsIgnoreCase(preview.canonical()) || trimmed.equalsIgnoreCase(originalId));
 		suggestions = exact ? List.of() : ItemIds.suggest(query, SUGGESTIONS);
+		syncHand();
+	}
+
+	private void syncHand() {
+		Minecraft client = Minecraft.getInstance();
+		if (client.player == null) {
+			return;
+		}
+		ItemStack live = ItemIds.held(client.player);
+		if (live.isEmpty()) {
+			return;
+		}
+		if (preview.kind() == ItemIds.Kind.UNKNOWN) {
+			return;
+		}
+		if (preview.kind() == ItemIds.Kind.EMPTY || query.trim().equalsIgnoreCase(originalId)) {
+			ItemAppearance.clear(client.player, live);
+			return;
+		}
+		if (preview.kind() == ItemIds.Kind.VANILLA || preview.kind() == ItemIds.Kind.SKYBLOCK) {
+			ItemAppearance.set(client.player, live, preview.stack(), preview.canonical());
+		}
 	}
 
 	private void applySuggestion(String id) {

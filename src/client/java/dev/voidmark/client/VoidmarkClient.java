@@ -12,6 +12,7 @@ import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.InventoryHudRenderer;
 import dev.voidmark.client.render.WatermarkRenderer;
 import dev.voidmark.client.item.SkyblockItems;
+import dev.voidmark.client.item.ItemAppearance;
 import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.ItemEditScreen;
 import dev.voidmark.client.ui.Theme;
@@ -37,6 +38,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		VoidmarkConfig.load();
 		Theme.refresh();
 		SkyblockItems.load();
+		ItemAppearance.reload();
 		CustomCape.init();
 		NodeWorldRenderer.init();
 		WatermarkRenderer.init();

@@ -77,6 +77,7 @@ public final class VoidmarkConfig {
 	public String capePath = "";
 	public boolean nickEnabled = false;
 	public String nick = "";
+	public java.util.List<ItemSkin> itemSkins = new java.util.ArrayList<>();
 
 	private VoidmarkConfig() {
 	}
@@ -131,6 +132,9 @@ public final class VoidmarkConfig {
 				}
 				if (loaded.nick == null) {
 					loaded.nick = "";
+				}
+				if (loaded.itemSkins == null) {
+					loaded.itemSkins = new java.util.ArrayList<>();
 				}
 				loaded.menuTab = normalizeMenuTab(loaded.menuTab);
 				loaded.inventoryHudAnchor = normalizeInventoryHudAnchor(loaded.inventoryHudAnchor);
@@ -236,5 +240,13 @@ public final class VoidmarkConfig {
 
 	public static float clamp(float value, float min, float max) {
 		return Math.max(min, Math.min(max, value));
+	}
+
+	public static final class ItemSkin {
+		public String key = "";
+		public String displayId = "";
+		public String originalId = "";
+		public int slot = 0;
+		public boolean offhand = false;
 	}
 }

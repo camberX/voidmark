@@ -79,8 +79,7 @@ public final class NodeHudRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		GuiDraw.panel(graphics, 0, 0, width, height, 6, Theme.WINDOW, Theme.LINE);
-		GuiDraw.rounded(graphics, 1, 1, 3, height - 2, 1.5f, Theme.ACCENT);
+		GuiDraw.panel(graphics, 0, 0, width, height, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
 
 		GuiDraw.small(graphics, font, "NODES", 10, 5, Theme.ACCENT);
 		String headline = count == 0 ? "No nodes in range" : count == 1 ? "1 ender node" : count + " ender nodes";

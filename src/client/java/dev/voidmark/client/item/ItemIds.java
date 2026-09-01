@@ -100,6 +100,26 @@ public final class ItemIds {
 		return key == null ? "minecraft:air" : key.toString();
 	}
 
+	public static String uuidOf(ItemStack stack) {
+		if (stack == null || stack.isEmpty()) {
+			return null;
+		}
+		CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+		if (data == null || data.isEmpty()) {
+			return null;
+		}
+		CompoundTag tag = data.copyTag();
+		String uuid = readUuid(tag);
+		if (uuid != null) {
+			return uuid;
+		}
+		uuid = readUuid(tag.getCompoundOrEmpty("ExtraAttributes"));
+		if (uuid != null) {
+			return uuid;
+		}
+		return readUuid(tag.getCompoundOrEmpty("PublicBukkitValues"));
+	}
+
 	public static String skyblockId(ItemStack stack) {
 		if (stack == null || stack.isEmpty()) {
 			return null;
@@ -313,6 +333,19 @@ public final class ItemIds {
 			String text = value.asString().orElse("").trim();
 			if (!text.isEmpty()) {
 				return text.toUpperCase(Locale.ROOT);
+			}
+		}
+		return null;
+	}
+
+	private static String readUuid(CompoundTag tag) {
+		if (tag == null || tag.isEmpty()) {
+			return null;
+		}
+		for (String key : new String[]{"uuid", "UUID", "uid"}) {
+			String value = tag.getStringOr(key, "");
+			if (!value.isBlank()) {
+				return value.trim();
 			}
 		}
 		return null;

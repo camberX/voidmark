@@ -133,8 +133,41 @@ public final class GuiDraw {
 	}
 
 	public static void panel(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int fill, int outline) {
+		panel(graphics, x, y, w, h, radius, fill, outline, 0);
+	}
+
+	public static void panel(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int fill, int outline, int accent) {
 		rounded(graphics, x, y, w, h, radius, outline);
 		rounded(graphics, x + 1, y + 1, w - 2, h - 2, Math.max(0.5f, radius - 1f), fill);
+		if ((accent & 0xFF000000) != 0) {
+			accentLeft(graphics, x + 1, y + 1, h - 2, Math.max(0.5f, radius - 1f), 3f, accent, fill);
+		}
+	}
+
+	/** Left accent rail that follows a rounded panel’s corner instead of a straight pill. */
+	public static void accentLeft(
+		GuiGraphicsExtractor graphics,
+		float x,
+		float y,
+		float h,
+		float radius,
+		float thickness,
+		int accent,
+		int fill
+	) {
+		float t = Math.max(1f, thickness);
+		float r = Math.min(radius, h * 0.5f);
+		if (r <= t + 0.75f) {
+			float inset = Math.max(0f, r);
+			rounded(graphics, x, y + inset, t, Math.max(t, h - inset * 2f), t * 0.5f, accent);
+			return;
+		}
+		fill(graphics, x, y + r, t, Math.max(0f, h - 2f * r), accent);
+		float inner = r - t;
+		corner(graphics, x, y, r, 0f, 0f, accent);
+		corner(graphics, x + t, y + t, inner, 0f, 0f, fill);
+		corner(graphics, x, y + h - r, r, 0f, CIRCLE_HALF, accent);
+		corner(graphics, x + t, y + h - r, inner, 0f, CIRCLE_HALF, fill);
 	}
 
 	public static void text(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color, boolean shadow) {
