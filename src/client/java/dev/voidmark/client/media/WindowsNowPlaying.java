@@ -134,9 +134,14 @@ final class WindowsNowPlaying {
 				return NowPlaying.none();
 			}
 			lastError = "";
+			String artist = firstPerson(
+				text(json, "artist"),
+				text(json, "subtitle"),
+				text(json, "albumArtist")
+			);
 			return new NowPlaying(
 				title,
-				text(json, "artist"),
+				artist,
 				text(json, "album"),
 				text(json, "app"),
 				"windows",
@@ -167,6 +172,15 @@ final class WindowsNowPlaying {
 		} catch (Exception exception) {
 			return 0L;
 		}
+	}
+
+	private static String firstPerson(String... values) {
+		for (String value : values) {
+			if (!NowPlaying.placeholder(value)) {
+				return value.trim();
+			}
+		}
+		return "";
 	}
 
 	private static String text(JsonObject json, String key) {

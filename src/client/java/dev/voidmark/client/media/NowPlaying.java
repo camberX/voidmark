@@ -2,6 +2,8 @@ package dev.voidmark.client.media;
 
 import net.minecraft.util.Mth;
 
+import java.util.Locale;
+
 public record NowPlaying(
 	String title,
 	String artist,
@@ -26,18 +28,56 @@ public record NowPlaying(
 		return cover != null && !cover.isBlank();
 	}
 
+	public NowPlaying cleaned() {
+		Split split = Split.of(title);
+		String cleanedTitle = split.title;
+		String cleanedArtist = firstPerson(artist, split.artist);
+		return new NowPlaying(
+			cleanedTitle,
+			cleanedArtist,
+			placeholder(album) ? "" : nullToEmpty(album),
+			nullToEmpty(app),
+			nullToEmpty(source),
+			nullToEmpty(cover),
+			playing,
+			positionMs,
+			durationMs,
+			sampledAtNanos
+		);
+	}
+
+	public NowPlaying overlay(NowPlaying extra) {
+		NowPlaying base = cleaned();
+		if (extra == null || !extra.present()) {
+			return base;
+		}
+		NowPlaying other = extra.cleaned();
+		return new NowPlaying(
+			base.title,
+			firstPerson(base.artist, other.artist),
+			firstNonBlank(base.album, other.album),
+			base.app,
+			base.source,
+			firstNonBlank(other.cover, base.cover),
+			base.playing,
+			base.positionMs > 0L ? base.positionMs : other.positionMs,
+			base.durationMs > 0L ? base.durationMs : other.durationMs,
+			base.sampledAtNanos
+		);
+	}
+
 	public String artistLine() {
-		if (artist != null && !artist.isBlank()) {
+		if (!placeholder(artist) && artist != null && !artist.isBlank()) {
 			return artist;
 		}
-		if (album != null && !album.isBlank()) {
+		if (!placeholder(album) && album != null && !album.isBlank()) {
 			return album;
 		}
-		return sourceLabel();
+		return "";
 	}
 
 	public String sourceLabel() {
-		String raw = ((app == null ? "" : app) + " " + (source == null ? "" : source)).toLowerCase();
+		String raw = ((app == null ? "" : app) + " " + (source == null ? "" : source)).toLowerCase(Locale.ROOT);
 		if (raw.contains("spotify")) {
 			return "SPOTIFY";
 		}
@@ -48,13 +88,10 @@ public record NowPlaying(
 			return "YOUTUBE";
 		}
 		if (raw.contains("window") || raw.contains("ytm") || raw.contains("electron")) {
-			if (raw.contains("spotify")) {
-				return "SPOTIFY";
-			}
 			return "YOUTUBE MUSIC";
 		}
 		if (source != null && !source.isBlank()) {
-			return source.toUpperCase();
+			return source.toUpperCase(Locale.ROOT);
 		}
 		return "MEDIA";
 	}
@@ -86,5 +123,89 @@ public record NowPlaying(
 		long m = total / 60L;
 		long s = total % 60L;
 		return m + ":" + (s < 10 ? "0" : "") + s;
+	}
+
+	static boolean titlesClose(String left, String right) {
+		String a = normalizeTitle(left);
+		String b = normalizeTitle(right);
+		if (a.isEmpty() || b.isEmpty()) {
+			return false;
+		}
+		return a.equals(b) || a.contains(b) || b.contains(a);
+	}
+
+	static boolean placeholder(String value) {
+		if (value == null || value.isBlank()) {
+			return true;
+		}
+		String lower = value.trim().toLowerCase(Locale.ROOT);
+		return lower.equals("youtube music")
+			|| lower.equals("youtubemusic")
+			|| lower.equals("youtube")
+			|| lower.equals("spotify")
+			|| lower.equals("spotify premium")
+			|| lower.equals("spotify free")
+			|| lower.equals("chrome")
+			|| lower.equals("microsoft edge")
+			|| lower.equals("edge")
+			|| lower.equals("brave")
+			|| lower.equals("media")
+			|| lower.equals("unknown")
+			|| lower.equals("various artists");
+	}
+
+	private static String firstPerson(String... values) {
+		for (String value : values) {
+			if (!placeholder(value)) {
+				return value.trim();
+			}
+		}
+		return "";
+	}
+
+	private static String firstNonBlank(String... values) {
+		for (String value : values) {
+			if (value != null && !value.isBlank()) {
+				return value;
+			}
+		}
+		return "";
+	}
+
+	private static String nullToEmpty(String value) {
+		return value == null ? "" : value;
+	}
+
+	private static String normalizeTitle(String value) {
+		if (value == null) {
+			return "";
+		}
+		return value.toLowerCase(Locale.ROOT)
+			.replaceAll("\\s+[\\-|]\\s+youtube music.*$", "")
+			.replaceAll("\\s+[\\-|]\\s+spotify.*$", "")
+			.replace(" • ", " ")
+			.replaceAll("[^a-z0-9]+", " ")
+			.trim();
+	}
+
+	private record Split(String title, String artist) {
+		private static Split of(String raw) {
+			String title = raw == null ? "" : raw.trim();
+			if (title.isEmpty()) {
+				return new Split("", "");
+			}
+			String[] seps = {" • ", " – ", " — "};
+			for (String sep : seps) {
+				int at = title.indexOf(sep);
+				if (at > 0 && at + sep.length() < title.length()) {
+					String left = title.substring(0, at).trim();
+					String right = title.substring(at + sep.length()).trim();
+					if (!placeholder(right) && !left.isEmpty()) {
+						return new Split(left, right);
+					}
+				}
+			}
+			return new Split(title, "");
+		}
 	}
 }

@@ -70,7 +70,7 @@ final class WindowTitleNowPlaying {
 		best.score = score;
 		best.track = new NowPlaying(
 			parsed.title,
-			parsed.artist,
+			NowPlaying.placeholder(parsed.artist) ? "" : parsed.artist,
 			"",
 			app,
 			"window",

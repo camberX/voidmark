@@ -84,7 +84,7 @@ final class CompanionNowPlaying {
 	private NowPlaying fetch(String endpoint) {
 		try {
 			HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
-				.timeout(Duration.ofMillis(180))
+				.timeout(Duration.ofMillis(500))
 				.GET()
 				.build();
 			HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
@@ -114,37 +114,43 @@ final class CompanionNowPlaying {
 			JsonObject player = object(root, "player");
 			JsonObject track = object(root, "track");
 			JsonObject info = object(root, "info");
+			JsonObject video = object(root, "video");
 			if (player.has("hasSong") && !bool(player, "hasSong", true)) {
 				return NowPlaying.none();
 			}
 			String title = firstNonBlank(
-				text(track, "title", "song", "name", "videoTitle"),
-				text(root, "title", "song", "name", "videoTitle"),
-				text(info, "name", "title")
+				join(track, "title", "song", "name", "videoTitle"),
+				join(root, "title", "song", "name", "videoTitle"),
+				join(info, "name", "title"),
+				join(video, "title", "name")
 			);
 			if (title.isBlank()) {
 				return NowPlaying.none();
 			}
 			String artist = firstNonBlank(
-				text(track, "author", "artist", "artistsName", "artistName"),
-				text(root, "author", "artist", "artistsName", "artistName"),
-				text(info, "artistName", "artist"),
-				artists(root),
-				artists(track),
-				artists(info)
+				join(track, "author", "artist", "artists", "artistsName", "artistName"),
+				join(root, "author", "artist", "artists", "artistsName", "artistName"),
+				join(info, "artistName", "artist", "artists"),
+				join(video, "author", "artist", "artists")
 			);
 			boolean paused = bool(player, "isPaused", false) || bool(root, "isPaused", false);
 			if (root.has("playing")) {
 				paused = !bool(root, "playing", true);
 			}
 			String app = kindOf(endpoint).equals("ytmd") ? "YouTube Music Desktop" : "YouTube Music";
+			String videoId = firstNonBlank(
+				join(root, "videoId"),
+				join(track, "videoId"),
+				join(video, "id", "videoId"),
+				videoIdFromUrl(join(root, "url", "videoUrl", "link"))
+			);
 			return new NowPlaying(
 				title,
 				artist,
-				firstNonBlank(text(track, "album"), text(root, "album"), text(info, "albumName", "album")),
+				firstNonBlank(join(track, "album"), join(root, "album"), join(info, "albumName", "album"), join(video, "album")),
 				app,
 				kindOf(endpoint),
-				cover(track, root, info),
+				cover(track, root, info, video, videoId),
 				!paused,
 				positionMs(player, root),
 				durationMs(player, track, root),
@@ -225,25 +231,60 @@ final class CompanionNowPlaying {
 	}
 
 	private static String artists(JsonObject json) {
-		if (json == null || !json.has("artists") || !json.get("artists").isJsonArray()) {
+		if (json == null) {
 			return "";
 		}
-		JsonArray array = json.getAsJsonArray("artists");
+		return join(json, "artists", "author");
+	}
+
+	private static String join(JsonObject json, String... keys) {
+		if (json == null) {
+			return "";
+		}
+		for (String key : keys) {
+			if (!json.has(key) || json.get(key).isJsonNull()) {
+				continue;
+			}
+			JsonElement el = json.get(key);
+			try {
+				if (el.isJsonPrimitive()) {
+					String value = el.getAsString().trim();
+					if (!value.isBlank()) {
+						return value;
+					}
+				} else if (el.isJsonArray()) {
+					String value = artistsFrom(el.getAsJsonArray());
+					if (!value.isBlank()) {
+						return value;
+					}
+				} else if (el.isJsonObject()) {
+					String value = text(el.getAsJsonObject(), "name", "text", "title");
+					if (!value.isBlank()) {
+						return value;
+					}
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		return "";
+	}
+
+	private static String artistsFrom(JsonArray array) {
 		StringBuilder out = new StringBuilder();
 		for (JsonElement el : array) {
 			String name = "";
 			if (el.isJsonPrimitive()) {
 				name = el.getAsString();
 			} else if (el.isJsonObject()) {
-				name = text(el.getAsJsonObject(), "name", "text");
+				name = text(el.getAsJsonObject(), "name", "text", "title");
 			}
-			if (name.isBlank()) {
+			if (name == null || name.isBlank()) {
 				continue;
 			}
 			if (out.length() > 0) {
 				out.append(", ");
 			}
-			out.append(name);
+			out.append(name.trim());
 		}
 		return out.toString();
 	}
@@ -304,15 +345,88 @@ final class CompanionNowPlaying {
 		return "";
 	}
 
-	private static String cover(JsonObject track, JsonObject root, JsonObject info) {
+	private static String cover(JsonObject track, JsonObject root, JsonObject info, JsonObject video, String videoId) {
 		return firstNonBlank(
-			text(track, "imageSrc", "thumbnailUrl", "thumbnail", "cover", "albumArt", "image", "albumCover", "coverUrl", "artworkUrl"),
-			text(root, "imageSrc", "thumbnailUrl", "thumbnail", "cover", "albumArt", "image", "albumCover", "coverUrl", "artworkUrl"),
-			text(info, "artworkUrl", "cover", "imageSrc", "thumbnailUrl"),
+			ytimg(videoId),
+			join(track, "imageSrc", "thumbnailUrl", "thumbnail", "cover", "albumArt", "image", "albumCover", "coverUrl", "artworkUrl"),
+			join(root, "imageSrc", "thumbnailUrl", "thumbnail", "cover", "albumArt", "image", "albumCover", "coverUrl", "artworkUrl"),
+			join(info, "artworkUrl", "cover", "imageSrc", "thumbnailUrl"),
+			join(video, "imageSrc", "thumbnailUrl", "cover"),
 			artworkUrl(track),
 			artworkUrl(root),
-			artworkUrl(info)
+			artworkUrl(info),
+			thumbnailUrl(track),
+			thumbnailUrl(root),
+			thumbnailUrl(video),
+			ytimg(videoId)
 		);
+	}
+
+	private static String thumbnailUrl(JsonObject json) {
+		if (json == null || !json.has("thumbnails") || !json.get("thumbnails").isJsonArray()) {
+			return "";
+		}
+		String best = "";
+		int bestArea = -1;
+		for (JsonElement el : json.getAsJsonArray("thumbnails")) {
+			if (el.isJsonPrimitive()) {
+				String url = el.getAsString().trim();
+				if (url.startsWith("http") || url.startsWith("data:")) {
+					return url;
+				}
+				continue;
+			}
+			if (!el.isJsonObject()) {
+				continue;
+			}
+			JsonObject obj = el.getAsJsonObject();
+			String url = text(obj, "url", "src", "uri");
+			if (url.isBlank()) {
+				continue;
+			}
+			int area = (int) (number(obj, "width") * number(obj, "height"));
+			if (area >= bestArea) {
+				bestArea = area;
+				best = url;
+			}
+		}
+		return best;
+	}
+
+	private static String ytimg(String videoId) {
+		if (videoId == null || !videoId.matches("[A-Za-z0-9_-]{11}")) {
+			return "";
+		}
+		return "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg";
+	}
+
+	private static String videoIdFromUrl(String url) {
+		if (url == null || url.isBlank()) {
+			return "";
+		}
+		int v = url.indexOf("v=");
+		if (v >= 0 && v + 2 < url.length()) {
+			String id = url.substring(v + 2);
+			int amp = id.indexOf('&');
+			if (amp >= 0) {
+				id = id.substring(0, amp);
+			}
+			int hash = id.indexOf('#');
+			if (hash >= 0) {
+				id = id.substring(0, hash);
+			}
+			return id.trim();
+		}
+		int last = url.lastIndexOf('/');
+		if (last >= 0 && last + 1 < url.length()) {
+			String id = url.substring(last + 1);
+			int q = id.indexOf('?');
+			if (q >= 0) {
+				id = id.substring(0, q);
+			}
+			return id.trim();
+		}
+		return "";
 	}
 
 	private static String artworkUrl(JsonObject json) {

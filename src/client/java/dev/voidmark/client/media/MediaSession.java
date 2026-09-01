@@ -87,28 +87,35 @@ public final class MediaSession {
 
 	private static NowPlaying pick() {
 		NowPlaying windows = WINDOWS.snapshot();
-		if (windows.present()) {
-			route = "windows";
-			hint = windows.sourceLabel();
-			return windows;
-		}
 		NowPlaying companion = COMPANION.snapshot();
+		if (windows.present()) {
+			NowPlaying out = windows.cleaned();
+			if (companion.present() && NowPlaying.titlesClose(out.title(), companion.title())) {
+				out = out.overlay(companion);
+			}
+			route = "windows";
+			hint = out.sourceLabel();
+			return out;
+		}
 		if (companion.present()) {
+			NowPlaying out = companion.cleaned();
 			route = companion.source();
-			hint = companion.sourceLabel();
-			return companion;
+			hint = out.sourceLabel();
+			return out;
 		}
 		NowPlaying titled = TITLES.snapshot();
 		if (titled.present()) {
+			NowPlaying out = titled.cleaned();
 			route = "window";
-			hint = titled.sourceLabel();
-			return titled;
+			hint = out.sourceLabel();
+			return out;
 		}
 		NowPlaying linux = LINUX.snapshot();
 		if (linux.present()) {
+			NowPlaying out = linux.cleaned();
 			route = "playerctl";
-			hint = linux.sourceLabel();
-			return linux;
+			hint = out.sourceLabel();
+			return out;
 		}
 		route = "";
 		String err = WINDOWS.error();

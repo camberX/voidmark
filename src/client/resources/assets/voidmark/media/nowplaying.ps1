@@ -36,28 +36,30 @@ function Json-Escape([string]$value) {
 }
 
 function Cover-FromStream($ras) {
-	$size = 0
-	try { $size = [int]$ras.Size } catch { $size = 0 }
-	if ($size -lt 32 -or $size -gt 2000000) {
-		return $null
-	}
+	try { $ras.Seek(0) } catch {}
 	try {
 		[Windows.Storage.Streams.DataReader,Windows.Storage.Streams,ContentType=WindowsRuntime] | Out-Null
 		$reader = [Windows.Storage.Streams.DataReader]::new($ras)
-		$loaded = Await-Op ($reader.LoadAsync([uint32]$size)) 2000
-		if ($null -eq $loaded) {
+		$size = 0
+		try { $size = [int64]$ras.Size } catch { $size = 0 }
+		$want = $size
+		if ($want -lt 32 -or $want -gt 2000000) { $want = 1048576 }
+		$null = Await-Op ($reader.LoadAsync([uint32]$want)) 3000
+		$avail = 0
+		try { $avail = [int]$reader.UnconsumedBufferLength } catch { $avail = 0 }
+		if ($avail -ge 32) {
+			$bytes = New-Object byte[] $avail
+			for ($i = 0; $i -lt $avail; $i++) {
+				$bytes[$i] = $reader.ReadByte()
+			}
 			try { $reader.DetachStream() | Out-Null } catch {}
 			try { $reader.Dispose() } catch {}
-			return $null
-		}
-		$bytes = New-Object byte[] $size
-		$reader.ReadBytes($bytes)
-		try { $reader.DetachStream() | Out-Null } catch {}
-		try { $reader.Dispose() } catch {}
-		if ($bytes.Length -ge 32) {
 			return $bytes
 		}
+		try { $reader.DetachStream() | Out-Null } catch {}
+		try { $reader.Dispose() } catch {}
 	} catch {}
+	try { $ras.Seek(0) } catch {}
 	try {
 		Add-Type -AssemblyName System.Runtime.WindowsRuntime -ErrorAction Stop
 		$net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ras)
@@ -65,7 +67,6 @@ function Cover-FromStream($ras) {
 		$net.CopyTo($ms)
 		$bytes = $ms.ToArray()
 		try { $ms.Dispose() } catch {}
-		try { $net.Dispose() } catch {}
 		if ($bytes.Length -ge 32) {
 			return $bytes
 		}
@@ -216,13 +217,17 @@ while ($true) {
 		$title = ''
 		$artist = ''
 		$album = ''
+		$subtitle = ''
+		$albumArtist = ''
 		$props = Await-Op ($best.TryGetMediaPropertiesAsync()) 1200
 		if ($null -ne $props) {
 			$title = [string]$props.Title
 			$artist = [string]$props.Artist
 			$album = [string]$props.AlbumTitle
+			try { $subtitle = [string]$props.Subtitle } catch { $subtitle = '' }
+			try { $albumArtist = [string]$props.AlbumArtist } catch { $albumArtist = '' }
 			if ([string]::IsNullOrWhiteSpace($artist)) {
-				$artist = [string]$props.AlbumArtist
+				$artist = $albumArtist
 			}
 		}
 		if ([string]::IsNullOrWhiteSpace($title)) {
@@ -249,7 +254,7 @@ while ($true) {
 				$artField = ',"art":"' + (Json-Escape ($artPath.Replace('\', '/'))) + '"'
 			}
 		}
-		$line = '{"ok":true,"app":"' + (Json-Escape $app) + '","title":"' + (Json-Escape $title) + '","artist":"' + (Json-Escape $artist) + '","album":"' + (Json-Escape $album) + '","playing":' + ($(if ($playing) { 'true' } else { 'false' })) + ',"position":' + $pos + ',"duration":' + $dur + $artField + '}'
+		$line = '{"ok":true,"app":"' + (Json-Escape $app) + '","title":"' + (Json-Escape $title) + '","artist":"' + (Json-Escape $artist) + '","subtitle":"' + (Json-Escape $subtitle) + '","albumArtist":"' + (Json-Escape $albumArtist) + '","album":"' + (Json-Escape $album) + '","playing":' + ($(if ($playing) { 'true' } else { 'false' })) + ',"position":' + $pos + ',"duration":' + $dur + $artField + '}'
 		Emit $line
 	} catch {
 		Emit-Idle 'poll-error'

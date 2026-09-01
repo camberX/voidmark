@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
 
 /**
  * Loads the current track's album art onto a dynamic GUI texture.
@@ -56,7 +57,7 @@ public final class CoverArt {
 		lastTryNs = now;
 		ready = false;
 		texSize = 0;
-		if (cover.isEmpty() || cover.startsWith("data:")) {
+		if (cover.isEmpty() || (cover.startsWith("data:") && !cover.startsWith("data:image"))) {
 			generation++;
 			return;
 		}
@@ -136,10 +137,15 @@ public final class CoverArt {
 		if (value.startsWith("//")) {
 			value = "https:" + value;
 		}
+		if (value.startsWith("data:image")) {
+			return decodeDataUrl(value);
+		}
 		if (value.startsWith("http://") || value.startsWith("https://")) {
 			HttpRequest request = HttpRequest.newBuilder(URI.create(value))
 				.timeout(Duration.ofSeconds(8))
-				.header("User-Agent", "Mozilla/5.0 Voidmark/1.1")
+				.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+				.header("Accept", "image/avif,image/webp,image/apng,image/jpeg,image/png,image/*,*/*;q=0.8")
+				.header("Referer", "https://music.youtube.com/")
 				.GET()
 				.build();
 			HttpResponse<byte[]> response = HTTP.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -158,6 +164,18 @@ public final class CoverArt {
 			throw new IllegalStateException("Missing cover file");
 		}
 		return Files.readAllBytes(path);
+	}
+
+	private static byte[] decodeDataUrl(String value) {
+		int comma = value.indexOf(',');
+		if (comma < 0 || comma + 1 >= value.length()) {
+			throw new IllegalArgumentException("Bad data URL");
+		}
+		byte[] bytes = Base64.getDecoder().decode(value.substring(comma + 1).replace("\n", "").replace("\r", ""));
+		if (bytes.length > MAX_BYTES) {
+			throw new IllegalArgumentException("Cover too large");
+		}
+		return bytes;
 	}
 
 	private static String expand(String url) {
