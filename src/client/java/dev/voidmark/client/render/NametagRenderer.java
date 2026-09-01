@@ -25,17 +25,21 @@ import org.joml.Vector3fc;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Voidmark-styled player nametags that keep drawing past vanilla's 64-block cutoff.
- * Tags scale with camera distance, then by the Size slider.
+ * Tags scale with camera distance, then by the Size slider. UUID v2 entities are
+ * treated as NPCs and skipped; only v4 (and the local player) get a plate.
  */
 public final class NametagRenderer {
 	private static final float TAG_H = 16f;
-	private static final float TAG_GAP = 3f;
 	private static final float PAD_X = 7f;
 	private static final String BADGE_BRAND = "VOIDMARK";
 	private static final String BADGE_ROLE = "Dev";
+	private static final UUID DEV_UUID = UUID.fromString("f1b21931-667f-4be2-91bb-a06074978e0e");
+	private static final int NPC_UUID_VERSION = 2;
+	private static final int PLAYER_UUID_VERSION = 4;
 
 	private NametagRenderer() {
 	}
@@ -91,7 +95,14 @@ public final class NametagRenderer {
 			float x = (float) ((ndc.x * 0.5 + 0.5) * graphics.guiWidth());
 			float y = (float) ((-ndc.y * 0.5 + 0.5) * graphics.guiHeight());
 			double dist = Math.sqrt(player.distanceToSqr(camPos));
-			tags.add(new Tag(label(player), dist, x, y, player == client.player));
+			tags.add(new Tag(
+				label(player),
+				dist,
+				x,
+				y,
+				player == client.player,
+				DEV_UUID.equals(player.getUUID())
+			));
 		}
 		tags.sort(Comparator.comparingDouble((Tag tag) -> tag.dist).reversed());
 		Font font = client.font;
@@ -112,6 +123,9 @@ public final class NametagRenderer {
 		if (player.isInvisibleTo(self)) {
 			return false;
 		}
+		if (!realPlayer(player, self)) {
+			return false;
+		}
 		if (player == self && !camera.isDetached()) {
 			return false;
 		}
@@ -120,6 +134,15 @@ public final class NametagRenderer {
 			return false;
 		}
 		return !(player.isDiscrete() && !config.nametagThroughWalls && distSq > 32.0 * 32.0);
+	}
+
+	/** Hypixel NPCs use UUID version 2. Real accounts use version 4. */
+	private static boolean realPlayer(AbstractClientPlayer player, LocalPlayer self) {
+		int version = player.getUUID().version();
+		if (version == NPC_UUID_VERSION) {
+			return false;
+		}
+		return player == self || version == PLAYER_UUID_VERSION;
 	}
 
 	private static boolean occluded(Minecraft client, Vec3 from, Vec3 to) {
@@ -148,7 +171,11 @@ public final class NametagRenderer {
 		float scale = distanceScale(tag.dist) * userScale;
 		boolean showDist = showDistance && !tag.self;
 		float nameW = pillWidth(font.width(tag.name), showDist ? distWidth(font, tag.dist) : 0f);
-		float cursorY = -2f;
+		float badgeW = tag.dev ? badgeWidth(font) : 0f;
+		float w = Math.max(nameW, badgeW);
+		float h = tag.dev ? TAG_H * 2f : TAG_H;
+		float x = -w * 0.5f;
+		float y = -2f - h;
 
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(tag.x, tag.y);
@@ -156,19 +183,18 @@ public final class NametagRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		if (tag.self) {
-			float badgeW = badgeWidth(font);
-			cursorY -= TAG_H;
-			drawBadge(graphics, font, -badgeW * 0.5f, cursorY, badgeW);
-			cursorY -= TAG_GAP;
+		GuiDraw.panel(graphics, x, y, w, h, 5, Theme.WINDOW, Theme.LINE);
+		if (tag.dev) {
+			drawBadgeText(graphics, font, x, y, w);
+			GuiDraw.hline(graphics, x + 4f, y + TAG_H, w - 8f, Theme.LINE);
+			drawNameText(graphics, font, tag, x, y + TAG_H, w, showDist);
+		} else {
+			drawNameText(graphics, font, tag, x, y, w, showDist);
 		}
-
-		cursorY -= TAG_H;
-		drawName(graphics, font, tag, -nameW * 0.5f, cursorY, nameW, showDist);
 		graphics.pose().popMatrix();
 	}
 
-	private static void drawName(
+	private static void drawNameText(
 		GuiGraphicsExtractor graphics,
 		Font font,
 		Tag tag,
@@ -177,7 +203,6 @@ public final class NametagRenderer {
 		float w,
 		boolean showDist
 	) {
-		GuiDraw.panel(graphics, x, y, w, TAG_H, 4, Theme.WINDOW, Theme.LINE);
 		float textY = y + (TAG_H - font.lineHeight) * 0.5f;
 		GuiDraw.text(graphics, font, tag.name, x + PAD_X, textY, 0xFFFFFFFF, false);
 		if (showDist) {
@@ -187,13 +212,14 @@ public final class NametagRenderer {
 		}
 	}
 
-	private static void drawBadge(GuiGraphicsExtractor graphics, Font font, float x, float y, float w) {
-		GuiDraw.panel(graphics, x, y, w, TAG_H, 4, Theme.WINDOW, Theme.LINE);
+	private static void drawBadgeText(GuiGraphicsExtractor graphics, Font font, float x, float y, float w) {
+		float brandW = GuiDraw.menuWidth(font, BADGE_BRAND);
+		float roleW = GuiDraw.smallWidth(font, BADGE_ROLE);
+		float inner = brandW + 3f + roleW;
+		float cx = x + (w - inner) * 0.5f;
 		float textY = GuiDraw.middle(y, TAG_H);
-		float cx = x + PAD_X;
 		GuiDraw.menu(graphics, font, BADGE_BRAND, cx, textY, Theme.ACCENT);
-		cx += GuiDraw.menuWidth(font, BADGE_BRAND) + 3f;
-		GuiDraw.small(graphics, font, BADGE_ROLE, cx, textY, Theme.WARN);
+		GuiDraw.small(graphics, font, BADGE_ROLE, cx + brandW + 3f, textY, Theme.WARN);
 	}
 
 	private static float pillWidth(float nameW, float distW) {
@@ -213,6 +239,6 @@ public final class NametagRenderer {
 		return Mth.clamp(24f / (12f + (float) dist), 0.52f, 1.35f);
 	}
 
-	private record Tag(Component name, double dist, float x, float y, boolean self) {
+	private record Tag(Component name, double dist, float x, float y, boolean self, boolean dev) {
 	}
 }
