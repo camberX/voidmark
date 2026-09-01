@@ -19,6 +19,22 @@ public final class GuiDraw {
 	private GuiDraw() {
 	}
 
+	public static boolean scissor(GuiGraphicsExtractor graphics, float x, float y, float w, float h) {
+		int x0 = Math.round(x);
+		int y0 = Math.round(y);
+		int x1 = Math.round(x + w);
+		int y1 = Math.round(y + h);
+		if (x1 <= x0 || y1 <= y0) {
+			return false;
+		}
+		graphics.enableScissor(x0, y0, x1, y1);
+		return true;
+	}
+
+	public static void disableScissor(GuiGraphicsExtractor graphics) {
+		graphics.disableScissor();
+	}
+
 	public static void fill(GuiGraphicsExtractor graphics, float x, float y, float w, float h, int color) {
 		if (w <= 0 || h <= 0) {
 			return;

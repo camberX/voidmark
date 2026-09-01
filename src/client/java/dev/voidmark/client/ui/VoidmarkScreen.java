@@ -7,6 +7,7 @@ import dev.voidmark.client.location.SkyblockLocation;
 import dev.voidmark.client.node.EnderNodeTracker;
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.HudStats;
+import dev.voidmark.client.render.Starfield;
 import dev.voidmark.client.visual.CustomCape;
 import dev.voidmark.client.visual.NickHider;
 import dev.voidmark.client.visual.WorldTint;
@@ -223,10 +224,23 @@ public class VoidmarkScreen extends Screen {
 		graphics.pose().translate(-cx, -cy);
 
 		int shadow = Anim.fade(0x66000000, appear);
-		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W + 1, windowY + 2, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, shadow);
+		boolean chromeClip = GuiDraw.scissor(graphics, windowX, windowY, windowW, windowH);
+		GuiDraw.roundRight(
+			graphics,
+			windowX + SIDEBAR_W + 1,
+			windowY + 2,
+			windowW - SIDEBAR_W - 1,
+			windowH - 2,
+			Theme.WINDOW_RADIUS,
+			shadow
+		);
 		GuiDraw.roundLeft(graphics, windowX, windowY, SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.SIDEBAR);
 		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW);
+		Starfield.draw(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, appear);
 		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY, 1, windowH, Theme.withAlpha(Theme.ACCENT, 90));
+		if (chromeClip) {
+			GuiDraw.disableScissor(graphics);
+		}
 
 		drawSidebar(graphics, font, mouseX, mouseY);
 		drawToolbar(graphics, font, mouseX, mouseY);
@@ -1234,7 +1248,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.39");
+			.orElse("1.1.54");
 	}
 
 	@Override
