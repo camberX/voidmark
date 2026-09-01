@@ -4,11 +4,13 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 
 public final class MediaSession {
 	private static final WindowsNowPlaying WINDOWS = new WindowsNowPlaying();
+	private static final WindowTitleNowPlaying TITLES = new WindowTitleNowPlaying();
+	private static final CompanionNowPlaying COMPANION = new CompanionNowPlaying();
 	private static final LinuxNowPlaying LINUX = new LinuxNowPlaying();
-	private static final YtmdNowPlaying YTMD = new YtmdNowPlaying();
 
 	private static volatile NowPlaying current = NowPlaying.none();
 	private static volatile String route = "";
+	private static volatile String hint = "Play a track in Spotify or YouTube Music";
 	private static long lastRestartNs;
 
 	private MediaSession() {
@@ -28,6 +30,10 @@ public final class MediaSession {
 		return value == null ? NowPlaying.none() : value;
 	}
 
+	public static String hint() {
+		return hint;
+	}
+
 	public static boolean playPause() {
 		return control("toggle");
 	}
@@ -42,25 +48,17 @@ public final class MediaSession {
 
 	private static boolean control(String action) {
 		String active = route;
-		if ("ytmd".equals(active)) {
-			String command = switch (action) {
-				case "next" -> "track-next";
-				case "prev" -> "track-previous";
-				default -> current().playing() ? "track-pause" : "track-play";
-			};
-			if (YtmdNowPlaying.command(command) || ("toggle".equals(action) && YtmdNowPlaying.command("track-playPause"))) {
+		if ("ytm".equals(active) || "ytmd".equals(active) || "cider".equals(active)) {
+			if (COMPANION.control(action)) {
 				return true;
 			}
 		}
-		if ("playerctl".equals(active)) {
-			String verb = switch (action) {
-				case "next" -> "next";
-				case "prev" -> "previous";
-				default -> "play-pause";
-			};
-			if (LinuxNowPlaying.control(verb)) {
-				return true;
-			}
+		if ("playerctl".equals(active) && LinuxNowPlaying.control(switch (action) {
+			case "next" -> "next";
+			case "prev" -> "previous";
+			default -> "play-pause";
+		})) {
+			return true;
 		}
 		return switch (action) {
 			case "next" -> MediaKeys.next();
@@ -72,12 +70,12 @@ public final class MediaSession {
 	private static void loop() {
 		while (true) {
 			try {
-				if (MediaKeys.windows() && !WINDOWS.alive() && System.nanoTime() - lastRestartNs > 4_000_000_000L) {
+				if (MediaKeys.windows() && !WINDOWS.alive() && System.nanoTime() - lastRestartNs > 3_000_000_000L) {
 					lastRestartNs = System.nanoTime();
 					WINDOWS.start();
 				}
 				current = pick();
-				Thread.sleep(current.present() ? 420 : 900);
+				Thread.sleep(current.present() ? 400 : 700);
 			} catch (InterruptedException interrupted) {
 				Thread.currentThread().interrupt();
 				return;
@@ -89,30 +87,36 @@ public final class MediaSession {
 
 	private static NowPlaying pick() {
 		NowPlaying windows = WINDOWS.snapshot();
-		if (windows.present() && preferred(windows)) {
-			route = "windows";
-			return windows;
-		}
-		NowPlaying ytmd = YTMD.snapshot();
-		if (ytmd.present()) {
-			route = "ytmd";
-			return ytmd;
-		}
 		if (windows.present()) {
 			route = "windows";
+			hint = windows.sourceLabel();
 			return windows;
+		}
+		NowPlaying companion = COMPANION.snapshot();
+		if (companion.present()) {
+			route = companion.source();
+			hint = companion.sourceLabel();
+			return companion;
+		}
+		NowPlaying titled = TITLES.snapshot();
+		if (titled.present()) {
+			route = "window";
+			hint = titled.sourceLabel();
+			return titled;
 		}
 		NowPlaying linux = LINUX.snapshot();
 		if (linux.present()) {
 			route = "playerctl";
+			hint = linux.sourceLabel();
 			return linux;
 		}
 		route = "";
+		String err = WINDOWS.error();
+		if (err != null && !err.isBlank() && !"no-session".equals(err) && !"empty-title".equals(err)) {
+			hint = "No media session";
+		} else {
+			hint = "Play a track in Spotify or YouTube Music";
+		}
 		return NowPlaying.none();
-	}
-
-	private static boolean preferred(NowPlaying track) {
-		String label = track.sourceLabel();
-		return label.contains("SPOTIFY") || label.contains("YOUTUBE");
 	}
 }

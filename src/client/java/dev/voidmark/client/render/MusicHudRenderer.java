@@ -117,7 +117,7 @@ public final class MusicHudRenderer {
 
 		if (!live) {
 			GuiDraw.menu(graphics, font, HudLayout.editorOpen() ? "Music" : "Nothing playing", 28, 8, Theme.TEXT);
-			GuiDraw.small(graphics, font, "Spotify / YouTube Music", 28, 20, Theme.MUTED);
+			GuiDraw.small(graphics, font, ellipsize(font, MediaSession.hint(), WIDTH - 40, true), 28, 20, Theme.MUTED);
 			clearHits();
 			graphics.pose().popMatrix();
 			return;

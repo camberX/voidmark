@@ -42,8 +42,11 @@ public record NowPlaying(
 		if (raw.contains("youtube")) {
 			return "YOUTUBE";
 		}
-		if (raw.contains("chrome") || raw.contains("msedge") || raw.contains("brave") || raw.contains("firefox")) {
-			return "BROWSER";
+		if (raw.contains("window") || raw.contains("ytm") || raw.contains("electron")) {
+			if (raw.contains("spotify")) {
+				return "SPOTIFY";
+			}
+			return "YOUTUBE MUSIC";
 		}
 		if (source != null && !source.isBlank()) {
 			return source.toUpperCase();

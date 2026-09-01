@@ -140,11 +140,11 @@ public final class GuiDraw {
 		rounded(graphics, x, y, w, h, radius, outline);
 		rounded(graphics, x + 1, y + 1, w - 2, h - 2, Math.max(0.5f, radius - 1f), fill);
 		if ((accent & 0xFF000000) != 0) {
-			accentLeft(graphics, x + 1, y + 1, h - 2, Math.max(0.5f, radius - 1f), 3f, accent, fill);
+			accentLeft(graphics, x, y, h, radius, 3f, accent, fill);
 		}
 	}
 
-	/** Left accent rail: a straight bar that stops where the pane’s corner rounding starts. */
+	/** Full-height left rail whose outer edge uses the same corner radius as the panel. */
 	public static void accentLeft(
 		GuiGraphicsExtractor graphics,
 		float x,
@@ -155,12 +155,20 @@ public final class GuiDraw {
 		int accent,
 		int fill
 	) {
-		float t = Math.max(1f, thickness);
+		float t = Math.max(1.5f, thickness);
 		float r = Math.min(radius, h * 0.5f);
-		float inset = Math.max(0f, r);
-		float y0 = y + inset;
-		float h0 = Math.max(t, h - inset * 2f);
-		rounded(graphics, x, y0, t, h0, t * 0.5f, accent);
+		if (r < 0.75f) {
+			fill(graphics, x, y, t, h, accent);
+			return;
+		}
+		float strip = r + t;
+		roundLeft(graphics, x, y, strip, h, r, accent);
+		float innerH = h - 2f * t;
+		if (innerH < 1f) {
+			return;
+		}
+		float ir = Math.max(0.5f, r - t);
+		roundLeft(graphics, x + t, y + t, Math.max(ir, strip - t), innerH, ir, fill);
 	}
 
 	public static void text(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color, boolean shadow) {
