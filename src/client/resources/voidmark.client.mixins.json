@@ -15,6 +15,7 @@
 		"GuiGraphicsExtractorMixin",
 		"ItemModelResolverMixin",
 		"LightmapRenderStateExtractorMixin",
+		"MinecraftMixin",
 		"ModelBlockRendererMixin",
 		"PlayerTabOverlayMixin",
 		"ProjectionMixin",

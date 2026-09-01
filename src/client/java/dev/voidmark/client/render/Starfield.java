@@ -6,11 +6,11 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import java.util.Random;
 
 /**
- * Slow-drifting, twinkling stars clipped to the click-GUI content pane.
+ * Slow-drifting, twinkling stars for the click-GUI pane and the title-screen sky.
  */
 public final class Starfield {
-	private static final int COUNT = 86;
-	private static final Star[] STARS = new Star[COUNT];
+	private static final Star[] PANE = bake(86, 0x51A4F1E1L, 6.5f, 3.4f);
+	private static final Star[] SKY = bake(160, 0xC0FFEE11L, 9.5f, 4.8f);
 	private static final float[] PALETTE = {
 		0xF4F7FF,
 		0xD7E6FF,
@@ -18,25 +18,6 @@ public final class Starfield {
 		0xFFE9C8,
 		0xB8D4FF
 	};
-
-	static {
-		Random rng = new Random(0x51A4F1E1L);
-		for (int i = 0; i < COUNT; i++) {
-			boolean bright = rng.nextFloat() < 0.18f;
-			STARS[i] = new Star(
-				rng.nextFloat(),
-				rng.nextFloat(),
-				(rng.nextFloat() - 0.28f) * 6.5f,
-				(rng.nextFloat() - 0.55f) * 3.4f,
-				bright ? 1.15f + rng.nextFloat() * 0.85f : 0.55f + rng.nextFloat() * 0.55f,
-				bright ? 0.42f + rng.nextFloat() * 0.38f : 0.18f + rng.nextFloat() * 0.32f,
-				rng.nextFloat() * ((float) Math.PI * 2f),
-				0.55f + rng.nextFloat() * 1.85f,
-				(int) PALETTE[rng.nextInt(PALETTE.length)],
-				bright
-			);
-		}
-	}
 
 	private Starfield() {
 	}
@@ -50,20 +31,41 @@ public final class Starfield {
 		float radius,
 		float appear
 	) {
+		paint(graphics, PANE, x, y, w, h, radius, appear, 0.72f, 18f, true);
+	}
+
+	public static void drawSky(GuiGraphicsExtractor graphics, float w, float h) {
+		paint(graphics, SKY, 0f, 0f, w, h, 0f, 1f, 0.92f, Math.max(22f, w * 0.045f), true);
+		paint(graphics, PANE, 0f, 0f, w, h, 0f, 1f, 0.55f, 18f, false);
+	}
+
+	private static void paint(
+		GuiGraphicsExtractor graphics,
+		Star[] stars,
+		float x,
+		float y,
+		float w,
+		float h,
+		float radius,
+		float appear,
+		float alphaScale,
+		float trail,
+		boolean shooting
+	) {
 		if (appear < 0.04f || w < 12f || h < 12f) {
 			return;
 		}
 		float r = Math.min(radius, Math.min(w, h) / 2f);
 		boolean clipped = GuiDraw.scissor(graphics, x, y, w, h);
 		float t = System.nanoTime() / 1_000_000_000f;
-		for (Star star : STARS) {
+		for (Star star : stars) {
 			float px = x + wrap(star.nx * w + t * star.vx, w);
 			float py = y + wrap(star.ny * h + t * star.vy, h);
 			if (!insideRoundRight(px, py, x, y, w, h, r)) {
 				continue;
 			}
 			float twinkle = 0.38f + 0.62f * (0.5f + 0.5f * (float) Math.sin(t * star.freq + star.phase));
-			int alpha = Math.round(255f * star.baseA * twinkle * appear * 0.72f);
+			int alpha = Math.round(255f * star.baseA * twinkle * appear * alphaScale);
 			int rgb = mixAccent(star.rgb, 0.22f);
 			int color = Theme.withAlpha(rgb, alpha);
 			if (star.size >= 1.05f) {
@@ -78,10 +80,33 @@ public final class Starfield {
 				GuiDraw.fill(graphics, px, py, 1.1f, 1.1f, color);
 			}
 		}
-		drawShootingStar(graphics, x, y, w, h, r, t, appear);
+		if (shooting) {
+			drawShootingStar(graphics, x, y, w, h, r, t, appear, trail);
+		}
 		if (clipped) {
 			GuiDraw.disableScissor(graphics);
 		}
+	}
+
+	private static Star[] bake(int count, long seed, float driftX, float driftY) {
+		Random rng = new Random(seed);
+		Star[] stars = new Star[count];
+		for (int i = 0; i < count; i++) {
+			boolean bright = rng.nextFloat() < 0.18f;
+			stars[i] = new Star(
+				rng.nextFloat(),
+				rng.nextFloat(),
+				(rng.nextFloat() - 0.28f) * driftX,
+				(rng.nextFloat() - 0.55f) * driftY,
+				bright ? 1.15f + rng.nextFloat() * 0.85f : 0.55f + rng.nextFloat() * 0.55f,
+				bright ? 0.42f + rng.nextFloat() * 0.38f : 0.18f + rng.nextFloat() * 0.32f,
+				rng.nextFloat() * ((float) Math.PI * 2f),
+				0.55f + rng.nextFloat() * 1.85f,
+				(int) PALETTE[rng.nextInt(PALETTE.length)],
+				bright
+			);
+		}
+		return stars;
 	}
 
 	private static void drawShootingStar(
@@ -92,7 +117,8 @@ public final class Starfield {
 		float h,
 		float r,
 		float t,
-		float appear
+		float appear,
+		float trail
 	) {
 		float cycle = 9.5f;
 		float u = (t % cycle) / cycle;
@@ -106,8 +132,8 @@ public final class Starfield {
 		int rgb = mixAccent(0xF4F7FF, 0.35f);
 		for (int i = 0; i < 10; i++) {
 			float k = i / 9f;
-			float px = sx - k * 18f;
-			float py = sy - k * 5.5f;
+			float px = sx - k * trail;
+			float py = sy - k * trail * 0.30f;
 			if (!insideRoundRight(px, py, x, y, w, h, r)) {
 				continue;
 			}

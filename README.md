@@ -1,6 +1,6 @@
 # Voidmark
 
-Fabric 26.1.2 QoL for Hypixel Skyblock. Marks **Ender Nodes** on the End Island, tints the world and skybox, and stretches aspect ratio. The config menu is a compact NEVERLOSE-style click GUI (`/voidmark`): a dark frosted-blue sidebar over the blurred world, a near-black content pane with animated starfield particles, rounded chrome, Nunito Sans, and icon-font glyphs. It floats in the center of the screen instead of filling it.
+Fabric 26.1.2 QoL for Hypixel Skyblock. Marks **Ender Nodes** on the End Island, tints the world and skybox, and stretches aspect ratio. The config menu is a compact NEVERLOSE-style click GUI (`/voidmark`): a dark frosted-blue sidebar over the blurred world, a near-black content pane with animated starfield particles, rounded chrome, Nunito Sans, and icon-font glyphs. It floats in the center of the screen instead of filling it. The Minecraft title screen is replaced with a matching Voidmark menu: a full-screen starfield, taller Singleplayer / Multiplayer / Realms buttons, and the same pane chrome.
 
 Ender Nodes look like purple stained clay (magenta terracotta on modern versions) and spit portal-colored dust. Voidmark scans loaded chunks, listens for those particles, then draws through-wall boxes, an outline, and a tracer to the nearest node.
 
@@ -8,14 +8,14 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.55.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.56.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
 
 ## Use
 
-- `/voidmark` or `/vm` opens the config screen. Drag the title bar or top chrome to move it; the position and last tab are saved to config.
+- The Minecraft **title screen** is replaced with a Voidmark menu: starry sky background, VOIDMARK title, and taller Singleplayer / Multiplayer / Realms / Options / Quit buttons in the same pane style as the click GUI. Language, Accessibility, and credits stay as text links at the bottom.
 - `/vm edit` or `/voidmark edit` opens the item id window. It shows the item you are holding, with its `minecraft:` id or Skyblock `sb:` id in a text box and a large preview above it. Typing another id reskins that item on your client: hand, hotbar, and inventory all show the new look. The server still has the real item. Vanilla ids look like `minecraft:diamond_sword`; Skyblock ids look like `sb:HYPERION`. Tab or click a suggestion to fill it. Type the original id again to clear the reskin.
 - The **Music HUD** (Display tab, or the bell) shows the song that is playing in Spotify or YouTube Music: cover art, title, artist, source, a progress bar, and elapsed/duration on the right of the bar (`1:23/3:45`). When the track changes, chat shows a styled `VOIDMARK │ NOW PLAYING` line with title, artist, time, and source. Open Minecraft chat (`T`) to click **previous / play-pause / next** on the HUD. You can also type `.np` `.play` `.pause` `.skip` `.prev` in chat (those stay client-side) or `/vm music`. On Windows it reads the system now-playing session (including SMTC album art), Spotify / YouTube Music window titles, and local companion APIs (YouTube Music Desktop on 9863, th-ch YouTube Music on 26558). Linux uses `playerctl` metadata and `mpris:artUrl`.
 - Right Shift is the default keybind (Controls → Voidmark). Press it again to close (the menu eases out).
