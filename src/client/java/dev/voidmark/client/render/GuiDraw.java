@@ -140,11 +140,14 @@ public final class GuiDraw {
 		rounded(graphics, x, y, w, h, radius, outline);
 		rounded(graphics, x + 1, y + 1, w - 2, h - 2, Math.max(0.5f, radius - 1f), fill);
 		if ((accent & 0xFF000000) != 0) {
-			accentLeft(graphics, x, y, h, radius, 3f, accent, fill);
+			accentLeft(graphics, x, y, h, radius, 3f, accent);
 		}
 	}
 
-	/** Full-height left rail whose outer edge uses the same corner radius as the panel. */
+	/**
+	 * Vertical left rail of the panel's full height. The outer edge follows the
+	 * rounded silhouette; nothing is drawn along the top or bottom edges.
+	 */
 	public static void accentLeft(
 		GuiGraphicsExtractor graphics,
 		float x,
@@ -152,8 +155,7 @@ public final class GuiDraw {
 		float h,
 		float radius,
 		float thickness,
-		int accent,
-		int fill
+		int accent
 	) {
 		float t = Math.max(1.5f, thickness);
 		float r = Math.min(radius, h * 0.5f);
@@ -161,14 +163,50 @@ public final class GuiDraw {
 			fill(graphics, x, y, t, h, accent);
 			return;
 		}
-		float strip = r + t;
-		roundLeft(graphics, x, y, strip, h, r, accent);
-		float innerH = h - 2f * t;
-		if (innerH < 1f) {
+		// Keep the strip narrower than the radius so the rail never runs onto the top/bottom.
+		float strip = Math.min(t, Math.max(1f, r - 0.35f));
+		float mid = h - 2f * r;
+		if (mid > 0.5f) {
+			fill(graphics, x, y + r, strip, mid, accent);
+		}
+		cornerBand(graphics, x, y, r, strip, 0f, 0f, accent);
+		cornerBand(graphics, x, y + h - r, r, strip, 0f, CIRCLE_HALF, accent);
+	}
+
+	/** Left {@code thickness} pixels of a quarter-circle so the rail follows the arc without wrapping. */
+	private static void cornerBand(
+		GuiGraphicsExtractor graphics,
+		float x,
+		float y,
+		float radius,
+		float thickness,
+		float u,
+		float v,
+		int color
+	) {
+		if (radius <= 0 || thickness <= 0) {
 			return;
 		}
-		float ir = Math.max(0.5f, r - t);
-		roundLeft(graphics, x + t, y + t, Math.max(ir, strip - t), innerH, ir, fill);
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x, y);
+		graphics.pose().scale(thickness, radius);
+		int regionU = Math.max(1, Math.round((thickness / radius) * CIRCLE_HALF));
+		graphics.blit(
+			RenderPipelines.GUI_TEXTURED,
+			CIRCLE,
+			0,
+			0,
+			u,
+			v,
+			1,
+			1,
+			regionU,
+			CIRCLE_HALF,
+			CIRCLE_TEX,
+			CIRCLE_TEX,
+			color
+		);
+		graphics.pose().popMatrix();
 	}
 
 	public static void text(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color, boolean shadow) {

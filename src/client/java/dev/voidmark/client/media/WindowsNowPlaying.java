@@ -140,6 +140,7 @@ final class WindowsNowPlaying {
 				text(json, "album"),
 				text(json, "app"),
 				"windows",
+				text(json, "art"),
 				!json.has("playing") || json.get("playing").getAsBoolean(),
 				ticksToMs(json, "position"),
 				ticksToMs(json, "duration"),

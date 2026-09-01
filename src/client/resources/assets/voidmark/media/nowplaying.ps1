@@ -35,6 +35,81 @@ function Json-Escape([string]$value) {
 	return ($value.Replace('\', '\\').Replace('"', '\"').Replace("`r", ' ').Replace("`n", ' ').Replace("`t", ' '))
 }
 
+function Cover-FromStream($ras) {
+	$size = 0
+	try { $size = [int]$ras.Size } catch { $size = 0 }
+	if ($size -lt 32 -or $size -gt 2000000) {
+		return $null
+	}
+	try {
+		[Windows.Storage.Streams.DataReader,Windows.Storage.Streams,ContentType=WindowsRuntime] | Out-Null
+		$reader = [Windows.Storage.Streams.DataReader]::new($ras)
+		$loaded = Await-Op ($reader.LoadAsync([uint32]$size)) 2000
+		if ($null -eq $loaded) {
+			try { $reader.DetachStream() | Out-Null } catch {}
+			try { $reader.Dispose() } catch {}
+			return $null
+		}
+		$bytes = New-Object byte[] $size
+		$reader.ReadBytes($bytes)
+		try { $reader.DetachStream() | Out-Null } catch {}
+		try { $reader.Dispose() } catch {}
+		if ($bytes.Length -ge 32) {
+			return $bytes
+		}
+	} catch {}
+	try {
+		Add-Type -AssemblyName System.Runtime.WindowsRuntime -ErrorAction Stop
+		$net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ras)
+		$ms = New-Object System.IO.MemoryStream
+		$net.CopyTo($ms)
+		$bytes = $ms.ToArray()
+		try { $ms.Dispose() } catch {}
+		try { $net.Dispose() } catch {}
+		if ($bytes.Length -ge 32) {
+			return $bytes
+		}
+	} catch {}
+	return $null
+}
+
+function Save-Cover($props, [string]$path) {
+	try {
+		if ($null -eq $props -or [string]::IsNullOrWhiteSpace($path)) {
+			return $false
+		}
+		$thumb = $null
+		try { $thumb = $props.Thumbnail } catch { return $false }
+		if ($null -eq $thumb) {
+			return $false
+		}
+		$ras = Await-Op ($thumb.OpenReadAsync()) 2000
+		if ($null -eq $ras) {
+			return $false
+		}
+		$bytes = $null
+		try {
+			$bytes = Cover-FromStream $ras
+		} finally {
+			try { $ras.Dispose() } catch {}
+		}
+		if ($null -eq $bytes -or $bytes.Length -lt 32) {
+			return $false
+		}
+		$dir = [System.IO.Path]::GetDirectoryName($path)
+		if (-not [string]::IsNullOrWhiteSpace($dir)) {
+			[System.IO.Directory]::CreateDirectory($dir) | Out-Null
+		}
+		$tmp = $path + '.tmp'
+		[System.IO.File]::WriteAllBytes($tmp, $bytes)
+		[System.IO.File]::Copy($tmp, $path, $true)
+		try { [System.IO.File]::Delete($tmp) } catch {}
+		return $true
+	} catch {
+		return $false
+	}
+}
+
 function Await-Op($op, $timeoutMs) {
 	if ($null -eq $op) {
 		return $null
@@ -79,6 +154,14 @@ if ($null -eq $mgr) {
 	while ($true) { Start-Sleep -Seconds 2 }
 }
 
+$artPath = ''
+if (-not [string]::IsNullOrWhiteSpace($OutFile)) {
+	$artPath = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($OutFile), 'voidmark-nowplaying-art.bin')
+}
+$script:lastArtKey = ''
+$script:artOk = $false
+$script:nextArtTry = 0
+
 while ($true) {
 	try {
 		$best = $null
@@ -107,6 +190,8 @@ while ($true) {
 		}
 		if ($null -eq $best) {
 			Emit-Idle 'no-session'
+			$script:lastArtKey = ''
+			$script:artOk = $false
 			Start-Sleep -Milliseconds 500
 			continue
 		}
@@ -142,11 +227,29 @@ while ($true) {
 		}
 		if ([string]::IsNullOrWhiteSpace($title)) {
 			Emit-Idle ('empty-title:' + $app)
+			$script:lastArtKey = ''
+			$script:artOk = $false
 			Start-Sleep -Milliseconds 500
 			continue
 		}
 		$playing = ($status -eq 'Playing')
-		$line = '{"ok":true,"app":"' + (Json-Escape $app) + '","title":"' + (Json-Escape $title) + '","artist":"' + (Json-Escape $artist) + '","album":"' + (Json-Escape $album) + '","playing":' + ($(if ($playing) { 'true' } else { 'false' })) + ',"position":' + $pos + ',"duration":' + $dur + '}'
+		$artField = ''
+		if (-not [string]::IsNullOrWhiteSpace($artPath) -and $null -ne $props) {
+			$artKey = $title + '|' + $artist + '|' + $album
+			$nowTick = [Environment]::TickCount
+			if ($artKey -ne $script:lastArtKey) {
+				$script:lastArtKey = $artKey
+				$script:artOk = Save-Cover $props $artPath
+				$script:nextArtTry = $nowTick + 2000
+			} elseif (-not $script:artOk -and ($nowTick - $script:nextArtTry) -gt 0) {
+				$script:artOk = Save-Cover $props $artPath
+				$script:nextArtTry = $nowTick + 2000
+			}
+			if ($script:artOk -and (Test-Path -LiteralPath $artPath)) {
+				$artField = ',"art":"' + (Json-Escape ($artPath.Replace('\', '/'))) + '"'
+			}
+		}
+		$line = '{"ok":true,"app":"' + (Json-Escape $app) + '","title":"' + (Json-Escape $title) + '","artist":"' + (Json-Escape $artist) + '","album":"' + (Json-Escape $album) + '","playing":' + ($(if ($playing) { 'true' } else { 'false' })) + ',"position":' + $pos + ',"duration":' + $dur + $artField + '}'
 		Emit $line
 	} catch {
 		Emit-Idle 'poll-error'

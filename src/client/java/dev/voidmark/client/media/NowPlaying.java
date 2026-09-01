@@ -8,17 +8,22 @@ public record NowPlaying(
 	String album,
 	String app,
 	String source,
+	String cover,
 	boolean playing,
 	long positionMs,
 	long durationMs,
 	long sampledAtNanos
 ) {
 	public static NowPlaying none() {
-		return new NowPlaying("", "", "", "", "", false, 0L, 0L, 0L);
+		return new NowPlaying("", "", "", "", "", "", false, 0L, 0L, 0L);
 	}
 
 	public boolean present() {
 		return title != null && !title.isBlank();
+	}
+
+	public boolean hasCover() {
+		return cover != null && !cover.isBlank();
 	}
 
 	public String artistLine() {

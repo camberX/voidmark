@@ -2,6 +2,7 @@ package dev.voidmark.client.render;
 
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
+import dev.voidmark.client.media.CoverArt;
 import dev.voidmark.client.media.MediaSession;
 import dev.voidmark.client.media.NowPlaying;
 import dev.voidmark.client.ui.HudEditorScreen;
@@ -112,25 +113,24 @@ public final class MusicHudRenderer {
 		}
 
 		GuiDraw.panel(graphics, 0, 0, WIDTH, h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
-		GuiDraw.rounded(graphics, 7, 7, 16, 16, 4, Theme.CARD);
-		GuiDraw.icon(graphics, font, ICON, 9, 9, live ? Theme.ACCENT : Theme.MUTED);
+		drawCover(graphics, font, track, live);
 
 		if (!live) {
-			GuiDraw.menu(graphics, font, HudLayout.editorOpen() ? "Music" : "Nothing playing", 28, 8, Theme.TEXT);
-			GuiDraw.small(graphics, font, ellipsize(font, MediaSession.hint(), WIDTH - 40, true), 28, 20, Theme.MUTED);
+			GuiDraw.menu(graphics, font, HudLayout.editorOpen() ? "Music" : "Nothing playing", 32, 8, Theme.TEXT);
+			GuiDraw.small(graphics, font, ellipsize(font, MediaSession.hint(), WIDTH - 44, true), 32, 20, Theme.MUTED);
 			clearHits();
 			graphics.pose().popMatrix();
 			return;
 		}
 
-		String title = ellipsize(font, track.title(), WIDTH - 86, false);
-		String artist = ellipsize(font, track.artistLine(), WIDTH - 86, true);
-		GuiDraw.menu(graphics, font, title, 28, 6, Theme.TEXT);
-		GuiDraw.small(graphics, font, artist, 28, 16, Theme.MUTED);
+		String title = ellipsize(font, track.title(), WIDTH - 90, false);
+		String artist = ellipsize(font, track.artistLine(), WIDTH - 90, true);
+		GuiDraw.menu(graphics, font, title, 32, 6, Theme.TEXT);
+		GuiDraw.small(graphics, font, artist, 32, 16, Theme.MUTED);
 		GuiDraw.small(graphics, font, track.sourceLabel(), WIDTH - 8 - GuiDraw.smallWidth(font, track.sourceLabel()), 6, Theme.ACCENT);
 
-		float barX = 28;
-		float barW = WIDTH - 36;
+		float barX = 32;
+		float barW = WIDTH - 40;
 		float barY = 29;
 		GuiDraw.rounded(graphics, barX, barY, barW, 3, 1.5f, Theme.TRACK);
 		float filled = Math.max(live ? 2f : 0f, barW * track.progress());
@@ -161,6 +161,17 @@ public final class MusicHudRenderer {
 		playHit = screenRect(x, y, scale, playX - 4, cy - 2, 18, 14);
 		nextHit = screenRect(x, y, scale, nextX - 4, cy - 2, 18, 14);
 		graphics.pose().popMatrix();
+	}
+
+	private static void drawCover(GuiGraphicsExtractor graphics, Font font, NowPlaying track, boolean live) {
+		CoverArt.bind(track);
+		GuiDraw.rounded(graphics, 6, 6, 20, 20, 4, Theme.CARD);
+		if (CoverArt.ready()) {
+			int size = CoverArt.size();
+			GuiDraw.blit(graphics, CoverArt.id(), 6, 6, 20, 20, 0f, 0f, size, size, size, size);
+			return;
+		}
+		GuiDraw.icon(graphics, font, ICON, 10, 10, live ? Theme.ACCENT : Theme.MUTED);
 	}
 
 	private static Rect screenRect(float originX, float originY, float scale, float lx, float ly, float lw, float lh) {

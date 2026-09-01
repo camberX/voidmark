@@ -11,8 +11,8 @@ final class LinuxNowPlaying {
 		}
 		String player = pick(listed);
 		String[] cmd = player == null
-			? new String[]{"playerctl", "metadata", "--format", "{{status}}|{{playerName}}|{{xesam:title}}|{{xesam:artist}}|{{mpris:length}}|{{position}}"}
-			: new String[]{"playerctl", "-p", player, "metadata", "--format", "{{status}}|{{playerName}}|{{xesam:title}}|{{xesam:artist}}|{{mpris:length}}|{{position}}"};
+			? new String[]{"playerctl", "metadata", "--format", "{{status}}|{{playerName}}|{{xesam:title}}|{{xesam:artist}}|{{mpris:length}}|{{position}}|{{mpris:artUrl}}"}
+			: new String[]{"playerctl", "-p", player, "metadata", "--format", "{{status}}|{{playerName}}|{{xesam:title}}|{{xesam:artist}}|{{mpris:length}}|{{position}}|{{mpris:artUrl}}"};
 		String meta = MediaProcesses.run(cmd, 280);
 		if (meta == null || meta.isBlank()) {
 			return NowPlaying.none();
@@ -39,12 +39,17 @@ final class LinuxNowPlaying {
 			positionMs = Math.round(seconds * 1000.0);
 		}
 		boolean playing = parts[0].trim().equalsIgnoreCase("Playing");
+		String cover = parts.length > 6 ? parts[6].trim() : "";
+		if ("(null)".equals(cover)) {
+			cover = "";
+		}
 		return new NowPlaying(
 			title,
 			artist,
 			"",
 			parts[1].trim(),
 			"playerctl",
+			cover,
 			playing,
 			positionMs,
 			durationMs,

@@ -74,6 +74,7 @@ final class WindowTitleNowPlaying {
 			"",
 			app,
 			"window",
+			"",
 			true,
 			0L,
 			0L,

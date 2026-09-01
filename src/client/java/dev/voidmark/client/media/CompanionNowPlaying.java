@@ -113,21 +113,25 @@ final class CompanionNowPlaying {
 			JsonObject root = rootEl.getAsJsonObject();
 			JsonObject player = object(root, "player");
 			JsonObject track = object(root, "track");
+			JsonObject info = object(root, "info");
 			if (player.has("hasSong") && !bool(player, "hasSong", true)) {
 				return NowPlaying.none();
 			}
 			String title = firstNonBlank(
 				text(track, "title", "song", "name", "videoTitle"),
-				text(root, "title", "song", "name", "videoTitle")
+				text(root, "title", "song", "name", "videoTitle"),
+				text(info, "name", "title")
 			);
 			if (title.isBlank()) {
 				return NowPlaying.none();
 			}
 			String artist = firstNonBlank(
-				text(track, "author", "artist", "artistsName"),
-				text(root, "author", "artist", "artistsName"),
+				text(track, "author", "artist", "artistsName", "artistName"),
+				text(root, "author", "artist", "artistsName", "artistName"),
+				text(info, "artistName", "artist"),
 				artists(root),
-				artists(track)
+				artists(track),
+				artists(info)
 			);
 			boolean paused = bool(player, "isPaused", false) || bool(root, "isPaused", false);
 			if (root.has("playing")) {
@@ -137,9 +141,10 @@ final class CompanionNowPlaying {
 			return new NowPlaying(
 				title,
 				artist,
-				firstNonBlank(text(track, "album"), text(root, "album")),
+				firstNonBlank(text(track, "album"), text(root, "album"), text(info, "albumName", "album")),
 				app,
 				kindOf(endpoint),
+				cover(track, root, info),
 				!paused,
 				positionMs(player, root),
 				durationMs(player, track, root),
@@ -295,6 +300,33 @@ final class CompanionNowPlaying {
 			if (value != null && !value.isBlank()) {
 				return value;
 			}
+		}
+		return "";
+	}
+
+	private static String cover(JsonObject track, JsonObject root, JsonObject info) {
+		return firstNonBlank(
+			text(track, "imageSrc", "thumbnailUrl", "thumbnail", "cover", "albumArt", "image", "albumCover", "coverUrl", "artworkUrl"),
+			text(root, "imageSrc", "thumbnailUrl", "thumbnail", "cover", "albumArt", "image", "albumCover", "coverUrl", "artworkUrl"),
+			text(info, "artworkUrl", "cover", "imageSrc", "thumbnailUrl"),
+			artworkUrl(track),
+			artworkUrl(root),
+			artworkUrl(info)
+		);
+	}
+
+	private static String artworkUrl(JsonObject json) {
+		if (json == null || !json.has("artwork")) {
+			return "";
+		}
+		try {
+			if (json.get("artwork").isJsonPrimitive()) {
+				return json.get("artwork").getAsString().trim();
+			}
+			if (json.get("artwork").isJsonObject()) {
+				return text(json.getAsJsonObject("artwork"), "url", "src", "uri");
+			}
+		} catch (Exception ignored) {
 		}
 		return "";
 	}
