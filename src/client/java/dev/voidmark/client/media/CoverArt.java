@@ -1,5 +1,9 @@
 package dev.voidmark.client.media;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.voidmark.Voidmark;
 import net.minecraft.client.Minecraft;
@@ -7,18 +11,27 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 
+import javax.imageio.ImageIO;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Locale;
 
 /**
  * Loads the current track's album art onto a dynamic GUI texture.
- * Accepts http(s) URLs, {@code file:} URIs, and local paths (Windows SMTC dump).
+ * Uses a provided URL/path when the player exposes one, otherwise looks the
+ * cover up from Deezer / iTunes using the title and artist.
  */
 public final class CoverArt {
 	private static final Identifier TEXTURE_ID = Voidmark.id("music_cover");
@@ -26,7 +39,7 @@ public final class CoverArt {
 	private static final int MAX_EDGE = 256;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
-		.connectTimeout(Duration.ofSeconds(4))
+		.connectTimeout(Duration.ofSeconds(6))
 		.build();
 
 	private static volatile String boundKey = "";
@@ -39,17 +52,26 @@ public final class CoverArt {
 	}
 
 	public static void bind(NowPlaying track) {
-		String cover = track == null || !track.hasCover() ? "" : track.cover().trim();
-		String title = track == null ? "" : nullToEmpty(track.title());
-		String artist = track == null ? "" : nullToEmpty(track.artist());
+		if (track == null || !track.present()) {
+			if (!boundKey.isEmpty()) {
+				boundKey = "";
+				ready = false;
+				texSize = 0;
+				generation++;
+			}
+			return;
+		}
+		String cover = track.hasCover() ? track.cover().trim() : "";
+		String title = nullToEmpty(track.title());
+		String artist = nullToEmpty(track.artist());
 		long stamp = stamp(cover);
 		String key = cover + "|" + title + "|" + artist + "|" + stamp;
 		long now = System.nanoTime();
 		if (key.equals(boundKey)) {
-			if (ready || cover.isEmpty()) {
+			if (ready) {
 				return;
 			}
-			if (now - lastTryNs < 1_000_000_000L) {
+			if (now - lastTryNs < 2_000_000_000L) {
 				return;
 			}
 		}
@@ -57,12 +79,13 @@ public final class CoverArt {
 		lastTryNs = now;
 		ready = false;
 		texSize = 0;
-		if (cover.isEmpty() || (cover.startsWith("data:") && !cover.startsWith("data:image"))) {
+		if (cover.startsWith("data:") && !cover.startsWith("data:image")) {
 			generation++;
 			return;
 		}
 		int gen = ++generation;
-		Util.nonCriticalIoPool().execute(() -> load(gen, cover));
+		String spec = cover;
+		Util.nonCriticalIoPool().execute(() -> load(gen, spec, title, artist));
 	}
 
 	public static boolean ready() {
@@ -77,16 +100,21 @@ public final class CoverArt {
 		return texSize;
 	}
 
-	private static void load(int gen, String spec) {
+	private static void load(int gen, String spec, String title, String artist) {
 		try {
-			byte[] bytes = fetch(spec);
-			if (bytes.length < 24 || bytes.length > MAX_BYTES) {
+			byte[] bytes = readSpec(spec);
+			if (!looksLikeImage(bytes)) {
+				String found = lookup(title, artist);
+				bytes = readSpec(found);
+			}
+			if (!looksLikeImage(bytes)) {
 				return;
 			}
 			NativeImage image;
 			try {
-				image = NativeImage.read(bytes);
+				image = decode(bytes);
 			} catch (Exception exception) {
+				Voidmark.LOGGER.debug("Cover art decode failed", exception);
 				return;
 			}
 			NativeImage square = square(image);
@@ -107,10 +135,32 @@ public final class CoverArt {
 					square.close();
 					ready = false;
 					texSize = 0;
+					Voidmark.LOGGER.debug("Cover art register failed", exception);
 				}
 			});
+		} catch (Exception exception) {
+			Voidmark.LOGGER.debug("Cover art load failed", exception);
+		}
+	}
+
+	private static NativeImage decode(byte[] bytes) throws Exception {
+		try {
+			return NativeImage.read(bytes);
 		} catch (Exception ignored) {
 		}
+		BufferedImage buf = ImageIO.read(new ByteArrayInputStream(bytes));
+		if (buf == null) {
+			throw new IllegalStateException("unreadable image");
+		}
+		BufferedImage argb = new BufferedImage(buf.getWidth(), buf.getHeight(), BufferedImage.TYPE_INT_ARGB);
+		Graphics2D graphics = argb.createGraphics();
+		graphics.drawImage(buf, 0, 0, null);
+		graphics.dispose();
+		ByteArrayOutputStream png = new ByteArrayOutputStream();
+		if (!ImageIO.write(argb, "png", png)) {
+			throw new IllegalStateException("png encode failed");
+		}
+		return NativeImage.read(png.toByteArray());
 	}
 
 	private static NativeImage square(NativeImage src) {
@@ -132,6 +182,191 @@ public final class CoverArt {
 		return out;
 	}
 
+	private static String lookup(String title, String artist) {
+		String a = title == null ? "" : title.trim();
+		String b = artist == null ? "" : artist.trim();
+		String found = deezer(a, b);
+		if (found.isBlank()) {
+			found = deezer(b, a);
+		}
+		if (found.isBlank()) {
+			found = itunes(a, b);
+		}
+		if (found.isBlank()) {
+			found = itunes(b, a);
+		}
+		return found;
+	}
+
+	private static String deezer(String title, String artist) {
+		String query = (title + " " + artist).trim();
+		if (query.length() < 3) {
+			return "";
+		}
+		try {
+			String body = get("https://api.deezer.com/search?limit=8&q=" + encode(query));
+			JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+			if (!root.has("data") || !root.get("data").isJsonArray()) {
+				return "";
+			}
+			return bestArtwork(root.getAsJsonArray("data"), title, artist, true);
+		} catch (Exception exception) {
+			return "";
+		}
+	}
+
+	private static String itunes(String title, String artist) {
+		String query = (title + " " + artist).trim();
+		if (query.length() < 3) {
+			return "";
+		}
+		for (String country : new String[]{"de", "us", "gb", "at", "ch"}) {
+			try {
+				String body = get("https://itunes.apple.com/search?entity=song&limit=8&country=" + country + "&term=" + encode(query));
+				JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+				if (!root.has("results") || !root.get("results").isJsonArray()) {
+					continue;
+				}
+				String art = bestArtwork(root.getAsJsonArray("results"), title, artist, false);
+				if (!art.isBlank()) {
+					return art;
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		return "";
+	}
+
+	private static String bestArtwork(JsonArray results, String title, String artist, boolean deezer) {
+		String best = "";
+		int bestScore = 0;
+		for (JsonElement el : results) {
+			if (!el.isJsonObject()) {
+				continue;
+			}
+			JsonObject row = el.getAsJsonObject();
+			String rowTitle;
+			String rowArtist;
+			String art;
+			if (deezer) {
+				rowTitle = text(row, "title", "title_short");
+				rowArtist = nested(row, "artist", "name");
+				art = firstNonBlank(
+					nested(row, "album", "cover_medium"),
+					nested(row, "album", "cover_big"),
+					nested(row, "album", "cover")
+				);
+			} else {
+				rowTitle = text(row, "trackName", "collectionName");
+				rowArtist = text(row, "artistName");
+				art = text(row, "artworkUrl100", "artworkUrl60");
+				if (!art.isBlank()) {
+					art = art.replace("100x100bb", "300x300bb").replace("60x60bb", "300x300bb");
+				}
+			}
+			if (art.isBlank()) {
+				continue;
+			}
+			int score = matchScore(rowTitle, rowArtist, title, artist);
+			if (score > bestScore) {
+				bestScore = score;
+				best = art;
+			}
+		}
+		return bestScore >= 3 ? best : "";
+	}
+
+	private static int matchScore(String rowTitle, String rowArtist, String title, String artist) {
+		String rt = norm(rowTitle);
+		String ra = norm(rowArtist);
+		String t = norm(title);
+		String a = norm(artist);
+		if (rt.isEmpty() && ra.isEmpty()) {
+			return 0;
+		}
+		int score = 0;
+		if (!t.isEmpty() && (rt.equals(t) || rt.contains(t) || t.contains(rt))) {
+			score += 4;
+		}
+		if (!a.isEmpty() && (ra.equals(a) || ra.contains(a) || a.contains(ra))) {
+			score += 4;
+		}
+		if (!t.isEmpty() && (ra.equals(t) || ra.contains(t) || t.contains(ra))) {
+			score += 3;
+		}
+		if (!a.isEmpty() && (rt.equals(a) || rt.contains(a) || a.contains(rt))) {
+			score += 3;
+		}
+		return score;
+	}
+
+	private static String nested(JsonObject row, String objectKey, String field) {
+		if (row == null || !row.has(objectKey) || !row.get(objectKey).isJsonObject()) {
+			return "";
+		}
+		return text(row.getAsJsonObject(objectKey), field);
+	}
+
+	private static String text(JsonObject json, String... keys) {
+		if (json == null) {
+			return "";
+		}
+		for (String key : keys) {
+			if (!json.has(key) || json.get(key).isJsonNull() || !json.get(key).isJsonPrimitive()) {
+				continue;
+			}
+			String value = json.get(key).getAsString().trim();
+			if (!value.isBlank()) {
+				return value;
+			}
+		}
+		return "";
+	}
+
+	private static String firstNonBlank(String... values) {
+		for (String value : values) {
+			if (value != null && !value.isBlank()) {
+				return value;
+			}
+		}
+		return "";
+	}
+
+	private static String norm(String value) {
+		if (value == null) {
+			return "";
+		}
+		return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+	}
+
+	private static String encode(String value) {
+		return URLEncoder.encode(value, StandardCharsets.UTF_8);
+	}
+
+	private static byte[] readSpec(String spec) {
+		if (spec == null || spec.isBlank()) {
+			return new byte[0];
+		}
+		try {
+			return fetch(spec);
+		} catch (Exception exception) {
+			return new byte[0];
+		}
+	}
+
+	private static boolean looksLikeImage(byte[] bytes) {
+		if (bytes == null || bytes.length < 24) {
+			return false;
+		}
+		int a = bytes[0] & 0xFF;
+		int b = bytes[1] & 0xFF;
+		return (a == 0xFF && b == 0xD8)
+			|| (a == 0x89 && b == 0x50)
+			|| (a == 0x47 && b == 0x49)
+			|| (a == 0x42 && b == 0x4D)
+			|| (a == 0x52 && b == 0x49);
+	}
+
 	private static byte[] fetch(String spec) throws Exception {
 		String value = expand(spec.trim());
 		if (value.startsWith("//")) {
@@ -141,18 +376,7 @@ public final class CoverArt {
 			return decodeDataUrl(value);
 		}
 		if (value.startsWith("http://") || value.startsWith("https://")) {
-			HttpRequest request = HttpRequest.newBuilder(URI.create(value))
-				.timeout(Duration.ofSeconds(8))
-				.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-				.header("Accept", "image/avif,image/webp,image/apng,image/jpeg,image/png,image/*,*/*;q=0.8")
-				.header("Referer", "https://music.youtube.com/")
-				.GET()
-				.build();
-			HttpResponse<byte[]> response = HTTP.send(request, HttpResponse.BodyHandlers.ofByteArray());
-			if (response.statusCode() < 200 || response.statusCode() >= 300) {
-				throw new IllegalStateException("HTTP " + response.statusCode());
-			}
-			return response.body();
+			return getBytes(value);
 		}
 		Path path;
 		if (value.regionMatches(true, 0, "file:", 0, 5)) {
@@ -164,6 +388,33 @@ public final class CoverArt {
 			throw new IllegalStateException("Missing cover file");
 		}
 		return Files.readAllBytes(path);
+	}
+
+	private static String get(String url) throws Exception {
+		return HTTP.send(imageRequest(url), HttpResponse.BodyHandlers.ofString()).body();
+	}
+
+	private static byte[] getBytes(String url) throws Exception {
+		HttpResponse<byte[]> response = HTTP.send(imageRequest(url), HttpResponse.BodyHandlers.ofByteArray());
+		if (response.statusCode() < 200 || response.statusCode() >= 300) {
+			throw new IllegalStateException("HTTP " + response.statusCode());
+		}
+		byte[] body = response.body();
+		if (body.length > MAX_BYTES) {
+			throw new IllegalStateException("Cover too large");
+		}
+		return body;
+	}
+
+	private static HttpRequest imageRequest(String url) {
+		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
+			.timeout(Duration.ofSeconds(8))
+			.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+			.GET();
+		if (url.contains("googleusercontent") || url.contains("ytimg") || url.contains("ggpht")) {
+			builder.header("Referer", "https://music.youtube.com/");
+		}
+		return builder.build();
 	}
 
 	private static byte[] decodeDataUrl(String value) {
@@ -190,7 +441,7 @@ public final class CoverArt {
 			Path path;
 			if (spec.regionMatches(true, 0, "file:", 0, 5)) {
 				path = Path.of(URI.create(spec.trim()));
-			} else if (spec.startsWith("http://") || spec.startsWith("https://") || spec.startsWith("//")) {
+			} else if (spec.startsWith("http://") || spec.startsWith("https://") || spec.startsWith("//") || spec.startsWith("data:")) {
 				return 0L;
 			} else {
 				path = Path.of(spec.trim());
