@@ -1,5 +1,6 @@
 package dev.voidmark.client.mixin;
 
+import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.visual.NickHider;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -13,6 +14,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class EntityRendererMixin {
 	@Inject(method = "extractRenderState", at = @At("RETURN"))
 	private void voidmark$nickTag(Entity entity, EntityRenderState state, float tickDelta, CallbackInfo ci) {
+		if (NametagRenderer.hidingVanilla(entity)) {
+			state.nameTag = null;
+			state.scoreText = null;
+			return;
+		}
 		if (state.nameTag != null) {
 			state.nameTag = NickHider.rewrite(state.nameTag);
 		}

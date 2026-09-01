@@ -135,17 +135,15 @@ public final class MusicHudRenderer {
 		GuiDraw.small(graphics, font, artist, textX, 16, Theme.MUTED);
 		GuiDraw.small(graphics, font, source, WIDTH - 8 - sourceW, 6, Theme.ACCENT);
 
+		String clock = track.clockLine();
+		float clockW = GuiDraw.smallWidth(font, clock);
 		float barX = textX;
-		float barW = WIDTH - textX - 8;
-		float barY = 29;
+		float barW = Math.max(24f, WIDTH - textX - clockW - 14);
+		float barY = 30;
 		GuiDraw.rounded(graphics, barX, barY, barW, 3, 1.5f, Theme.TRACK);
 		float filled = Math.max(live ? 2f : 0f, barW * track.progress());
 		GuiDraw.rounded(graphics, barX, barY, filled, 3, 1.5f, Theme.ACCENT);
-
-		if (track.durationMs() > 0L) {
-			String clock = NowPlaying.clock(track.displayPositionMs()) + "/" + NowPlaying.clock(track.durationMs());
-			GuiDraw.small(graphics, font, clock, barX + barW - GuiDraw.smallWidth(font, clock), 33, Theme.MUTED);
-		}
+		GuiDraw.small(graphics, font, clock, barX + barW + 5, barY - 3, Theme.TEXT);
 
 		boolean chat = interactive();
 		int control = chat ? Theme.TEXT : Theme.MUTED;

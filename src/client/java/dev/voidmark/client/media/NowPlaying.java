@@ -228,6 +228,14 @@ public record NowPlaying(
 		return Math.max(0L, pos);
 	}
 
+	public String clockLine() {
+		String elapsed = clock(displayPositionMs());
+		if (durationMs > 0L) {
+			return elapsed + "/" + clock(durationMs);
+		}
+		return elapsed;
+	}
+
 	public float progress() {
 		if (durationMs <= 0L) {
 			return playing ? 0.08f : 0f;

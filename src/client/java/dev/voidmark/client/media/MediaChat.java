@@ -1,6 +1,6 @@
 package dev.voidmark.client.media;
 
-import net.minecraft.ChatFormatting;
+import dev.voidmark.client.ui.Theme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.CommonComponents;
@@ -50,28 +50,17 @@ public final class MediaChat {
 		if (client.player == null || client.gui == null) {
 			return false;
 		}
-		MutableComponent line = Component.literal("NOW PLAYING").withStyle(ChatFormatting.AQUA)
-			.append(Component.literal(" - ").withStyle(ChatFormatting.DARK_GRAY))
-			.append(Component.literal(track.title()).withStyle(ChatFormatting.WHITE));
-		tell(line);
+		tell(nowPlayingLine(track));
 		return true;
 	}
 
 	public static int nowPlaying() {
 		NowPlaying track = MediaSession.current();
 		if (!track.present()) {
-			tell(Component.literal("Nothing playing. Start Spotify or YouTube Music, then open chat and click the HUD.")
-				.withStyle(ChatFormatting.GRAY));
+			tell(muted("Nothing playing. Start Spotify or YouTube Music, then open chat and click the HUD."));
 			return 1;
 		}
-		MutableComponent line = Component.literal("").withStyle(ChatFormatting.WHITE)
-			.append(Component.literal("VOIDMARK  ").withStyle(ChatFormatting.AQUA))
-			.append(Component.literal(track.title()).withStyle(ChatFormatting.WHITE));
-		if (!track.artistLine().isBlank()) {
-			line.append(Component.literal("  ·  " + track.artistLine()).withStyle(ChatFormatting.GRAY));
-		}
-		line.append(Component.literal("  " + track.sourceLabel()).withStyle(ChatFormatting.DARK_AQUA));
-		tell(line);
+		tell(nowPlayingLine(track));
 		tell(controls(track));
 		return 1;
 	}
@@ -80,45 +69,86 @@ public final class MediaChat {
 		NowPlaying before = MediaSession.current();
 		boolean ok = MediaSession.playPause();
 		if (!ok) {
-			tell(Component.literal("Could not reach the media player.").withStyle(ChatFormatting.RED));
+			tell(Component.literal("Could not reach the media player.").withStyle(style(Theme.DANGER)));
 			return 0;
 		}
 		boolean playing = before.present() && !before.playing();
-		tell(Component.literal(playing ? "Playing" : "Paused")
-			.withStyle(playing ? ChatFormatting.GREEN : ChatFormatting.GRAY)
-			.append(before.present() ? Component.literal("  " + before.title()).withStyle(ChatFormatting.WHITE) : CommonComponents.EMPTY));
+		MutableComponent line = brand()
+			.append(sep())
+			.append(Component.literal(playing ? "PLAYING" : "PAUSED").withStyle(style(playing ? Theme.ACCENT : Theme.MUTED).withBold(true)));
+		if (before.present()) {
+			line.append(Component.literal("  " + before.title()).withStyle(style(Theme.TEXT)));
+		}
+		tell(line);
 		return 1;
 	}
 
 	public static int skip(boolean next) {
 		boolean ok = next ? MediaSession.next() : MediaSession.previous();
 		if (!ok) {
-			tell(Component.literal("Could not skip.").withStyle(ChatFormatting.RED));
+			tell(Component.literal("Could not skip.").withStyle(style(Theme.DANGER)));
 			return 0;
 		}
-		tell(Component.literal(next ? "Next track" : "Previous track").withStyle(ChatFormatting.AQUA));
+		tell(brand()
+			.append(sep())
+			.append(Component.literal(next ? "NEXT TRACK" : "PREVIOUS TRACK").withStyle(style(Theme.ACCENT).withBold(true))));
 		return 1;
 	}
 
 	public static Component controls(NowPlaying track) {
 		boolean playing = track.playing();
-		return Component.literal("")
-			.append(button("«", "/vm music prev", "Previous"))
-			.append(Component.literal("  "))
-			.append(button(playing ? "Pause" : "Play", "/vm music play", playing ? "Pause" : "Play"))
-			.append(Component.literal("  "))
-			.append(button("»", "/vm music next", "Next"))
-			.append(Component.literal("   Open chat and click the HUD, or click these.")
-				.withStyle(ChatFormatting.DARK_GRAY));
+		return Component.empty()
+			.append(button("  «  ", "/vm music prev", "Previous"))
+			.append(Component.literal(" "))
+			.append(button(playing ? "  Pause  " : "  Play  ", "/vm music play", playing ? "Pause" : "Play"))
+			.append(Component.literal(" "))
+			.append(button("  »  ", "/vm music next", "Next"))
+			.append(Component.literal("   HUD clicks work in chat").withStyle(style(Theme.MUTED)));
+	}
+
+	private static MutableComponent nowPlayingLine(NowPlaying track) {
+		MutableComponent line = brand()
+			.append(sep())
+			.append(Component.literal("NOW PLAYING").withStyle(style(Theme.ACCENT).withBold(true)))
+			.append(Component.literal("  " + track.title()).withStyle(style(Theme.TEXT)));
+		if (!track.artistLine().isBlank()) {
+			line.append(Component.literal("  ·  " + track.artistLine()).withStyle(style(Theme.MUTED)));
+		}
+		line.append(Component.literal("  " + track.clockLine()).withStyle(style(Theme.HEADER)));
+		line.append(Component.literal("  " + track.sourceLabel()).withStyle(style(Theme.ACCENT)));
+		String hover = track.title();
+		if (!track.artistLine().isBlank()) {
+			hover += "\n" + track.artistLine();
+		}
+		if (!track.album().isBlank()) {
+			hover += "\n" + track.album();
+		}
+		hover += "\n" + track.clockLine() + "  " + track.sourceLabel();
+		return line.withStyle(Style.EMPTY.withHoverEvent(new HoverEvent.ShowText(Component.literal(hover))));
+	}
+
+	private static MutableComponent brand() {
+		return Component.literal("VOIDMARK").withStyle(style(Theme.ACCENT).withBold(true));
+	}
+
+	private static MutableComponent sep() {
+		return Component.literal("  │  ").withStyle(style(Theme.LINE));
+	}
+
+	private static MutableComponent muted(String value) {
+		return Component.literal(value).withStyle(style(Theme.MUTED));
 	}
 
 	private static MutableComponent button(String label, String command, String hover) {
-		return Component.literal("[" + label + "]").withStyle(
-			Style.EMPTY
-				.withColor(ChatFormatting.AQUA)
+		return Component.literal(label).withStyle(
+			style(Theme.ACCENT)
 				.withClickEvent(new ClickEvent.RunCommand(command))
 				.withHoverEvent(new HoverEvent.ShowText(Component.literal(hover)))
 		);
+	}
+
+	private static Style style(int color) {
+		return Style.EMPTY.withColor(color & 0xFFFFFF);
 	}
 
 	private static void tell(Component message) {

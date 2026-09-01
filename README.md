@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.54.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.55.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -17,7 +17,7 @@ Java **25** is required.
 
 - `/voidmark` or `/vm` opens the config screen. Drag the title bar or top chrome to move it; the position and last tab are saved to config.
 - `/vm edit` or `/voidmark edit` opens the item id window. It shows the item you are holding, with its `minecraft:` id or Skyblock `sb:` id in a text box and a large preview above it. Typing another id reskins that item on your client: hand, hotbar, and inventory all show the new look. The server still has the real item. Vanilla ids look like `minecraft:diamond_sword`; Skyblock ids look like `sb:HYPERION`. Tab or click a suggestion to fill it. Type the original id again to clear the reskin.
-- The **Music HUD** (Display tab, or the bell) shows the song that is playing in Spotify or YouTube Music: cover art, title, artist, source, and a progress bar. When the track changes, chat shows a client-side `NOW PLAYING -` line with the title. Open Minecraft chat (`T`) to click **previous / play-pause / next** on the HUD. You can also type `.np` `.play` `.pause` `.skip` `.prev` in chat (those stay client-side) or `/vm music`. On Windows it reads the system now-playing session (including SMTC album art), Spotify / YouTube Music window titles, and local companion APIs (YouTube Music Desktop on 9863, th-ch YouTube Music on 26558). Linux uses `playerctl` metadata and `mpris:artUrl`.
+- The **Music HUD** (Display tab, or the bell) shows the song that is playing in Spotify or YouTube Music: cover art, title, artist, source, a progress bar, and elapsed/duration on the right of the bar (`1:23/3:45`). When the track changes, chat shows a styled `VOIDMARK │ NOW PLAYING` line with title, artist, time, and source. Open Minecraft chat (`T`) to click **previous / play-pause / next** on the HUD. You can also type `.np` `.play` `.pause` `.skip` `.prev` in chat (those stay client-side) or `/vm music`. On Windows it reads the system now-playing session (including SMTC album art), Spotify / YouTube Music window titles, and local companion APIs (YouTube Music Desktop on 9863, th-ch YouTube Music on 26558). Linux uses `playerctl` metadata and `mpris:artUrl`.
 - Right Shift is the default keybind (Controls → Voidmark). Press it again to close (the menu eases out).
 - `/voidmark toggle` flips node markers without opening the menu.
 - Toolbar **HUD** opens the HUD editor: drag any overlay (inventory, watermark, nodes) and every custom vanilla HUD piece (hotbar, bars, scoreboard, boss, effects, held item). They snap to screen axes and to each other; hold **Shift** to move freely. Click a panel, then drag the **Scale** bar or scroll the mouse wheel (50%–200%). **Reset** on the HUD tab restores default positions.
@@ -28,7 +28,7 @@ Java **25** is required.
 - **HUD** (HUD tab, or the bell) restyles vanilla HUD layers in the same pane/accent look as the click GUI. Each piece has its own switch. Turning one on hides that vanilla layer so they do not stack: hotbar, health, hunger, armor, air, experience, mount health, scoreboard, boss bar, status effects, and the held-item name. Turn a switch off to get the original Minecraft HUD back. Drag and scale each piece in the HUD editor. The inventory HUD on the Inventory tab is a separate overlay, not the hotbar replacement.
 - **Inventory HUD** (Inventory tab, or the bell) draws your armor, storage, and hotbar on-screen. Hotbar, armor/offhand, and the `n/41` count can each be toggled there. Move and scale it in the HUD editor. It reads the live inventory every frame. Hide it with F1; it also hides while a chest or the vanilla inventory is open.
 - The **Cape** tab previews a custom cape. Paste a PNG URL or click **Local file...** for a native file picker. It is client-side on you only. Vanilla **64×32** (and 128×64, 256×128, …) cape templates are used as-is. Any other PNG, including photos like 352×272, is fitted into the cape’s front and back faces so it does not stretch into bands.
-- **Nick** replaces your username in chat, tab, the scoreboard, and nametags. `&6` `&l` `&r` (and the rest of the legacy codes) work in the input; the preview under it is what other HUD text will look like.
+- **Nick** replaces your username in chat, tab, the scoreboard, and nametags. `&6` `&l` `&r` (and the rest of the legacy codes) work in the input; the preview under it is what other HUD text will look like. The same tab has **Nametags**: Voidmark-styled name plates that keep drawing past vanilla’s 64-block cutoff (range 64–256m). Optional distance text and through-walls. Vanilla tags are hidden while this is on so they do not stack.
 
 ### Visuals → World
 
@@ -58,7 +58,7 @@ Markers only run in Skyblock by default. Enable **Force enable** to test in sing
 | HUD | Custom vanilla HUD: hotbar, bars, scoreboard, boss, effects, held item |
 | Inventory | Inventory HUD: enable, hotbar, armor, item count |
 | Status | Hypixel / Skyblock / The End, live FPS and ping |
-| Nick | Hide/replace your username with `&` color codes |
+| Nick | Hide/replace your username with `&` color codes; long-range nametags |
 | Cape | Custom cape from a PNG URL or a local file |
 
 Config is saved to `.minecraft/config/voidmark.json`, including click-GUI position and the last tab you had open.

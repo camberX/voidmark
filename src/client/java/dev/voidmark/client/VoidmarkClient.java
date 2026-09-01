@@ -15,6 +15,7 @@ import dev.voidmark.client.media.MediaChat;
 import dev.voidmark.client.media.MediaSession;
 import dev.voidmark.client.render.InventoryHudRenderer;
 import dev.voidmark.client.render.MusicHudRenderer;
+import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.render.NodeHudRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.VanillaHud;
@@ -52,6 +53,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		InventoryHudRenderer.init();
 		NodeHudRenderer.init();
 		MusicHudRenderer.init();
+		NametagRenderer.init();
 		VanillaHud.init();
 		MediaSession.init();
 

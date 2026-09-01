@@ -104,6 +104,10 @@ public final class VoidmarkConfig {
 	public String capePath = "";
 	public boolean nickEnabled = false;
 	public String nick = "";
+	public boolean nametagsEnabled = true;
+	public boolean nametagThroughWalls = false;
+	public boolean nametagDistance = true;
+	public int nametagRange = 128;
 	public java.util.List<ItemSkin> itemSkins = new java.util.ArrayList<>();
 
 	private VoidmarkConfig() {
@@ -160,6 +164,7 @@ public final class VoidmarkConfig {
 				if (loaded.nick == null) {
 					loaded.nick = "";
 				}
+				loaded.nametagRange = clamp(loaded.nametagRange <= 0 ? 128 : loaded.nametagRange, 64, 256);
 				if (loaded.itemSkins == null) {
 					loaded.itemSkins = new java.util.ArrayList<>();
 				}

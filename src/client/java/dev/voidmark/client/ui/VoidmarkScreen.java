@@ -123,6 +123,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Ping", Tab.STATUS, "Stats"),
 		new SearchEntry("Hypixel", Tab.STATUS, "Server"),
 		new SearchEntry("Nick hider", Tab.NICK, "Name"),
+		new SearchEntry("Nametags", Tab.NICK, "Players"),
 		new SearchEntry("Cape", Tab.CAPE, "Texture")
 	};
 
@@ -700,6 +701,10 @@ public class VoidmarkScreen extends Screen {
 			case NICK -> {
 				config.nickEnabled = false;
 				config.nick = "";
+				config.nametagsEnabled = true;
+				config.nametagThroughWalls = false;
+				config.nametagDistance = true;
+				config.nametagRange = 128;
 			}
 			case CAPE -> {
 				capeUrlDraft = "";
@@ -903,10 +908,11 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(4), "Overlay");
+				y = featureCard(graphics, font, right, top, col, cardHeight(5), "Overlay");
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Music HUD", config.musicHudEnabled, v -> config.musicHudEnabled = v);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Nametags", config.nametagsEnabled, v -> config.nametagsEnabled = v);
 				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
 			}
 			case HUD -> {
@@ -954,12 +960,18 @@ public class VoidmarkScreen extends Screen {
 				GuiDraw.menu(graphics, font, "Right Shift", rx, y + 28, Theme.HEADER);
 			}
 			case NICK -> {
-				float full = contentW();
-				float y = featureCard(graphics, font, left, top, full, cardHeight(2), "Hider");
-				y = toggle(graphics, font, left + CARD_PAD, y, full - CARD_PAD * 2, mouseX, mouseY, "Replace my name", config.nickEnabled, v -> config.nickEnabled = v);
-				GuiDraw.small(graphics, font, "Chat, tab, scoreboard, nametags. Use &6 &l codes.", left + CARD_PAD, y + 2, Theme.MUTED);
+				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Nametags");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.nametagsEnabled, v -> config.nametagsEnabled = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.nametagThroughWalls, v -> config.nametagThroughWalls = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Show distance", config.nametagDistance, v -> config.nametagDistance = v);
+				slider(graphics, font, ix, y, iw, "Range", config.nametagRange + "m", (config.nametagRange - 64) / 192f, v -> config.nametagRange = VoidmarkConfig.clamp(64 + Math.round(v * 192f), 64, 256));
 
-				float inputY = top + cardHeight(2) + 8;
+				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Hider");
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Replace my name", config.nickEnabled, v -> config.nickEnabled = v);
+				GuiDraw.small(graphics, font, "Chat, tab, scoreboard. Use &6 &l.", rx, y + 2, Theme.MUTED);
+
+				float full = contentW();
+				float inputY = top + cardHeight(4) + 8;
 				nickFieldX = left;
 				nickFieldY = inputY;
 				nickFieldW = full;
@@ -1248,7 +1260,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.54");
+			.orElse("1.1.55");
 	}
 
 	@Override
