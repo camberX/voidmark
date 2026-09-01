@@ -118,6 +118,7 @@ public final class VoidmarkConfig {
 	public float nametagScale = 1.0f;
 	public boolean mobGlowEnabled = false;
 	public boolean mobGlowThroughWalls = true;
+	public boolean blockOutlineGlow = true;
 	public String mobGlowId = "";
 	public java.util.List<String> mobGlowIds = new java.util.ArrayList<>();
 	public float mobGlowSize = 0.48f;

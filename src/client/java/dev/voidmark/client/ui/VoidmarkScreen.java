@@ -100,6 +100,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Aspect ratio", Tab.VIEW, "Camera"),
 		new SearchEntry("Custom fog", Tab.FOG, "Fog"),
 		new SearchEntry("Mob glow", Tab.MOBS, "ESP"),
+		new SearchEntry("Block outline", Tab.MOBS, "ESP"),
 		new SearchEntry("Mobs", Tab.MOBS, "ESP"),
 		new SearchEntry("Markers", Tab.MARKERS, "Nodes"),
 		new SearchEntry("Filled box", Tab.DISPLAY, "ESP"),
@@ -410,9 +411,10 @@ public class VoidmarkScreen extends Screen {
 		VoidmarkConfig config = VoidmarkConfig.get();
 		config.normalizeMobGlowIds();
 
-		float y = featureCard(graphics, font, left, top, col, cardHeight(6), "Glow");
+		float y = featureCard(graphics, font, left, top, col, cardHeight(7), "Glow");
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.mobGlowEnabled, v -> config.mobGlowEnabled = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.mobGlowThroughWalls, v -> config.mobGlowThroughWalls = v);
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Block outline", config.blockOutlineGlow, v -> config.blockOutlineGlow = v);
 		y = slider(graphics, font, ix, y, iw, "Size", String.format(Locale.ROOT, "%.0f", config.mobGlowSize * 100), (config.mobGlowSize - 0.12f) / 1.08f, v -> config.mobGlowSize = VoidmarkConfig.clamp(0.12f + v * 1.08f, 0.12f, 1.20f));
 		y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.mobGlowOpacity * 100) + "%", (config.mobGlowOpacity - 0.15f) / 0.75f, v -> config.mobGlowOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
 		y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
@@ -498,8 +500,8 @@ public class VoidmarkScreen extends Screen {
 		}
 
 		int nearby = config.mobGlowEnabled ? MobGlowRenderer.nearbyCount() : 0;
-		GuiDraw.small(graphics, font, nearby == 0 ? "None nearby" : nearby + " nearby", ix + 1, top + cardHeight(6) + 6, Theme.MUTED);
-		GuiDraw.small(graphics, font, "Click a type to add it, again to drop it.", ix + 1, top + cardHeight(6) + 16, Theme.MUTED);
+		GuiDraw.small(graphics, font, nearby == 0 ? "None nearby" : nearby + " nearby", ix + 1, top + cardHeight(7) + 6, Theme.MUTED);
+		GuiDraw.small(graphics, font, "Click a type to add it, again to drop it.", ix + 1, top + cardHeight(7) + 16, Theme.MUTED);
 	}
 
 	private void drawCapeTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
@@ -763,6 +765,7 @@ public class VoidmarkScreen extends Screen {
 			case MOBS -> {
 				config.mobGlowEnabled = false;
 				config.mobGlowThroughWalls = true;
+				config.blockOutlineGlow = true;
 				config.mobGlowId = "";
 				config.mobGlowIds = new ArrayList<>();
 				config.mobGlowSize = 0.48f;
@@ -1400,7 +1403,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.75");
+			.orElse("1.1.76");
 	}
 
 	@Override
