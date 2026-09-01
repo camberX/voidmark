@@ -58,6 +58,8 @@ public final class VoidmarkConfig {
 	public boolean musicHudEnabled = true;
 	public boolean musicHideIdle = false;
 	public boolean rawmatsHudEnabled = true;
+	public boolean miningHudEnabled = true;
+	public boolean miningAbilityAlert = true;
 	public boolean rawmatsEnchanted = false;
 	public String rawmatsItemId = "";
 	public boolean inventoryHudEnabled = true;
@@ -92,6 +94,7 @@ public final class VoidmarkConfig {
 	public float hudNodesScale = 1.0f;
 	public float hudMusicScale = 1.0f;
 	public float hudRawmatsScale = 1.0f;
+	public float hudMiningScale = 1.0f;
 	public float hudInventoryX = -1f;
 	public float hudInventoryY = -1f;
 	public float hudWatermarkX = -1f;
@@ -102,6 +105,8 @@ public final class VoidmarkConfig {
 	public float hudMusicY = -1f;
 	public float hudRawmatsX = -1f;
 	public float hudRawmatsY = -1f;
+	public float hudMiningX = -1f;
+	public float hudMiningY = -1f;
 	public float menuX = -1f;
 	public float menuY = -1f;
 	public boolean menuPlaced = false;
@@ -245,6 +250,7 @@ public final class VoidmarkConfig {
 				loaded.hudNodesScale = clampHudScale(loaded.hudNodesScale);
 				loaded.hudMusicScale = clampHudScale(loaded.hudMusicScale);
 				loaded.hudRawmatsScale = clampHudScale(loaded.hudRawmatsScale);
+				loaded.hudMiningScale = clampHudScale(loaded.hudMiningScale);
 				loaded.slotHotbar = hudSlot(loaded.slotHotbar);
 				loaded.slotHealth = hudSlot(loaded.slotHealth);
 				loaded.slotHunger = hudSlot(loaded.slotHunger);
@@ -345,7 +351,7 @@ public final class VoidmarkConfig {
 		}
 		String name = tab.trim().toUpperCase(java.util.Locale.ROOT);
 		return switch (name) {
-			case "WORLD", "VIEW", "FOG", "MOBS", "MARKERS", "DISPLAY", "HUD", "STATUS", "INVENTORY", "NICK", "CAPE" -> name;
+			case "WORLD", "VIEW", "FOG", "MOBS", "MARKERS", "MINING", "DISPLAY", "HUD", "STATUS", "INVENTORY", "NICK", "CAPE" -> name;
 			default -> "WORLD";
 		};
 	}

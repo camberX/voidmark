@@ -1,6 +1,7 @@
 package dev.voidmark.client.mixin;
 
 import dev.voidmark.client.visual.NickHider;
+import dev.voidmark.client.mining.MiningTracker;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
@@ -16,6 +17,8 @@ public class ChatComponentMixin {
 		ordinal = 0
 	)
 	private Component voidmark$nick(Component message) {
-		return NickHider.rewrite(message);
+		Component rewritten = NickHider.rewrite(message);
+		MiningTracker.onChat(rewritten);
+		return rewritten;
 	}
 }

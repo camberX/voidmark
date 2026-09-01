@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.voidmark.client.config.UnloadState;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
+import dev.voidmark.client.mining.MiningTracker;
 import dev.voidmark.client.node.EnderNodeTracker;
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.HudStats;
@@ -69,6 +70,7 @@ public class VoidmarkScreen extends Screen {
 		FOG("Fog", Group.VISUALS),
 		MOBS("Mobs", Group.VISUALS),
 		MARKERS("Markers", Group.NODES),
+		MINING("Mining", Group.NODES),
 		DISPLAY("Display", Group.NODES),
 		HUD("HUD", Group.NODES),
 		STATUS("Status", Group.MISC),
@@ -103,6 +105,10 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Block outline", Tab.MOBS, "ESP"),
 		new SearchEntry("Mobs", Tab.MOBS, "ESP"),
 		new SearchEntry("Markers", Tab.MARKERS, "Nodes"),
+		new SearchEntry("Mining HUD", Tab.MINING, "Mining"),
+		new SearchEntry("Commissions", Tab.MINING, "Mining"),
+		new SearchEntry("Pickaxe ability", Tab.MINING, "Mining"),
+		new SearchEntry("Ability alert", Tab.MINING, "Mining"),
 		new SearchEntry("Filled box", Tab.DISPLAY, "ESP"),
 		new SearchEntry("Watermark", Tab.DISPLAY, "HUD"),
 		new SearchEntry("Node HUD", Tab.DISPLAY, "HUD"),
@@ -651,6 +657,7 @@ public class VoidmarkScreen extends Screen {
 			case FOG -> MenuFont.CLOUD;
 			case MOBS -> MenuFont.MOB;
 			case MARKERS -> MenuFont.CUBE;
+			case MINING -> MenuFont.CUBE;
 			case DISPLAY -> MenuFont.MONITOR;
 			case HUD -> MenuFont.HUD;
 			case STATUS -> MenuFont.SIGNAL;
@@ -782,6 +789,13 @@ public class VoidmarkScreen extends Screen {
 				config.particleDetection = true;
 				config.scanRadius = 48;
 			}
+			case MINING -> {
+				config.miningHudEnabled = true;
+				config.miningAbilityAlert = true;
+				config.hudMiningX = -1f;
+				config.hudMiningY = -1f;
+				config.hudMiningScale = 1.0f;
+			}
 			case DISPLAY -> {
 				config.boxFill = true;
 				config.boxOutline = true;
@@ -806,6 +820,10 @@ public class VoidmarkScreen extends Screen {
 				config.hudRawmatsX = -1f;
 				config.hudRawmatsY = -1f;
 				config.hudRawmatsScale = 1.0f;
+				config.miningHudEnabled = true;
+				config.hudMiningX = -1f;
+				config.hudMiningY = -1f;
+				config.hudMiningScale = 1.0f;
 				config.colorRgb = 0x2FB5FF;
 			}
 			case HUD -> {
@@ -935,7 +953,7 @@ public class VoidmarkScreen extends Screen {
 	private void drawBell(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		bellX = contentX() + contentW() - PANEL_W;
 		bellY = windowY + TOOLBAR_H + 2;
-		float h = 240;
+		float h = 256;
 		GuiDraw.panel(graphics, bellX, bellY, PANEL_W, h * Math.max(0.2f, bellT), 8, Anim.fade(Theme.PANEL, bellT), Theme.ACCENT);
 		if (bellT < 0.85f) {
 			return;
@@ -949,6 +967,7 @@ public class VoidmarkScreen extends Screen {
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Music", config.musicHudEnabled, v -> config.musicHudEnabled = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Raw mats", config.rawmatsHudEnabled, v -> config.rawmatsHudEnabled = v);
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mining", config.miningHudEnabled, v -> config.miningHudEnabled = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "FPS", config.watermarkFps, v -> config.watermarkFps = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ping", config.watermarkPing, v -> config.watermarkPing = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Clock", config.watermarkTime, v -> config.watermarkTime = v);
@@ -1038,6 +1057,19 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Block scan", config.blockScan, v -> config.blockScan = v);
 				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Particle hints", config.particleDetection, v -> config.particleDetection = v);
 			}
+			case MINING -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(2), "Main");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mining HUD", config.miningHudEnabled, v -> config.miningHudEnabled = v);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ability alert", config.miningAbilityAlert, v -> config.miningAbilityAlert = v);
+
+				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 54 + CARD_PAD, "Live");
+				var snap = MiningTracker.snapshot();
+				GuiDraw.menu(graphics, font, snap.ability(), rx, y + 2, Theme.TEXT);
+				GuiDraw.menu(graphics, font, snap.abilityReady() ? "Ready" : snap.abilityLabel(), rx, y + 14, snap.abilityReady() ? Theme.ACCENT : Theme.MUTED);
+				String jobs = snap.commissions().isEmpty() ? "No commissions" : snap.commissions().size() + " commission" + (snap.commissions().size() == 1 ? "" : "s");
+				GuiDraw.menu(graphics, font, jobs, rx, y + 28, Theme.MUTED);
+				GuiDraw.small(graphics, font, "Move this HUD from the toolbar editor.", rx, y + 42, Theme.MUTED);
+			}
 			case DISPLAY -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(6), "Esp");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Filled box", config.boxFill, v -> config.boxFill = v);
@@ -1047,11 +1079,12 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(7), "Overlay");
+				y = featureCard(graphics, font, right, top, col, cardHeight(8), "Overlay");
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Music HUD", config.musicHudEnabled, v -> config.musicHudEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Raw mats HUD", config.rawmatsHudEnabled, v -> config.rawmatsHudEnabled = v);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Mining HUD", config.miningHudEnabled, v -> config.miningHudEnabled = v);
 				y = cycle(graphics, font, rx, y, iw, mouseX, mouseY, "Materials", config.rawmatsModeLabel(), config::cycleRawmatsMode);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Nametags", config.nametagsEnabled, v -> config.nametagsEnabled = v);
 				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
@@ -1403,7 +1436,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.77");
+			.orElse("1.1.78");
 	}
 
 	@Override
