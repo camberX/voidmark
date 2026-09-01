@@ -135,7 +135,7 @@ function Kind-App([string]$id) {
 	$lower = ([string]$id).ToLowerInvariant()
 	if ($lower -match 'spotify') { return 'spotify' }
 	if ($lower -match 'youtubemusic|youtube\.music|youtube-music|ytm|cider') { return 'ytm' }
-	if ($lower -match 'chrome|msedge|brave|firefox|opera|vivaldi') { return 'browser' }
+	if ($lower -match 'edge|chrome|brave|firefox|opera|vivaldi') { return 'browser' }
 	if ($lower -match 'electron') { return 'ytm' }
 	return 'windows'
 }
@@ -146,7 +146,7 @@ function Score-App([string]$id) {
 	if ($lower -match 'youtubemusic|youtube\.music|youtube-music|ytm|cider') { return 110 }
 	if ($lower -match 'youtube') { return 90 }
 	if ($lower -match 'electron|music') { return 70 }
-	if ($lower -match 'chrome|msedge|brave|firefox|opera|vivaldi') { return 40 }
+	if ($lower -match 'edge|chrome|brave|firefox|opera|vivaldi') { return 40 }
 	if ($lower -match 'vlc|wmplayer|groove|zune|itunes|apple|foobar|mpv') { return 20 }
 	return 5
 }

@@ -13,6 +13,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,7 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 final class TrackLookup {
 	private static final String BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-	private static final String APP_UA = "Voidmark/1.1.48 (https://github.com/Noamm9/NoammAddons)";
+	private static final String APP_UA = "Voidmark/1.1.49 (https://github.com/Noamm9/NoammAddons)";
+	private static final String YTM_SONGS = "EgWKAQIIAWoKEAkQBRAKEAMQBA==";
 	private static final long RETRY_MS = 45_000L;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
@@ -55,6 +58,10 @@ final class TrackLookup {
 	static Hit peek(String title, String artist, String album) {
 		Hit hit = CACHE.get(key(title, artist, album));
 		return hit == null ? Hit.NONE : hit;
+	}
+
+	static void ensure(String title, String artist, String album) {
+		request(key(title, artist, album), title, artist, album);
 	}
 
 	private static void request(String key, String title, String artist, String album) {
@@ -89,7 +96,12 @@ final class TrackLookup {
 			? ""
 			: rawPerson;
 		boolean limited = false;
-		Hit hit = trySource(() -> itunes(title, person));
+		Hit hit = trySource(() -> youtubeMusic(title, person, album));
+		if (hit.usable()) {
+			return hit;
+		}
+		limited |= hit.retry();
+		hit = trySource(() -> itunes(title, person));
 		if (hit.usable()) {
 			return hit;
 		}
@@ -120,6 +132,138 @@ final class TrackLookup {
 	@FunctionalInterface
 	private interface Source {
 		Hit lookup();
+	}
+
+	private static Hit youtubeMusic(String title, String artist, String album) {
+		String query = (safe(title) + " " + safe(album) + " " + safe(artist)).trim();
+		if (query.length() < 2) {
+			return Hit.NONE;
+		}
+		JsonObject client = new JsonObject();
+		client.addProperty("clientName", "WEB_REMIX");
+		client.addProperty("clientVersion", "1.20241209.01.00");
+		client.addProperty("hl", "en");
+		JsonObject context = new JsonObject();
+		context.add("client", client);
+		JsonObject payload = new JsonObject();
+		payload.add("context", context);
+		payload.addProperty("query", query);
+		payload.addProperty("params", YTM_SONGS);
+		String body = post("https://music.youtube.com/youtubei/v1/search?prettyPrint=false", payload.toString());
+		JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+		List<JsonObject> items = new ArrayList<>();
+		collectRenderers(root, items);
+		Hit best = Hit.NONE;
+		for (JsonObject item : items) {
+			String rowTitle = flexText(item, 0);
+			String meta = flexText(item, 1);
+			String rowArtist = "";
+			String rowAlbum = "";
+			for (String part : meta.split("\\s+[•·|]\\s+")) {
+				String piece = part.trim();
+				if (piece.isEmpty() || piece.matches("\\d+:\\d{2}") || piece.toLowerCase(Locale.ROOT).contains("play")) {
+					continue;
+				}
+				if (rowArtist.isEmpty()) {
+					rowArtist = piece;
+				} else if (rowAlbum.isEmpty()) {
+					rowAlbum = piece;
+				}
+			}
+			if (rowTitle.isBlank() || NowPlaying.placeholder(rowArtist)) {
+				continue;
+			}
+			String videoId = findVideoId(item);
+			String art = videoId.isEmpty() ? "" : "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg";
+			int score = matchScore(rowTitle, rowArtist, title, artist);
+			if (!safe(album).isBlank() && NowPlaying.titlesClose(rowAlbum, album)) {
+				score += 4;
+			}
+			if (score > best.score && !art.isBlank()) {
+				best = new Hit(rowTitle, rowArtist, rowAlbum, art, score);
+			}
+		}
+		return best.usable() ? best : Hit.NONE;
+	}
+
+	private static void collectRenderers(JsonElement el, List<JsonObject> out) {
+		if (el == null || el.isJsonNull()) {
+			return;
+		}
+		if (el.isJsonObject()) {
+			JsonObject object = el.getAsJsonObject();
+			if (object.has("musicResponsiveListItemRenderer") && object.get("musicResponsiveListItemRenderer").isJsonObject()) {
+				out.add(object.getAsJsonObject("musicResponsiveListItemRenderer"));
+			}
+			for (var entry : object.entrySet()) {
+				collectRenderers(entry.getValue(), out);
+			}
+		} else if (el.isJsonArray()) {
+			for (JsonElement child : el.getAsJsonArray()) {
+				collectRenderers(child, out);
+			}
+		}
+	}
+
+	private static String flexText(JsonObject item, int index) {
+		if (item == null || !item.has("flexColumns") || !item.get("flexColumns").isJsonArray()) {
+			return "";
+		}
+		JsonArray cols = item.getAsJsonArray("flexColumns");
+		if (index < 0 || index >= cols.size() || !cols.get(index).isJsonObject()) {
+			return "";
+		}
+		JsonObject col = cols.get(index).getAsJsonObject();
+		if (col.has("musicResponsiveListItemFlexColumnRenderer")) {
+			col = col.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer");
+		}
+		return runs(col);
+	}
+
+	private static String runs(JsonObject object) {
+		if (object == null) {
+			return "";
+		}
+		JsonObject text = object.has("text") && object.get("text").isJsonObject() ? object.getAsJsonObject("text") : object;
+		if (!text.has("runs") || !text.get("runs").isJsonArray()) {
+			return "";
+		}
+		StringBuilder out = new StringBuilder();
+		for (JsonElement el : text.getAsJsonArray("runs")) {
+			if (el.isJsonObject() && el.getAsJsonObject().has("text") && el.getAsJsonObject().get("text").isJsonPrimitive()) {
+				out.append(el.getAsJsonObject().get("text").getAsString());
+			}
+		}
+		return out.toString().trim();
+	}
+
+	private static String findVideoId(JsonElement el) {
+		if (el == null || el.isJsonNull()) {
+			return "";
+		}
+		if (el.isJsonObject()) {
+			JsonObject object = el.getAsJsonObject();
+			if (object.has("videoId") && object.get("videoId").isJsonPrimitive()) {
+				String id = object.get("videoId").getAsString().trim();
+				if (id.matches("[A-Za-z0-9_-]{11}")) {
+					return id;
+				}
+			}
+			for (var entry : object.entrySet()) {
+				String found = findVideoId(entry.getValue());
+				if (!found.isEmpty()) {
+					return found;
+				}
+			}
+		} else if (el.isJsonArray()) {
+			for (JsonElement child : el.getAsJsonArray()) {
+				String found = findVideoId(child);
+				if (!found.isEmpty()) {
+					return found;
+				}
+			}
+		}
+		return "";
 	}
 
 	private static Hit deezer(String title, String artist) {
@@ -337,6 +481,34 @@ final class TrackLookup {
 				.timeout(Duration.ofSeconds(8))
 				.header("User-Agent", userAgent(url))
 				.GET()
+				.build();
+			HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+			int code = response.statusCode();
+			if (code == 429 || code == 503) {
+				throw new LimitedException();
+			}
+			if (code < 200 || code >= 300) {
+				throw new IllegalStateException("HTTP " + code);
+			}
+			return response.body();
+		} catch (LimitedException limited) {
+			throw limited;
+		} catch (IllegalStateException illegal) {
+			throw illegal;
+		} catch (Exception exception) {
+			throw new LimitedException();
+		}
+	}
+
+	private static String post(String url, String json) {
+		try {
+			HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+				.timeout(Duration.ofSeconds(10))
+				.header("User-Agent", BROWSER_UA)
+				.header("Content-Type", "application/json")
+				.header("Origin", "https://music.youtube.com")
+				.header("Referer", "https://music.youtube.com/")
+				.POST(HttpRequest.BodyPublishers.ofString(json))
 				.build();
 			HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
 			int code = response.statusCode();

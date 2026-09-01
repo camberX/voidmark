@@ -109,6 +109,7 @@ public final class CoverArt {
 
 	private static void load(int gen, String spec, String title, String artist, String album) {
 		try {
+			TrackLookup.ensure(title, artist, album);
 			byte[] bytes = readSpec(spec);
 			if (!looksLikeImage(bytes)) {
 				TrackLookup.Hit hit = TrackLookup.peek(title, artist, album);

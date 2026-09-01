@@ -118,6 +118,9 @@ public record NowPlaying(
 		if (placeholder(artist)) {
 			return "";
 		}
+		if (!placeholder(album) && sameName(artist, album)) {
+			return "";
+		}
 		return artist.trim();
 	}
 
@@ -178,7 +181,8 @@ public record NowPlaying(
 		if (subArtist.isEmpty() && !subtitle.isEmpty() && !sameName(subtitle, title) && !sameName(subtitle, album)) {
 			subArtist = subtitle;
 		}
-		boolean ytmSession = "ytm".equals(kind) || "browser".equals(kind) || browserApp(app);
+		app = nullToEmpty(app);
+		boolean ytmSession = !"spotify".equals(kind) && !app.toLowerCase(Locale.ROOT).contains("spotify");
 		if (ytmSession && album.isEmpty() && !artist.isEmpty()) {
 			album = artist;
 			artist = "";
@@ -208,7 +212,7 @@ public record NowPlaying(
 	private static boolean browserApp(String app) {
 		String raw = app == null ? "" : app.toLowerCase(Locale.ROOT);
 		return raw.contains("chrome")
-			|| raw.contains("msedge")
+			|| raw.contains("edge")
 			|| raw.contains("brave")
 			|| raw.contains("firefox")
 			|| raw.contains("opera")
