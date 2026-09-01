@@ -1,10 +1,8 @@
 package dev.voidmark.client.mixin;
 
 import dev.voidmark.client.ui.MenuChrome;
-import net.minecraft.client.gui.ActiveTextCollector;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
-import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,9 +15,6 @@ public abstract class AbstractSliderButtonMixin {
 	protected double value;
 
 	@Shadow
-	protected abstract void extractScrollingStringOverContents(ActiveTextCollector collector, Component text, int margin);
-
-	@Shadow
 	protected abstract void handleCursor(GuiGraphicsExtractor graphics);
 
 	@Inject(method = "extractWidgetRenderState", at = @At("HEAD"), cancellable = true)
@@ -29,7 +24,7 @@ public abstract class AbstractSliderButtonMixin {
 		}
 		AbstractSliderButton self = (AbstractSliderButton) (Object) this;
 		MenuChrome.slider(graphics, self, value);
-		extractScrollingStringOverContents(
+		((AbstractWidgetInvoker) (Object) this).voidmark$extractScrollingStringOverContents(
 			graphics.textRendererForWidget(self, GuiGraphicsExtractor.HoveredTextEffects.NONE),
 			self.getMessage(),
 			2
