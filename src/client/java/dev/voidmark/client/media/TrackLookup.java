@@ -13,12 +13,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Fills missing YouTube Music artist/title/cover from Deezer and iTunes.
- * Chrome's SMTC session usually reports the artist as "YouTube Music".
+ * Fills missing artist/cover from Deezer and iTunes only when the match is
+ * unambiguous. Title-only hits like two different "Xanny" songs are ignored.
  */
 final class TrackLookup {
 	private static final HttpClient HTTP = HttpClient.newBuilder()
@@ -35,10 +39,10 @@ final class TrackLookup {
 		if (track == null || !track.present()) {
 			return track == null ? NowPlaying.none() : track;
 		}
-		String key = key(track.title(), track.artist());
+		String key = key(track.title(), track.artist(), track.album());
 		Hit hit = CACHE.get(key);
 		if (hit == null) {
-			request(key, track.title(), track.artist());
+			request(key, track.title(), track.artist(), track.album());
 			return track;
 		}
 		if (!hit.usable()) {
@@ -47,80 +51,80 @@ final class TrackLookup {
 		return track.withCatalog(hit.title, hit.artist, hit.album, hit.cover);
 	}
 
-	static Hit resolve(String title, String artist) {
-		String key = key(title, artist);
+	static Hit resolve(String title, String artist, String album) {
+		String key = key(title, artist, album);
 		Hit cached = CACHE.get(key);
 		if (cached != null) {
 			return cached;
 		}
-		Hit hit = search(title, artist);
+		Hit hit = search(title, artist, album);
 		CACHE.put(key, hit);
 		PENDING.remove(key);
 		return hit;
 	}
 
-	private static void request(String key, String title, String artist) {
+	private static void request(String key, String title, String artist, String album) {
 		if (PENDING.putIfAbsent(key, Boolean.TRUE) != null) {
 			return;
 		}
 		Util.nonCriticalIoPool().execute(() -> {
 			try {
-				CACHE.putIfAbsent(key, search(title, artist));
+				CACHE.putIfAbsent(key, search(title, artist, album));
 			} finally {
 				PENDING.remove(key);
 			}
 		});
 	}
 
-	private static Hit search(String title, String artist) {
-		Hit hit = deezer(title, artist);
-		if (!hit.usable()) {
-			hit = deezer(artist, title);
+	private static Hit search(String title, String artist, String album) {
+		Hit hit = deezer(title, artist, album);
+		if (!hit.usable() && !safe(artist).isBlank()) {
+			hit = deezer(artist, title, album);
 		}
 		if (!hit.usable()) {
-			hit = itunes(title, artist);
+			hit = itunes(title, artist, album);
 		}
-		if (!hit.usable()) {
-			hit = itunes(artist, title);
+		if (!hit.usable() && !safe(artist).isBlank()) {
+			hit = itunes(artist, title, album);
 		}
 		return hit;
 	}
 
-	private static Hit deezer(String title, String artist) {
-		String query = (safe(title) + " " + safe(artist)).trim();
+	private static Hit deezer(String title, String artist, String album) {
+		String query = query(title, artist, album);
 		if (query.length() < 3) {
 			return Hit.NONE;
 		}
 		try {
-			String body = get("https://api.deezer.com/search?limit=8&q=" + encode(query));
+			String body = get("https://api.deezer.com/search?limit=10&q=" + encode(query));
 			JsonObject root = JsonParser.parseString(body).getAsJsonObject();
 			if (!root.has("data") || !root.get("data").isJsonArray()) {
 				return Hit.NONE;
 			}
-			return best(root.getAsJsonArray("data"), title, artist, true);
+			return pick(root.getAsJsonArray("data"), title, artist, album, true);
 		} catch (Exception exception) {
 			return Hit.NONE;
 		}
 	}
 
-	private static Hit itunes(String title, String artist) {
-		String query = (safe(title) + " " + safe(artist)).trim();
+	private static Hit itunes(String title, String artist, String album) {
+		String query = query(title, artist, album);
 		if (query.length() < 3) {
 			return Hit.NONE;
 		}
 		Hit best = Hit.NONE;
 		for (String country : new String[]{"de", "us", "gb", "at", "ch"}) {
 			try {
-				String body = get("https://itunes.apple.com/search?entity=song&limit=8&country=" + country + "&term=" + encode(query));
+				String body = get("https://itunes.apple.com/search?entity=song&limit=10&country=" + country + "&term=" + encode(query));
 				JsonObject root = JsonParser.parseString(body).getAsJsonObject();
 				if (!root.has("results") || !root.get("results").isJsonArray()) {
 					continue;
 				}
-				Hit hit = best(root.getAsJsonArray("results"), title, artist, false);
+				Hit hit = pick(root.getAsJsonArray("results"), title, artist, album, false);
 				if (hit.score > best.score) {
 					best = hit;
 				}
-				if (best.score >= 6) {
+				if (best.score >= 11) {
 					return best;
 				}
 			} catch (Exception ignored) {
@@ -129,8 +133,18 @@ final class TrackLookup {
 		return best;
 	}
 
-	private static Hit best(JsonArray results, String title, String artist, boolean deezer) {
-		Hit best = Hit.NONE;
+	private static String query(String title, String artist, String album) {
+		StringBuilder out = new StringBuilder(safe(title));
+		if (!safe(artist).isBlank()) {
+			out.append(' ').append(artist.trim());
+		} else if (!safe(album).isBlank()) {
+			out.append(' ').append(album.trim());
+		}
+		return out.toString().trim();
+	}
+
+	private static Hit pick(JsonArray results, String title, String artist, String album, boolean deezer) {
+		List<Hit> titleHits = new ArrayList<>();
 		for (JsonElement el : results) {
 			if (!el.isJsonObject()) {
 				continue;
@@ -138,12 +152,12 @@ final class TrackLookup {
 			JsonObject row = el.getAsJsonObject();
 			String rowTitle;
 			String rowArtist;
-			String album;
+			String rowAlbum;
 			String art;
 			if (deezer) {
 				rowTitle = text(row, "title", "title_short");
 				rowArtist = nested(row, "artist", "name");
-				album = nested(row, "album", "title");
+				rowAlbum = nested(row, "album", "title");
 				art = firstNonBlank(
 					nested(row, "album", "cover_medium"),
 					nested(row, "album", "cover_big"),
@@ -152,49 +166,79 @@ final class TrackLookup {
 			} else {
 				rowTitle = text(row, "trackName", "collectionName");
 				rowArtist = text(row, "artistName");
-				album = text(row, "collectionName");
+				rowAlbum = text(row, "collectionName");
 				art = text(row, "artworkUrl100", "artworkUrl60");
 				if (!art.isBlank()) {
 					art = art.replace("100x100bb", "300x300bb").replace("60x60bb", "300x300bb");
 				}
 			}
-			int score = matchScore(rowTitle, rowArtist, title, artist);
-			if (score > best.score) {
-				best = new Hit(rowTitle, rowArtist, album, art, score);
+			if (!tightTitle(rowTitle, title)) {
+				continue;
+			}
+			int score = 4;
+			if (samePerson(rowArtist, artist)) {
+				score += 4;
+			}
+			if (tightTitle(rowAlbum, album) || samePerson(rowAlbum, album)) {
+				score += 3;
+			}
+			titleHits.add(new Hit(rowTitle, rowArtist, rowAlbum, art, score));
+		}
+		if (titleHits.isEmpty()) {
+			return Hit.NONE;
+		}
+		if (!NowPlaying.placeholder(artist)) {
+			Hit best = Hit.NONE;
+			for (Hit hit : titleHits) {
+				if (samePerson(hit.artist, artist) && hit.score > best.score) {
+					best = hit;
+				}
+			}
+			return best.score >= 8 ? best : Hit.NONE;
+		}
+		Set<String> artists = new LinkedHashSet<>();
+		for (Hit hit : titleHits) {
+			String name = norm(hit.artist);
+			if (!name.isEmpty() && !NowPlaying.placeholder(hit.artist)) {
+				artists.add(name);
 			}
 		}
-		return best.usable() ? best : Hit.NONE;
+		if (artists.size() != 1) {
+			return Hit.NONE;
+		}
+		String only = artists.iterator().next();
+		Hit best = Hit.NONE;
+		for (Hit hit : titleHits) {
+			if (norm(hit.artist).equals(only) && hit.score > best.score) {
+				best = hit;
+			}
+		}
+		return best;
 	}
 
-	private static int matchScore(String rowTitle, String rowArtist, String title, String artist) {
-		String rt = norm(rowTitle);
-		String ra = norm(rowArtist);
-		String t = norm(title);
-		String a = norm(artist);
-		if (rt.isEmpty()) {
-			return 0;
+	private static boolean tightTitle(String row, String query) {
+		String r = norm(row);
+		String q = norm(query);
+		if (r.isEmpty() || q.isEmpty()) {
+			return false;
 		}
-		int score = 0;
-		if (!t.isEmpty() && (rt.equals(t) || rt.contains(t) || t.contains(rt))) {
-			score += 4;
+		if (r.equals(q)) {
+			return true;
 		}
-		if (!a.isEmpty() && (ra.equals(a) || ra.contains(a) || a.contains(ra))) {
-			score += 4;
-		}
-		if (!t.isEmpty() && (ra.equals(t) || ra.contains(t) || t.contains(ra))) {
-			score += 3;
-		}
-		if (!a.isEmpty() && (rt.equals(a) || rt.contains(a) || a.contains(rt))) {
-			score += 3;
-		}
-		if (a.isEmpty() && !t.isEmpty() && (rt.contains(t) || t.contains(rt) || ra.contains(t))) {
-			score += 2;
-		}
-		return score;
+		return r.startsWith(q + " ") || q.startsWith(r + " ");
 	}
 
-	private static String key(String title, String artist) {
-		return norm(title) + "|" + norm(artist);
+	private static boolean samePerson(String left, String right) {
+		String a = norm(left);
+		String b = norm(right);
+		if (a.isEmpty() || b.isEmpty()) {
+			return false;
+		}
+		return a.equals(b) || a.contains(b) || b.contains(a);
+	}
+
+	private static String key(String title, String artist, String album) {
+		return norm(title) + "|" + norm(artist) + "|" + norm(album);
 	}
 
 	private static String nested(JsonObject row, String objectKey, String field) {
@@ -261,7 +305,7 @@ final class TrackLookup {
 		private static final Hit NONE = new Hit("", "", "", "", 0);
 
 		boolean usable() {
-			return score >= 3 && (!NowPlaying.placeholder(artist) || (cover != null && !cover.isBlank()));
+			return score >= 4 && !NowPlaying.placeholder(artist);
 		}
 	}
 }

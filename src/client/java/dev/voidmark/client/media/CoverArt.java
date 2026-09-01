@@ -57,8 +57,9 @@ public final class CoverArt {
 		String cover = track.hasCover() ? track.cover().trim() : "";
 		String title = nullToEmpty(track.title());
 		String artist = nullToEmpty(track.artist());
+		String album = nullToEmpty(track.album());
 		long stamp = stamp(cover);
-		String key = cover + "|" + title + "|" + artist + "|" + stamp;
+		String key = cover + "|" + title + "|" + artist + "|" + album + "|" + stamp;
 		long now = System.nanoTime();
 		if (key.equals(boundKey)) {
 			if (ready) {
@@ -78,7 +79,7 @@ public final class CoverArt {
 		}
 		int gen = ++generation;
 		String spec = cover;
-		Util.nonCriticalIoPool().execute(() -> load(gen, spec, title, artist));
+		Util.nonCriticalIoPool().execute(() -> load(gen, spec, title, artist, album));
 	}
 
 	public static boolean ready() {
@@ -93,11 +94,11 @@ public final class CoverArt {
 		return texSize;
 	}
 
-	private static void load(int gen, String spec, String title, String artist) {
+	private static void load(int gen, String spec, String title, String artist, String album) {
 		try {
 			byte[] bytes = readSpec(spec);
 			if (!looksLikeImage(bytes)) {
-				TrackLookup.Hit hit = TrackLookup.resolve(title, artist);
+				TrackLookup.Hit hit = TrackLookup.resolve(title, artist, album);
 				bytes = readSpec(hit.cover());
 			}
 			if (!looksLikeImage(bytes)) {
