@@ -3,13 +3,11 @@ package dev.voidmark.client.mining;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.scores.DisplaySlot;
-import net.minecraft.world.scores.Objective;
-import net.minecraft.world.scores.PlayerScoreEntry;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.Scoreboard;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -25,6 +23,18 @@ public final class MiningTracker {
 	);
 	private static final Pattern PERCENT = Pattern.compile("^(\\d+(?:\\.\\d+)?)\\s*%$");
 	private static final Pattern RATIO = Pattern.compile("^(\\d+)\\s*/\\s*(\\d+)$");
+	private static final Pattern WIDGET = Pattern.compile(
+		"^(players?\\b|info|area\\b|server\\b|gems\\b|profile\\b|sb level|bank\\b|skills\\b|stats\\b|event\\b|pet\\b|powders?\\b|crystals?\\b|pickaxe ability|unclaimed|forges?\\b|timers\\b|party\\b|slayer\\b|active effects|bestiary|essence|collection|fire sales|election|north stars|guests\\b|coop\\b|island\\b|minions?\\b|account info|dungeon stats|player stats|puzzles\\b|opened rooms).*",
+		Pattern.CASE_INSENSITIVE
+	);
+	private static final Comparator<PlayerInfo> TAB_ORDER = Comparator
+		.comparingInt((PlayerInfo info) -> -info.getTabListOrder())
+		.thenComparingInt(info -> info.getGameMode() == GameType.SPECTATOR ? 1 : 0)
+		.thenComparing(info -> {
+			PlayerTeam team = info.getTeam();
+			return team == null ? "" : team.getName();
+		})
+		.thenComparing(info -> info.getProfile().name(), String.CASE_INSENSITIVE_ORDER);
 	private static final long ALERT_MS = 3500L;
 	private static final long BOOST_MS = 120_000L;
 	private static final long PICKOBULUS_MS = 60_000L;
@@ -192,7 +202,7 @@ public final class MiningTracker {
 	}
 
 	private static List<Commission> parseCommissions(Minecraft client) {
-		List<String> lines = sidebarLines(client);
+		List<String> lines = tabLines(client);
 		List<Commission> out = new ArrayList<>();
 		boolean section = false;
 		String pending = null;
@@ -201,7 +211,7 @@ public final class MiningTracker {
 			if (line.isEmpty()) {
 				continue;
 			}
-			if (line.equalsIgnoreCase("commissions") || line.equalsIgnoreCase("commission")) {
+			if (isCommissionsHeader(line)) {
 				section = true;
 				pending = null;
 				continue;
@@ -209,7 +219,7 @@ public final class MiningTracker {
 			if (!section) {
 				continue;
 			}
-			if (isStopper(line)) {
+			if (isNewWidget(line)) {
 				break;
 			}
 			Progress only = progressOnly(line);
@@ -229,57 +239,39 @@ public final class MiningTracker {
 		return List.copyOf(out);
 	}
 
-	private static List<String> sidebarLines(Minecraft client) {
-		if (client.level == null || client.player == null) {
+	private static List<String> tabLines(Minecraft client) {
+		if (client.player == null) {
 			return List.of();
 		}
-		Scoreboard scoreboard = client.level.getScoreboard();
-		Objective objective = sidebar(scoreboard, client.player);
-		if (objective == null) {
+		ClientPacketListener connection = client.player.connection;
+		if (connection == null) {
 			return List.of();
 		}
-		List<PlayerScoreEntry> entries = new ArrayList<>();
-		for (PlayerScoreEntry entry : scoreboard.listPlayerScores(objective)) {
-			if (!entry.isHidden()) {
-				entries.add(entry);
-			}
-		}
-		entries.sort(Comparator.comparingInt(PlayerScoreEntry::value).reversed());
-		List<String> lines = new ArrayList<>(entries.size());
-		for (PlayerScoreEntry entry : entries) {
-			Component raw = entry.display() != null ? entry.display() : Component.literal(entry.owner());
-			Component name = PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(entry.owner()), raw);
-			lines.add(plain(name));
+		List<PlayerInfo> infos = new ArrayList<>(connection.getListedOnlinePlayers());
+		infos.sort(TAB_ORDER);
+		int limit = Math.min(80, infos.size());
+		List<String> lines = new ArrayList<>(limit);
+		for (int i = 0; i < limit; i++) {
+			lines.add(plain(tabName(infos.get(i))));
 		}
 		return lines;
 	}
 
-	private static Objective sidebar(Scoreboard scoreboard, LocalPlayer player) {
-		Objective objective = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
-		PlayerTeam team = scoreboard.getPlayersTeam(player.getScoreboardName());
-		if (team != null && team.getColor().isColor()) {
-			DisplaySlot colored = DisplaySlot.teamColorToSlot(team.getColor());
-			if (colored != null) {
-				Objective teamObjective = scoreboard.getDisplayObjective(colored);
-				if (teamObjective != null) {
-					return teamObjective;
-				}
-			}
+	private static Component tabName(PlayerInfo info) {
+		Component display = info.getTabListDisplayName();
+		if (display != null) {
+			return display;
 		}
-		return objective;
+		return PlayerTeam.formatNameForTeam(info.getTeam(), Component.literal(info.getProfile().name()));
 	}
 
-	private static boolean isStopper(String line) {
+	private static boolean isCommissionsHeader(String line) {
 		String key = line.toLowerCase(Locale.ROOT);
-		return key.contains("purse")
-			|| key.contains("bits")
-			|| key.contains("powder")
-			|| key.contains("hypixel")
-			|| key.startsWith("www")
-			|| key.contains("slayer")
-			|| key.startsWith("⏣")
-			|| key.contains("heat")
-			|| key.contains("cold");
+		return key.equals("commissions") || key.equals("commission");
+	}
+
+	private static boolean isNewWidget(String line) {
+		return WIDGET.matcher(line).matches();
 	}
 
 	private static Commission inline(String line) {

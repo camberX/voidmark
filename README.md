@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-		3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.79.jar` in `mods`.
+		3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.80.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -20,7 +20,7 @@ Java **25** is required.
 - `/vm rawmats sb:HYPERION` (or `/voidmark rawmats`, or `/vm rawmats` while holding the item) expands that Skyblock craft and shows a HUD with item icons, have/need counts, and a live progress bar per ingredient. **Materials** (Display tab, or click Raw/Enchanted on the HUD with chat open) picks **Raw** (Iron Ingot) or **Enchanted** (Enchanted Iron). Inventory and armor are counted live. Ender Chest and backpacks come from your Skyblock profile (`hypixel.odtheking.com`) so island swaps and profile refreshes do not wipe them. `/vm rawmats refresh` pulls storage again; `/vm rawmats raw` / `/vm rawmats enchanted` switch the mode; `/vm rawmats clear` hides the tracker.
 - The **Music HUD** (Display tab, or the bell) shows the song that is playing in Spotify or YouTube Music: cover art, title, artist, source, a progress bar, and elapsed/duration on the right of the bar (`1:23/3:45`). Pause freezes the bar; scrubbing updates it when the player reports a real timestamp. YouTube Music in a browser often keeps SMTC position at `0` — use YouTube Music Desktop (port 9863) or th-ch YouTube Music (26558) for a live clock. When the track changes, chat shows a styled `VOIDMARK | NOW PLAYING` line with the title and artist. Open Minecraft chat (`T`) to click **previous / play-pause / next** on the HUD. You can also type `.np` `.play` `.pause` `.skip` `.prev` in chat (those stay client-side) or `/vm music`. On Windows it reads the system now-playing session (including SMTC album art), Spotify / YouTube Music window titles, and local companion APIs (YouTube Music Desktop on 9863, th-ch YouTube Music on 26558). Linux uses `playerctl` metadata and `mpris:artUrl`.
 - **Mobs** (Mobs tab) highlights every loaded entity of the types you pick, including other players. Scroll the full vanilla list (or type in the list search) and click rows to select them; click a selected row again to drop it. Matching entities get a **silhouette outline** with a shader gradient that fades outward from the model — not boxes, and not Minecraft’s sobel glow. You are never outlined. **Block outline** (on by default) puts that same glow on the block you are looking at, around the vanilla selection wire. Opacity, color, and through-walls are on the same page. Reset restores only this tab.
-- **Mining** (Mining tab) shows a HUD with current commission progress from the scoreboard and your pickaxe ability cooldown. Use a pickaxe ability and the HUD counts down (120s for Mining Speed Boost, 60s for Pickobulus) until chat says it is ready. **Ability alert** (on by default) flashes a centered **ABILITY READY** banner when chat contains `Pickobulus is now available!` or `Mining Speed Boost is now available!`. Drag the panel in the HUD editor.
+- **Mining** (Mining tab) shows a HUD with current commission progress from the tab list and your pickaxe ability cooldown. Use a pickaxe ability and the HUD counts down (120s for Mining Speed Boost, 60s for Pickobulus) until chat says it is ready. **Ability alert** (on by default) flashes a centered **ABILITY READY** banner when chat contains `Pickobulus is now available!` or `Mining Speed Boost is now available!`. Drag the panel in the HUD editor.
 
 - Right Shift is the default keybind (Controls → Voidmark). Press it again to close (the menu eases out).
 - `/voidmark toggle` flips node markers without opening the menu.
@@ -56,7 +56,7 @@ Markers only run in Skyblock by default. Enable **Force enable** to test in sing
 
 ### Mining
 
-Commission lines come from the Skyblock sidebar in the Dwarven Mines, Crystal Hollows, Glacite, and the other mining islands. The HUD lists each job with a bar and the pickaxe ability timer. Ability ready uses the Hypixel chat lines `Pickobulus is now available!` and `Mining Speed Boost is now available!`.
+Commission lines come from the Skyblock tab list (`Commissions:` widget) in the Dwarven Mines, Crystal Hollows, Glacite, and the other mining islands. Turn on Player List Info in SkyBlock Menu → Settings → Personal → User Interface if the widget is missing. The HUD lists each job with a bar and the pickaxe ability timer. Ability ready uses the Hypixel chat lines `Pickobulus is now available!` and `Mining Speed Boost is now available!`.
 
 ## Settings
 
