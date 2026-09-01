@@ -5,6 +5,7 @@
 	"client": [
 		"AbstractClientPlayerMixin",
 		"AvatarRendererMixin",
+		"BossHealthOverlayAccessor",
 		"ChatComponentMixin",
 		"ConnectionMixin",
 		"EntityRendererMixin",

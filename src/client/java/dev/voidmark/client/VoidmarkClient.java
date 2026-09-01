@@ -10,6 +10,7 @@ import dev.voidmark.client.node.EnderNodeTracker;
 import dev.voidmark.client.render.NodeHudRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.InventoryHudRenderer;
+import dev.voidmark.client.render.VanillaHud;
 import dev.voidmark.client.render.WatermarkRenderer;
 import dev.voidmark.client.item.SkyblockItems;
 import dev.voidmark.client.item.ItemAppearance;
@@ -44,6 +45,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		WatermarkRenderer.init();
 		InventoryHudRenderer.init();
 		NodeHudRenderer.init();
+		VanillaHud.init();
 
 		openGui = KeyMappingHelper.registerKeyMapping(new KeyMapping(
 			"key.voidmark.open",

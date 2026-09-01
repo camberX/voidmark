@@ -32,7 +32,7 @@ import java.util.function.DoubleConsumer;
 
 public class VoidmarkScreen extends Screen {
 	private static final float MENU_W = 400;
-	private static final float MENU_H = 256;
+	private static final float MENU_H = 276;
 	private static final float SIDEBAR_W = 88;
 	private static final float TOOLBAR_H = 22;
 	private static final float ROW = 16;
@@ -66,6 +66,7 @@ public class VoidmarkScreen extends Screen {
 		FOG("Fog", Group.VISUALS),
 		MARKERS("Markers", Group.NODES),
 		DISPLAY("Display", Group.NODES),
+		HUD("HUD", Group.NODES),
 		STATUS("Status", Group.MISC),
 		INVENTORY("Inventory", Group.MISC),
 		NICK("Nick", Group.MISC),
@@ -98,6 +99,17 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Filled box", Tab.DISPLAY, "ESP"),
 		new SearchEntry("Watermark", Tab.DISPLAY, "HUD"),
 		new SearchEntry("Node HUD", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Hotbar", Tab.HUD, "Vanilla HUD"),
+		new SearchEntry("Health", Tab.HUD, "Vanilla HUD"),
+		new SearchEntry("Hunger", Tab.HUD, "Vanilla HUD"),
+		new SearchEntry("Armor bar", Tab.HUD, "Vanilla HUD"),
+		new SearchEntry("Air", Tab.HUD, "Vanilla HUD"),
+		new SearchEntry("Experience", Tab.HUD, "Vanilla HUD"),
+		new SearchEntry("Scoreboard", Tab.HUD, "Vanilla HUD"),
+		new SearchEntry("Boss bar", Tab.HUD, "Vanilla HUD"),
+		new SearchEntry("Effects", Tab.HUD, "Vanilla HUD"),
+		new SearchEntry("Held item", Tab.HUD, "Vanilla HUD"),
+		new SearchEntry("Mount health", Tab.HUD, "Vanilla HUD"),
 		new SearchEntry("Inventory HUD", Tab.INVENTORY, "Inventory"),
 		new SearchEntry("Hotbar", Tab.INVENTORY, "Inventory"),
 		new SearchEntry("Armor", Tab.INVENTORY, "Inventory"),
@@ -503,6 +515,7 @@ public class VoidmarkScreen extends Screen {
 			case FOG -> MenuFont.CLOUD;
 			case MARKERS -> MenuFont.CUBE;
 			case DISPLAY -> MenuFont.MONITOR;
+			case HUD -> MenuFont.HUD;
 			case STATUS -> MenuFont.SIGNAL;
 			case INVENTORY -> MenuFont.BAG;
 			case NICK -> MenuFont.PERSON;
@@ -636,6 +649,19 @@ public class VoidmarkScreen extends Screen {
 				config.hudNodesScale = 1.0f;
 				config.colorRgb = 0x2FB5FF;
 			}
+			case HUD -> {
+				config.hudHotbar = true;
+				config.hudHealth = true;
+				config.hudHunger = true;
+				config.hudArmor = true;
+				config.hudAir = true;
+				config.hudExperience = true;
+				config.hudScoreboard = true;
+				config.hudBossBar = true;
+				config.hudEffects = true;
+				config.hudHeldItem = true;
+				config.hudMountHealth = true;
+			}
 			case INVENTORY -> {
 				config.inventoryHudEnabled = true;
 				config.inventoryHudHotbar = true;
@@ -744,7 +770,7 @@ public class VoidmarkScreen extends Screen {
 	private void drawBell(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		bellX = contentX() + contentW() - PANEL_W;
 		bellY = windowY + TOOLBAR_H + 2;
-		float h = 144;
+		float h = 210;
 		GuiDraw.panel(graphics, bellX, bellY, PANEL_W, h * Math.max(0.2f, bellT), 8, Anim.fade(Theme.PANEL, bellT), Theme.ACCENT);
 		if (bellT < 0.85f) {
 			return;
@@ -759,7 +785,23 @@ public class VoidmarkScreen extends Screen {
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "FPS", config.watermarkFps, v -> config.watermarkFps = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ping", config.watermarkPing, v -> config.watermarkPing = v);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Clock", config.watermarkTime, v -> config.watermarkTime = v);
-		toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Name", config.watermarkName, v -> config.watermarkName = v);
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Name", config.watermarkName, v -> config.watermarkName = v);
+		GuiDraw.small(graphics, font, "VANILLA HUD", ix, y + 2, Theme.HEADER);
+		y += 12;
+		float col = (iw - 6) * 0.5f;
+		float ly = y;
+		float ry = y;
+		ly = toggle(graphics, font, ix, ly, col, mouseX, mouseY, "Hotbar", config.hudHotbar, v -> config.hudHotbar = v);
+		ry = toggle(graphics, font, ix + col + 6, ry, col, mouseX, mouseY, "Score", config.hudScoreboard, v -> config.hudScoreboard = v);
+		ly = toggle(graphics, font, ix, ly, col, mouseX, mouseY, "Health", config.hudHealth, v -> config.hudHealth = v);
+		ry = toggle(graphics, font, ix + col + 6, ry, col, mouseX, mouseY, "Hunger", config.hudHunger, v -> config.hudHunger = v);
+		ly = toggle(graphics, font, ix, ly, col, mouseX, mouseY, "Armor", config.hudArmor, v -> config.hudArmor = v);
+		ry = toggle(graphics, font, ix + col + 6, ry, col, mouseX, mouseY, "Air", config.hudAir, v -> config.hudAir = v);
+		ly = toggle(graphics, font, ix, ly, col, mouseX, mouseY, "XP", config.hudExperience, v -> config.hudExperience = v);
+		ry = toggle(graphics, font, ix + col + 6, ry, col, mouseX, mouseY, "Boss", config.hudBossBar, v -> config.hudBossBar = v);
+		ly = toggle(graphics, font, ix, ly, col, mouseX, mouseY, "Effects", config.hudEffects, v -> config.hudEffects = v);
+		ry = toggle(graphics, font, ix + col + 6, ry, col, mouseX, mouseY, "Held", config.hudHeldItem, v -> config.hudHeldItem = v);
+		toggle(graphics, font, ix, ly, col, mouseX, mouseY, "Mount", config.hudMountHealth, v -> config.hudMountHealth = v);
 	}
 
 	private void drawColumns(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
@@ -840,6 +882,22 @@ public class VoidmarkScreen extends Screen {
 				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Overlay");
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
 				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
+			}
+			case HUD -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(7), "Bars");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hotbar", config.hudHotbar, v -> config.hudHotbar = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Health", config.hudHealth, v -> config.hudHealth = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hunger", config.hudHunger, v -> config.hudHunger = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Armor", config.hudArmor, v -> config.hudArmor = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Air", config.hudAir, v -> config.hudAir = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Experience", config.hudExperience, v -> config.hudExperience = v);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mount health", config.hudMountHealth, v -> config.hudMountHealth = v);
+
+				y = featureCard(graphics, font, right, top, col, cardHeight(4), "Info");
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Scoreboard", config.hudScoreboard, v -> config.hudScoreboard = v);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Boss bar", config.hudBossBar, v -> config.hudBossBar = v);
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Effects", config.hudEffects, v -> config.hudEffects = v);
+				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Held item", config.hudHeldItem, v -> config.hudHeldItem = v);
 			}
 			case INVENTORY -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Inventory HUD");
@@ -1162,7 +1220,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.34");
+			.orElse("1.1.35");
 	}
 
 	@Override

@@ -58,6 +58,17 @@ public final class VoidmarkConfig {
 	public boolean inventoryHudHotbar = true;
 	public boolean inventoryHudArmor = true;
 	public boolean inventoryHudCount = true;
+	public boolean hudHotbar = true;
+	public boolean hudHealth = true;
+	public boolean hudHunger = true;
+	public boolean hudArmor = true;
+	public boolean hudAir = true;
+	public boolean hudExperience = true;
+	public boolean hudScoreboard = true;
+	public boolean hudBossBar = true;
+	public boolean hudEffects = true;
+	public boolean hudHeldItem = true;
+	public boolean hudMountHealth = true;
 	public String inventoryHudAnchor = "bottom_right";
 	public float inventoryHudScale = 1.0f;
 	public float hudWatermarkScale = 1.0f;
@@ -222,7 +233,7 @@ public final class VoidmarkConfig {
 		}
 		String name = tab.trim().toUpperCase(java.util.Locale.ROOT);
 		return switch (name) {
-			case "WORLD", "VIEW", "FOG", "MARKERS", "DISPLAY", "STATUS", "INVENTORY", "NICK", "CAPE" -> name;
+			case "WORLD", "VIEW", "FOG", "MARKERS", "DISPLAY", "HUD", "STATUS", "INVENTORY", "NICK", "CAPE" -> name;
 			default -> "WORLD";
 		};
 	}

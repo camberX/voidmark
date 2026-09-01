@@ -31,6 +31,7 @@ public final class MenuFont {
 	public static final String PERSON = "\uE7FD";
 	public static final String FLAG = "\uE227";
 	public static final String BAG = "\uE8CC";
+	public static final String HUD = "\uE871";
 
 	private MenuFont() {
 	}

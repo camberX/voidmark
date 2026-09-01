@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.34.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.35.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -22,7 +22,9 @@ Java **25** is required.
 - Toolbar **HUD** opens the HUD editor: drag the inventory, watermark, and node panels. They snap to screen axes and to each other; hold **Shift** to move freely. Click a panel, then drag the **Scale** bar or scroll the mouse wheel (50%–200%).
 - **Reset** restores only the page you are looking at.
 - The gear opens **Theme**: **Accent**, **Pane** color, and **Opacity** (the menu pane plus every HUD that uses that pane). Animation toggle is there too.
-- The bell toggles overlay HUD pieces: **inventory**, watermark (FPS, ping, clock, name).
+- The bell toggles overlay HUD pieces: inventory, watermark (FPS, ping, clock, name), and each custom vanilla HUD replacement.
+- Search (`Ctrl+F` or the magnifier) jumps to a setting.
+- **HUD** (HUD tab, or the bell) restyles vanilla HUD layers in the same pane/accent look as the click GUI. Each piece has its own switch. Turning one on hides that vanilla layer so they do not stack: hotbar, health, hunger, armor, air, experience, mount health, scoreboard, boss bar, status effects, and the held-item name. Turn a switch off to get the original Minecraft HUD back. The inventory HUD on the Inventory tab is a separate overlay, not the hotbar replacement.
 - Search (`Ctrl+F` or the magnifier) jumps to a setting.
 - **Inventory HUD** (Inventory tab, or the bell) draws your armor, storage, and hotbar on-screen. Hotbar, armor/offhand, and the `n/41` count can each be toggled there. Move and scale it in the HUD editor. It reads the live inventory every frame. Hide it with F1; it also hides while a chest or the vanilla inventory is open.
 - The **Cape** tab previews a custom cape. Paste a PNG URL or click **Local file...** for a native file picker. It is client-side on you only. Vanilla **64×32** (and 128×64, 256×128, …) cape templates are used as-is. Any other PNG, including photos like 352×272, is fitted into the cape’s front and back faces so it does not stretch into bands.
@@ -53,6 +55,7 @@ Markers only run in Skyblock by default. Enable **Force enable** to test in sing
 | View | Aspect ratio slider and Native / 16:10 / 4:3 / 5:4 chips |
 | Markers | Scan, End-only filter, particles |
 | Display | Node HUD, watermark, boxes, tracers, marker color |
+| HUD | Custom vanilla HUD: hotbar, bars, scoreboard, boss, effects, held item |
 | Inventory | Inventory HUD: enable, hotbar, armor, item count |
 | Status | Hypixel / Skyblock / The End, live FPS and ping |
 | Nick | Hide/replace your username with `&` color codes |
