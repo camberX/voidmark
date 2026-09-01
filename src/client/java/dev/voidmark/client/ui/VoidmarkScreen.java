@@ -243,11 +243,9 @@ public class VoidmarkScreen extends Screen {
 		graphics.pose().scale(scale, scale);
 		graphics.pose().translate(-cx, -cy);
 
-		int shadow = Anim.fade(0x55000000, appear);
-		GuiDraw.rounded(graphics, windowX, windowY + 4, windowW, windowH, Theme.WINDOW_RADIUS, shadow);
 		boolean chromeClip = GuiDraw.scissor(graphics, windowX, windowY, windowW, windowH);
+		GuiDraw.rounded(graphics, windowX, windowY, windowW, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW);
 		GuiDraw.roundLeft(graphics, windowX, windowY, SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.SIDEBAR);
-		GuiDraw.roundRight(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW);
 		Starfield.draw(graphics, windowX + SIDEBAR_W, windowY, windowW - SIDEBAR_W, windowH, Theme.WINDOW_RADIUS, appear);
 		GuiDraw.fill(graphics, windowX + SIDEBAR_W, windowY, 1, windowH, Theme.withAlpha(Theme.ACCENT, 90));
 		if (chromeClip) {
@@ -1402,7 +1400,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.72");
+			.orElse("1.1.73");
 	}
 
 	@Override
