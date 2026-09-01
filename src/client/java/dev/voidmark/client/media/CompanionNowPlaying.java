@@ -206,36 +206,36 @@ final class CompanionNowPlaying {
 	}
 
 	private static long positionMs(JsonObject player, JsonObject root) {
-		long ms = roundPositive(number(
+		Long ms = optionalMillis(
 			player,
 			"seekbarCurrentPositionMilliSeconds",
 			"elapsedMilliSeconds",
 			"positionMs",
 			"currentTimeMs"
-		));
-		if (ms <= 0L) {
-			ms = roundPositive(number(root, "elapsedMilliSeconds", "positionMs", "currentTimeMs"));
+		);
+		if (ms == null) {
+			ms = optionalMillis(root, "elapsedMilliSeconds", "positionMs", "currentTimeMs");
 		}
-		if (ms <= 0L) {
-			ms = secondsToMs(number(
+		if (ms == null) {
+			ms = optionalSeconds(
 				player,
 				"seekbarCurrentPosition",
 				"elapsedSeconds",
 				"currentTime",
 				"position"
-			));
+			);
 		}
-		if (ms <= 0L) {
-			ms = secondsToMs(number(
+		if (ms == null) {
+			ms = optionalSeconds(
 				root,
 				"elapsedSeconds",
 				"position",
 				"currentTime",
 				"seekbarCurrentPosition",
 				"currentPlaybackTime"
-			));
+			);
 		}
-		return ms;
+		return ms == null ? -1L : Math.max(0L, ms);
 	}
 
 	private static long durationMs(JsonObject player, JsonObject track, JsonObject root) {
@@ -261,6 +261,43 @@ final class CompanionNowPlaying {
 			ms = secondsToMs(number(root, "duration", "durationSeconds", "songDuration"));
 		}
 		return ms;
+	}
+
+	private static Long optionalMillis(JsonObject json, String... keys) {
+		Double raw = firstNumber(json, keys);
+		if (raw == null) {
+			return null;
+		}
+		return Math.round(Math.max(0d, raw));
+	}
+
+	private static Long optionalSeconds(JsonObject json, String... keys) {
+		Double raw = firstNumber(json, keys);
+		if (raw == null) {
+			return null;
+		}
+		if (raw <= 0d) {
+			return 0L;
+		}
+		if (raw >= 10_000d) {
+			return Math.round(raw);
+		}
+		return Math.round(raw * 1000.0);
+	}
+
+	private static Double firstNumber(JsonObject json, String... keys) {
+		if (json == null) {
+			return null;
+		}
+		for (String key : keys) {
+			if (json.has(key) && json.get(key).isJsonPrimitive()) {
+				try {
+					return json.get(key).getAsDouble();
+				} catch (Exception ignored) {
+				}
+			}
+		}
+		return null;
 	}
 
 	private static long secondsToMs(double value) {

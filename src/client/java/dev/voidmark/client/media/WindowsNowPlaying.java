@@ -134,14 +134,17 @@ final class WindowsNowPlaying {
 				return NowPlaying.none();
 			}
 			lastError = "";
-			long positionMs = firstPositive(
-				millisField(json, "positionMs"),
-				ticksToMs(json, "position")
-			);
 			long durationMs = firstPositive(
 				millisField(json, "durationMs"),
 				ticksToMs(json, "duration")
 			);
+			long positionMs = firstPositive(
+				millisField(json, "positionMs"),
+				ticksToMs(json, "position")
+			);
+			if (positionMs <= 0L && durationMs <= 0L) {
+				positionMs = -1L;
+			}
 			return NowPlaying.fromSmtc(
 				title,
 				text(json, "artist"),

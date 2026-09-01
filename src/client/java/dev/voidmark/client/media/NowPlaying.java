@@ -51,18 +51,41 @@ public record NowPlaying(
 	}
 
 	public NowPlaying overlay(NowPlaying extra) {
+		return overlay(extra, null);
+	}
+
+	public NowPlaying overlay(NowPlaying extra, NowPlaying previous) {
 		NowPlaying base = cleaned();
 		if (extra == null || !extra.present()) {
 			return base;
 		}
 		NowPlaying other = extra.cleaned();
 		String mergedAlbum = firstNonBlank(base.album, other.album);
-		boolean useOtherTime = base.durationMs <= 0L || base.positionMs <= 0L;
-		long pos = base.positionMs > 0L ? base.positionMs : other.positionMs;
-		long dur = base.durationMs > 0L ? base.durationMs : other.durationMs;
-		long sampled = useOtherTime && other.positionMs > 0L && base.positionMs <= 0L
-			? other.sampledAtNanos
-			: base.sampledAtNanos;
+		long expected = previous != null && previous.present() ? previous.displayPositionMs() : -1L;
+		long pos;
+		long sampled;
+		if (other.positionMs >= 0L && base.positionMs >= 0L && expected >= 0L) {
+			long otherDelta = Math.abs(other.positionMs - expected);
+			long baseDelta = Math.abs(base.positionMs - expected);
+			if (otherDelta >= SEEK_MS || baseDelta >= SEEK_MS) {
+				boolean useOther = otherDelta >= baseDelta;
+				pos = useOther ? other.positionMs : base.positionMs;
+				sampled = useOther ? other.sampledAtNanos : base.sampledAtNanos;
+			} else {
+				pos = other.positionMs;
+				sampled = other.sampledAtNanos;
+			}
+		} else if (other.positionMs >= 0L) {
+			pos = other.positionMs;
+			sampled = other.sampledAtNanos;
+		} else if (base.positionMs >= 0L) {
+			pos = base.positionMs;
+			sampled = base.sampledAtNanos;
+		} else {
+			pos = -1L;
+			sampled = base.sampledAtNanos;
+		}
+		long dur = other.durationMs > 0L ? other.durationMs : base.durationMs;
 		return new NowPlaying(
 			base.title,
 			preferArtist(mergedAlbum, base.artist, other.artist),
@@ -97,30 +120,35 @@ public record NowPlaying(
 		);
 	}
 
+	private static final long SEEK_MS = 800L;
+
 	public NowPlaying carryTime(NowPlaying previous) {
 		if (previous == null || !previous.present() || !titlesClose(title, previous.title)) {
 			return sampledAtNanos > 0L ? this : withTimeline(positionMs, durationMs, System.nanoTime());
 		}
 		long dur = durationMs > 0L ? durationMs : previous.durationMs;
-		long pos = positionMs;
-		long sampled = sampledAtNanos > 0L ? sampledAtNanos : System.nanoTime();
-		if (pos <= 0L) {
+		long expected = previous.displayPositionMs();
+		long pos;
+		long sampled;
+		if (positionMs < 0L) {
 			pos = previous.positionMs;
-			if (previous.sampledAtNanos > 0L) {
-				sampled = previous.sampledAtNanos;
-			}
-		} else if (previous.playing && previous.sampledAtNanos > 0L) {
-			long expected = previous.displayPositionMs();
-			if (Math.abs(pos - expected) < 2500L) {
-				pos = previous.positionMs;
-				sampled = previous.sampledAtNanos;
-			}
+			sampled = previous.sampledAtNanos > 0L ? previous.sampledAtNanos : sampledAtNanos;
+		} else if (Math.abs(positionMs - expected) >= SEEK_MS) {
+			pos = positionMs;
+			sampled = sampledAtNanos > 0L ? sampledAtNanos : System.nanoTime();
+		} else {
+			pos = previous.positionMs >= 0L ? previous.positionMs : positionMs;
+			sampled = previous.sampledAtNanos > 0L ? previous.sampledAtNanos : sampledAtNanos;
 		}
 		if (!playing && previous.playing) {
 			pos = previous.displayPositionMs();
 			sampled = System.nanoTime();
-		} else if (playing && !previous.playing && positionMs <= 0L) {
-			pos = previous.displayPositionMs();
+		} else if (playing && !previous.playing) {
+			if (positionMs >= 0L && Math.abs(positionMs - previous.displayPositionMs()) >= SEEK_MS) {
+				pos = positionMs;
+			} else {
+				pos = previous.positionMs >= 0L ? previous.positionMs : previous.displayPositionMs();
+			}
 			sampled = System.nanoTime();
 		}
 		return withTimeline(pos, dur, sampled);
@@ -135,7 +163,7 @@ public record NowPlaying(
 			source,
 			cover,
 			playing,
-			Math.max(0L, positionMs),
+			positionMs,
 			Math.max(0L, durationMs),
 			sampledAtNanos > 0L ? sampledAtNanos : System.nanoTime()
 		);
@@ -271,7 +299,7 @@ public record NowPlaying(
 		if (playing && sampledAtNanos > 0L) {
 			extra = Math.max(0L, (System.nanoTime() - sampledAtNanos) / 1_000_000L);
 		}
-		long pos = positionMs + extra;
+		long pos = (positionMs < 0L ? 0L : positionMs) + extra;
 		if (durationMs > 0L) {
 			pos = Math.min(pos, durationMs);
 		}
