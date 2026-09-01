@@ -7,6 +7,8 @@ import dev.voidmark.client.location.SkyblockLocation;
 import dev.voidmark.client.node.EnderNodeTracker;
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.HudStats;
+import dev.voidmark.client.render.MobCatalog;
+import dev.voidmark.client.render.MobGlowRenderer;
 import dev.voidmark.client.render.Starfield;
 import dev.voidmark.client.visual.CustomCape;
 import dev.voidmark.client.visual.NickHider;
@@ -33,7 +35,7 @@ import java.util.function.DoubleConsumer;
 
 public class VoidmarkScreen extends Screen {
 	private static final float MENU_W = 400;
-	private static final float MENU_H = 276;
+	private static final float MENU_H = 294;
 	private static final float SIDEBAR_W = 88;
 	private static final float TOOLBAR_H = 22;
 	private static final float ROW = 16;
@@ -65,6 +67,7 @@ public class VoidmarkScreen extends Screen {
 		WORLD("World", Group.VISUALS),
 		VIEW("View", Group.VISUALS),
 		FOG("Fog", Group.VISUALS),
+		MOBS("Mobs", Group.VISUALS),
 		MARKERS("Markers", Group.NODES),
 		DISPLAY("Display", Group.NODES),
 		HUD("HUD", Group.NODES),
@@ -83,7 +86,7 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private enum PickerTarget {
-		WORLD, SKY, FOG, NODE, THEME, PANE
+		WORLD, SKY, FOG, NODE, THEME, PANE, MOB
 	}
 
 	private record SearchEntry(String label, Tab tab, String hint) {
@@ -96,6 +99,8 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Skybox tint", Tab.WORLD, "Skybox"),
 		new SearchEntry("Aspect ratio", Tab.VIEW, "Camera"),
 		new SearchEntry("Custom fog", Tab.FOG, "Fog"),
+		new SearchEntry("Mob glow", Tab.MOBS, "ESP"),
+		new SearchEntry("Mobs", Tab.MOBS, "ESP"),
 		new SearchEntry("Markers", Tab.MARKERS, "Nodes"),
 		new SearchEntry("Filled box", Tab.DISPLAY, "ESP"),
 		new SearchEntry("Watermark", Tab.DISPLAY, "HUD"),
@@ -174,6 +179,17 @@ public class VoidmarkScreen extends Screen {
 	private float nickFieldX;
 	private float nickFieldY;
 	private float nickFieldW;
+	private boolean mobSearchFocused;
+	private String mobQuery = "";
+	private float mobScroll;
+	private float mobListX;
+	private float mobListY;
+	private float mobListW;
+	private float mobListH;
+	private float mobFieldX;
+	private float mobFieldY;
+	private float mobFieldW;
+	private boolean ensureMobVisible;
 
 	private float windowX;
 	private float windowY;
@@ -367,6 +383,10 @@ public class VoidmarkScreen extends Screen {
 		searchOpen = false;
 		capeFocused = tab == Tab.CAPE;
 		nickFocused = tab == Tab.NICK;
+		mobSearchFocused = false;
+		if (value == Tab.MOBS) {
+			ensureMobVisible = true;
+		}
 		commitCapeUrl();
 		VoidmarkConfig config = VoidmarkConfig.get();
 		config.menuTab = value.name();
@@ -379,6 +399,110 @@ public class VoidmarkScreen extends Screen {
 		} catch (IllegalArgumentException ignored) {
 			return Tab.WORLD;
 		}
+	}
+
+	private void drawMobsTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
+		float left = contentX();
+		float top = windowY + TOOLBAR_H + 6;
+		float col = colW();
+		float right = left + col + COL_GAP;
+		float ix = innerX(left);
+		float rx = innerX(right);
+		float iw = innerW(col);
+		VoidmarkConfig config = VoidmarkConfig.get();
+		config.mobGlowId = MobCatalog.normalizeId(config.mobGlowId);
+
+		float y = featureCard(graphics, font, left, top, col, cardHeight(6), "Glow");
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.mobGlowEnabled, v -> config.mobGlowEnabled = v);
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.mobGlowThroughWalls, v -> config.mobGlowThroughWalls = v);
+		y = slider(graphics, font, ix, y, iw, "Size", String.format(Locale.ROOT, "%.0f", config.mobGlowSize * 100), (config.mobGlowSize - 0.12f) / 1.08f, v -> config.mobGlowSize = VoidmarkConfig.clamp(0.12f + v * 1.08f, 0.12f, 1.20f));
+		y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.mobGlowOpacity * 100) + "%", (config.mobGlowOpacity - 0.15f) / 0.75f, v -> config.mobGlowOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
+		y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
+		String selected = clip(font, MobCatalog.displayName(config.mobGlowId), (int) iw - 4);
+		GuiDraw.menu(graphics, font, selected, ix + 1, GuiDraw.middle(y, ROW), Theme.ACCENT);
+
+		float listH = windowY + windowH - PAD - top;
+		featureCard(graphics, font, right, top, col, listH, "Mobs");
+		float searchY = top + CARD_HEAD;
+		mobFieldX = rx;
+		mobFieldY = searchY;
+		mobFieldW = iw;
+		boolean hoverSearch = GuiDraw.hovered(mouseX, mouseY, mobFieldX, mobFieldY, mobFieldW, 14);
+		GuiDraw.panel(graphics, mobFieldX, mobFieldY, mobFieldW, 14, 5, mobSearchFocused || hoverSearch ? Theme.CARD_HOVER : Theme.PANEL, mobSearchFocused ? Theme.ACCENT : Theme.LINE);
+		String shown = mobQuery.isEmpty() && !mobSearchFocused ? "Search mobs..." : mobQuery + (mobSearchFocused ? "|" : "");
+		GuiDraw.menu(graphics, font, clip(font, shown, (int) mobFieldW - 10), mobFieldX + 5, GuiDraw.middle(mobFieldY, 14), mobQuery.isEmpty() && !mobSearchFocused ? Theme.MUTED : Theme.TEXT);
+		hits.add(new Hit(mobFieldX, mobFieldY, mobFieldW, 14, () -> {
+			mobSearchFocused = true;
+			capeFocused = false;
+			nickFocused = false;
+			searchOpen = false;
+		}));
+
+		mobListX = rx;
+		mobListY = searchY + 18;
+		mobListW = iw;
+		mobListH = Math.max(16, listH - CARD_HEAD - 22);
+		List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
+		float contentH = entries.size() * ROW;
+		float maxScroll = Math.max(0f, contentH - mobListH);
+		if (ensureMobVisible) {
+			for (int i = 0; i < entries.size(); i++) {
+				if (entries.get(i).id().toString().equals(config.mobGlowId)) {
+					mobScroll = Mth.clamp(i * ROW - mobListH * 0.4f, 0f, maxScroll);
+					break;
+				}
+			}
+			ensureMobVisible = false;
+		}
+		mobScroll = Mth.clamp(mobScroll, 0f, maxScroll);
+
+		boolean clipped = GuiDraw.scissor(graphics, mobListX, mobListY, mobListW, mobListH);
+		if (entries.isEmpty()) {
+			GuiDraw.menu(graphics, font, "No matching mobs", mobListX + 2, GuiDraw.middle(mobListY, mobListH), Theme.MUTED);
+		} else {
+			int first = (int) (mobScroll / ROW);
+			int last = Math.min(entries.size() - 1, first + (int) (mobListH / ROW) + 1);
+			for (int i = first; i <= last; i++) {
+				MobCatalog.Entry entry = entries.get(i);
+				float iy = mobListY + i * ROW - mobScroll;
+				boolean on = entry.id().toString().equals(config.mobGlowId);
+				boolean hover = GuiDraw.hovered(mouseX, mouseY, mobListX, iy, mobListW, ROW)
+					&& GuiDraw.hovered(mouseX, mouseY, mobListX, mobListY, mobListW, mobListH);
+				if (on) {
+					GuiDraw.rounded(graphics, mobListX - 2, iy, mobListW + 4, ROW, 5, Theme.withAlpha(Theme.ACCENT, 38));
+					GuiDraw.rounded(graphics, mobListX - 2, iy + 3, 2, ROW - 6, 1, Theme.ACCENT);
+				} else if (hover) {
+					GuiDraw.rounded(graphics, mobListX - 2, iy, mobListW + 4, ROW, 5, 0x10FFFFFF);
+				}
+				GuiDraw.menu(graphics, font, clip(font, entry.name(), (int) mobListW - 8), mobListX + 6, GuiDraw.middle(iy, ROW), on ? Theme.TEXT : Theme.HEADER);
+				float hitY = Math.max(iy, mobListY);
+				float hitB = Math.min(iy + ROW, mobListY + mobListH);
+				if (hitB - hitY >= 3f) {
+					hits.add(new Hit(mobListX, hitY, mobListW, hitB - hitY, () -> {
+						config.mobGlowId = entry.id().toString();
+						config.mobGlowEnabled = true;
+						UnloadState.markDirty();
+					}));
+				}
+			}
+		}
+		if (clipped) {
+			GuiDraw.disableScissor(graphics);
+		}
+
+		if (maxScroll > 1f) {
+			float trackX = right + col - 5;
+			float trackY = mobListY;
+			float trackH = mobListH;
+			GuiDraw.rounded(graphics, trackX, trackY, 2.4f, trackH, 1.2f, Theme.TRACK);
+			float thumbH = Math.max(14f, trackH * trackH / (trackH + maxScroll));
+			float thumbY = trackY + (mobScroll / maxScroll) * (trackH - thumbH);
+			GuiDraw.rounded(graphics, trackX - 0.4f, thumbY, 3.2f, thumbH, 1.6f, Theme.ACCENT);
+		}
+
+		int nearby = config.mobGlowEnabled ? MobGlowRenderer.nearbyCount() : 0;
+		GuiDraw.small(graphics, font, nearby == 0 ? "None nearby" : nearby + " nearby", ix + 1, top + cardHeight(6) + 6, Theme.MUTED);
+		GuiDraw.small(graphics, font, "Soft bloom, not vanilla glow.", ix + 1, top + cardHeight(6) + 16, Theme.MUTED);
 	}
 
 	private void drawCapeTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
@@ -526,6 +650,7 @@ public class VoidmarkScreen extends Screen {
 			case WORLD -> MenuFont.GLOBE;
 			case VIEW -> MenuFont.EYE;
 			case FOG -> MenuFont.CLOUD;
+			case MOBS -> MenuFont.MOB;
 			case MARKERS -> MenuFont.CUBE;
 			case DISPLAY -> MenuFont.MONITOR;
 			case HUD -> MenuFont.HUD;
@@ -637,6 +762,16 @@ public class VoidmarkScreen extends Screen {
 				config.fogEnd = 0.72f;
 				config.fogDensity = 1.0f;
 				config.matchFogToWorld = false;
+			}
+			case MOBS -> {
+				config.mobGlowEnabled = false;
+				config.mobGlowThroughWalls = true;
+				config.mobGlowId = MobCatalog.DEFAULT_ID;
+				config.mobGlowSize = 0.48f;
+				config.mobGlowOpacity = 0.58f;
+				config.mobGlowRgb = 0x2FB5FF;
+				mobQuery = "";
+				mobScroll = 0f;
 			}
 			case MARKERS -> {
 				config.markersEnabled = true;
@@ -890,6 +1025,7 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, rx, y, iw, "End", String.format(Locale.ROOT, "%.0f%%", config.fogEnd * 100), (config.fogEnd - 0.05f) / 0.95f, v -> config.fogEnd = VoidmarkConfig.clamp(0.05f + v * 0.95f, 0.05f, 1f));
 				slider(graphics, font, rx, y, iw, "Density", String.format(Locale.ROOT, "%.0f", config.fogDensity * 100), config.fogDensity, v -> config.fogDensity = v);
 			}
+			case MOBS -> drawMobsTab(graphics, font, mouseX, mouseY);
 			case MARKERS -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Main");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.markersEnabled, v -> config.markersEnabled = v);
@@ -1230,6 +1366,7 @@ public class VoidmarkScreen extends Screen {
 			case SKY -> config.skyTintRgb = packed;
 			case FOG -> config.fogRgb = packed;
 			case NODE -> config.colorRgb = packed;
+			case MOB -> config.mobGlowRgb = packed;
 			case THEME -> Theme.applyCustom(packed);
 			case PANE -> Theme.applyPane(packed);
 		}
@@ -1265,7 +1402,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.55");
+			.orElse("1.1.71");
 	}
 
 	@Override
@@ -1283,6 +1420,10 @@ public class VoidmarkScreen extends Screen {
 		}
 		if (nickFocused && !onNick) {
 			nickFocused = false;
+		}
+		boolean onMobSearch = GuiDraw.hovered(event.x(), event.y(), mobFieldX, mobFieldY, mobFieldW, 14);
+		if (mobSearchFocused && !onMobSearch) {
+			mobSearchFocused = false;
 		}
 		for (int i = hits.size() - 1; i >= 0; i--) {
 			Hit hit = hits.get(i);
@@ -1342,6 +1483,17 @@ public class VoidmarkScreen extends Screen {
 		return super.mouseReleased(event);
 	}
 
+	@Override
+	public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+		if (tab == Tab.MOBS && scrollY != 0 && GuiDraw.hovered(mouseX, mouseY, mobFieldX, mobFieldY, mobListW, mobListY + mobListH - mobFieldY)) {
+			List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
+			float maxScroll = Math.max(0f, entries.size() * ROW - mobListH);
+			mobScroll = Mth.clamp(mobScroll - (float) scrollY * ROW * 2.2f, 0f, maxScroll);
+			return true;
+		}
+		return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+	}
+
 	private void persistMenuPosition() {
 		VoidmarkConfig config = VoidmarkConfig.get();
 		config.menuX = windowX;
@@ -1360,6 +1512,15 @@ public class VoidmarkScreen extends Screen {
 			}
 			if (nickFocused) {
 				nickFocused = false;
+				return true;
+			}
+			if (mobSearchFocused) {
+				if (!mobQuery.isEmpty()) {
+					mobQuery = "";
+					mobScroll = 0f;
+				} else {
+					mobSearchFocused = false;
+				}
 				return true;
 			}
 			if (searchOpen) {
@@ -1390,6 +1551,13 @@ public class VoidmarkScreen extends Screen {
 			String nick = VoidmarkConfig.get().nick;
 			if (nick != null && !nick.isEmpty()) {
 				VoidmarkConfig.get().nick = nick.substring(0, nick.length() - 1);
+			}
+			return true;
+		}
+		if (mobSearchFocused && event.key() == InputConstants.KEY_BACKSPACE) {
+			if (!mobQuery.isEmpty()) {
+				mobQuery = mobQuery.substring(0, mobQuery.length() - 1);
+				mobScroll = 0f;
 			}
 			return true;
 		}
@@ -1429,6 +1597,7 @@ public class VoidmarkScreen extends Screen {
 			bellOpen = false;
 			capeFocused = false;
 			nickFocused = false;
+			mobSearchFocused = false;
 			return true;
 		}
 		return super.keyPressed(event);
@@ -1447,6 +1616,13 @@ public class VoidmarkScreen extends Screen {
 			}
 			if (config.nick.length() < 48) {
 				config.nick += event.codepointAsString();
+			}
+			return true;
+		}
+		if (mobSearchFocused && event.isAllowedChatCharacter()) {
+			if (mobQuery.length() < 32) {
+				mobQuery += event.codepointAsString();
+				mobScroll = 0f;
 			}
 			return true;
 		}

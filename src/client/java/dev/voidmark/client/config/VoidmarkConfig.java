@@ -115,6 +115,12 @@ public final class VoidmarkConfig {
 	public boolean nametagDistance = true;
 	public int nametagRange = 128;
 	public float nametagScale = 1.0f;
+	public boolean mobGlowEnabled = false;
+	public boolean mobGlowThroughWalls = true;
+	public String mobGlowId = "minecraft:zombie";
+	public float mobGlowSize = 0.48f;
+	public float mobGlowOpacity = 0.58f;
+	public int mobGlowRgb = 0x2FB5FF;
 	public java.util.List<ItemSkin> itemSkins = new java.util.ArrayList<>();
 
 	private VoidmarkConfig() {
@@ -173,6 +179,15 @@ public final class VoidmarkConfig {
 				}
 				loaded.nametagRange = clamp(loaded.nametagRange <= 0 ? 128 : loaded.nametagRange, 64, 256);
 				loaded.nametagScale = clampHudScale(loaded.nametagScale);
+				if (loaded.mobGlowId == null || loaded.mobGlowId.isBlank()) {
+					loaded.mobGlowId = "minecraft:zombie";
+				}
+				loaded.mobGlowSize = clamp(loaded.mobGlowSize <= 0f ? 0.48f : loaded.mobGlowSize, 0.12f, 1.20f);
+				loaded.mobGlowOpacity = clamp(loaded.mobGlowOpacity <= 0f ? 0.58f : loaded.mobGlowOpacity, 0.15f, 0.90f);
+				loaded.mobGlowRgb = loaded.mobGlowRgb & 0xFFFFFF;
+				if (loaded.mobGlowRgb == 0) {
+					loaded.mobGlowRgb = 0x2FB5FF;
+				}
 				if (loaded.itemSkins == null) {
 					loaded.itemSkins = new java.util.ArrayList<>();
 				}
@@ -286,7 +301,7 @@ public final class VoidmarkConfig {
 		}
 		String name = tab.trim().toUpperCase(java.util.Locale.ROOT);
 		return switch (name) {
-			case "WORLD", "VIEW", "FOG", "MARKERS", "DISPLAY", "HUD", "STATUS", "INVENTORY", "NICK", "CAPE" -> name;
+			case "WORLD", "VIEW", "FOG", "MOBS", "MARKERS", "DISPLAY", "HUD", "STATUS", "INVENTORY", "NICK", "CAPE" -> name;
 			default -> "WORLD";
 		};
 	}

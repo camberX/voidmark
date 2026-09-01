@@ -22,6 +22,7 @@ import dev.voidmark.client.render.MusicHudRenderer;
 import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.render.NodeHudRenderer;
 import dev.voidmark.client.render.RawmatsHudRenderer;
+import dev.voidmark.client.render.MobGlowRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.VanillaHud;
 import dev.voidmark.client.render.WatermarkRenderer;
@@ -56,6 +57,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		RawmatsTracker.init();
 		CustomCape.init();
 		NodeWorldRenderer.init();
+		MobGlowRenderer.init();
 		WatermarkRenderer.init();
 		InventoryHudRenderer.init();
 		NodeHudRenderer.init();
