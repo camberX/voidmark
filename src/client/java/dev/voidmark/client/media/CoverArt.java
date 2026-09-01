@@ -1,9 +1,5 @@
 package dev.voidmark.client.media;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.voidmark.Voidmark;
 import net.minecraft.client.Minecraft;
@@ -17,16 +13,13 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
-import java.util.Locale;
 
 /**
  * Loads the current track's album art onto a dynamic GUI texture.
@@ -104,8 +97,8 @@ public final class CoverArt {
 		try {
 			byte[] bytes = readSpec(spec);
 			if (!looksLikeImage(bytes)) {
-				String found = lookup(title, artist);
-				bytes = readSpec(found);
+				TrackLookup.Hit hit = TrackLookup.resolve(title, artist);
+				bytes = readSpec(hit.cover());
 			}
 			if (!looksLikeImage(bytes)) {
 				return;
@@ -182,167 +175,6 @@ public final class CoverArt {
 		return out;
 	}
 
-	private static String lookup(String title, String artist) {
-		String a = title == null ? "" : title.trim();
-		String b = artist == null ? "" : artist.trim();
-		String found = deezer(a, b);
-		if (found.isBlank()) {
-			found = deezer(b, a);
-		}
-		if (found.isBlank()) {
-			found = itunes(a, b);
-		}
-		if (found.isBlank()) {
-			found = itunes(b, a);
-		}
-		return found;
-	}
-
-	private static String deezer(String title, String artist) {
-		String query = (title + " " + artist).trim();
-		if (query.length() < 3) {
-			return "";
-		}
-		try {
-			String body = get("https://api.deezer.com/search?limit=8&q=" + encode(query));
-			JsonObject root = JsonParser.parseString(body).getAsJsonObject();
-			if (!root.has("data") || !root.get("data").isJsonArray()) {
-				return "";
-			}
-			return bestArtwork(root.getAsJsonArray("data"), title, artist, true);
-		} catch (Exception exception) {
-			return "";
-		}
-	}
-
-	private static String itunes(String title, String artist) {
-		String query = (title + " " + artist).trim();
-		if (query.length() < 3) {
-			return "";
-		}
-		for (String country : new String[]{"de", "us", "gb", "at", "ch"}) {
-			try {
-				String body = get("https://itunes.apple.com/search?entity=song&limit=8&country=" + country + "&term=" + encode(query));
-				JsonObject root = JsonParser.parseString(body).getAsJsonObject();
-				if (!root.has("results") || !root.get("results").isJsonArray()) {
-					continue;
-				}
-				String art = bestArtwork(root.getAsJsonArray("results"), title, artist, false);
-				if (!art.isBlank()) {
-					return art;
-				}
-			} catch (Exception ignored) {
-			}
-		}
-		return "";
-	}
-
-	private static String bestArtwork(JsonArray results, String title, String artist, boolean deezer) {
-		String best = "";
-		int bestScore = 0;
-		for (JsonElement el : results) {
-			if (!el.isJsonObject()) {
-				continue;
-			}
-			JsonObject row = el.getAsJsonObject();
-			String rowTitle;
-			String rowArtist;
-			String art;
-			if (deezer) {
-				rowTitle = text(row, "title", "title_short");
-				rowArtist = nested(row, "artist", "name");
-				art = firstNonBlank(
-					nested(row, "album", "cover_medium"),
-					nested(row, "album", "cover_big"),
-					nested(row, "album", "cover")
-				);
-			} else {
-				rowTitle = text(row, "trackName", "collectionName");
-				rowArtist = text(row, "artistName");
-				art = text(row, "artworkUrl100", "artworkUrl60");
-				if (!art.isBlank()) {
-					art = art.replace("100x100bb", "300x300bb").replace("60x60bb", "300x300bb");
-				}
-			}
-			if (art.isBlank()) {
-				continue;
-			}
-			int score = matchScore(rowTitle, rowArtist, title, artist);
-			if (score > bestScore) {
-				bestScore = score;
-				best = art;
-			}
-		}
-		return bestScore >= 3 ? best : "";
-	}
-
-	private static int matchScore(String rowTitle, String rowArtist, String title, String artist) {
-		String rt = norm(rowTitle);
-		String ra = norm(rowArtist);
-		String t = norm(title);
-		String a = norm(artist);
-		if (rt.isEmpty() && ra.isEmpty()) {
-			return 0;
-		}
-		int score = 0;
-		if (!t.isEmpty() && (rt.equals(t) || rt.contains(t) || t.contains(rt))) {
-			score += 4;
-		}
-		if (!a.isEmpty() && (ra.equals(a) || ra.contains(a) || a.contains(ra))) {
-			score += 4;
-		}
-		if (!t.isEmpty() && (ra.equals(t) || ra.contains(t) || t.contains(ra))) {
-			score += 3;
-		}
-		if (!a.isEmpty() && (rt.equals(a) || rt.contains(a) || a.contains(rt))) {
-			score += 3;
-		}
-		return score;
-	}
-
-	private static String nested(JsonObject row, String objectKey, String field) {
-		if (row == null || !row.has(objectKey) || !row.get(objectKey).isJsonObject()) {
-			return "";
-		}
-		return text(row.getAsJsonObject(objectKey), field);
-	}
-
-	private static String text(JsonObject json, String... keys) {
-		if (json == null) {
-			return "";
-		}
-		for (String key : keys) {
-			if (!json.has(key) || json.get(key).isJsonNull() || !json.get(key).isJsonPrimitive()) {
-				continue;
-			}
-			String value = json.get(key).getAsString().trim();
-			if (!value.isBlank()) {
-				return value;
-			}
-		}
-		return "";
-	}
-
-	private static String firstNonBlank(String... values) {
-		for (String value : values) {
-			if (value != null && !value.isBlank()) {
-				return value;
-			}
-		}
-		return "";
-	}
-
-	private static String norm(String value) {
-		if (value == null) {
-			return "";
-		}
-		return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
-	}
-
-	private static String encode(String value) {
-		return URLEncoder.encode(value, StandardCharsets.UTF_8);
-	}
-
 	private static byte[] readSpec(String spec) {
 		if (spec == null || spec.isBlank()) {
 			return new byte[0];
@@ -388,10 +220,6 @@ public final class CoverArt {
 			throw new IllegalStateException("Missing cover file");
 		}
 		return Files.readAllBytes(path);
-	}
-
-	private static String get(String url) throws Exception {
-		return HTTP.send(imageRequest(url), HttpResponse.BodyHandlers.ofString()).body();
 	}
 
 	private static byte[] getBytes(String url) throws Exception {

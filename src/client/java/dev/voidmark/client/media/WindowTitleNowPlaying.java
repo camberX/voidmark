@@ -143,15 +143,23 @@ final class WindowTitleNowPlaying {
 	}
 
 	private static Parsed parse(String title) {
+		String lower = title.toLowerCase(Locale.ROOT);
+		boolean youtube = lower.contains("youtube");
 		String trimmed = title
 			.replaceAll("(?i)\\s+[|\\-]\\s+YouTube Music.*$", "")
 			.replaceAll("(?i)\\s+[|\\-]\\s+Spotify.*$", "")
 			.trim();
-		String[] seps = { " • ", " – ", " — ", " - " };
+		String[] seps = youtube
+			? new String[]{" • ", " · ", " – ", " — ", " | "}
+			: new String[]{" • ", " · ", " – ", " — ", " - "};
 		for (String sep : seps) {
 			int at = trimmed.indexOf(sep);
 			if (at > 0 && at + sep.length() < trimmed.length()) {
-				return new Parsed(trimmed.substring(0, at).trim(), trimmed.substring(at + sep.length()).trim());
+				String left = trimmed.substring(0, at).trim();
+				String right = trimmed.substring(at + sep.length()).trim();
+				if (!NowPlaying.placeholder(right) && !left.isBlank()) {
+					return new Parsed(left, right);
+				}
 			}
 		}
 		return new Parsed(trimmed, "");

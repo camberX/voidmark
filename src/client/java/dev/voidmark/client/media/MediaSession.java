@@ -27,7 +27,10 @@ public final class MediaSession {
 
 	public static NowPlaying current() {
 		NowPlaying value = current;
-		return value == null ? NowPlaying.none() : value;
+		if (value == null || !value.present()) {
+			return NowPlaying.none();
+		}
+		return TrackLookup.enrich(value);
 	}
 
 	public static String hint() {
@@ -90,29 +93,30 @@ public final class MediaSession {
 		NowPlaying companion = COMPANION.snapshot();
 		if (windows.present()) {
 			NowPlaying out = windows.cleaned();
-			if (companion.present() && NowPlaying.titlesClose(out.title(), companion.title())) {
+			if (companion.present() && NowPlaying.related(out, companion)) {
 				out = out.overlay(companion);
 			}
+			out = TrackLookup.enrich(out);
 			route = "windows";
 			hint = out.sourceLabel();
 			return out;
 		}
 		if (companion.present()) {
-			NowPlaying out = companion.cleaned();
+			NowPlaying out = TrackLookup.enrich(companion.cleaned());
 			route = companion.source();
 			hint = out.sourceLabel();
 			return out;
 		}
 		NowPlaying titled = TITLES.snapshot();
 		if (titled.present()) {
-			NowPlaying out = titled.cleaned();
+			NowPlaying out = TrackLookup.enrich(titled.cleaned());
 			route = "window";
 			hint = out.sourceLabel();
 			return out;
 		}
 		NowPlaying linux = LINUX.snapshot();
 		if (linux.present()) {
-			NowPlaying out = linux.cleaned();
+			NowPlaying out = TrackLookup.enrich(linux.cleaned());
 			route = "playerctl";
 			hint = out.sourceLabel();
 			return out;

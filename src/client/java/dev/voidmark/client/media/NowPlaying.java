@@ -66,6 +66,40 @@ public record NowPlaying(
 		);
 	}
 
+	public NowPlaying withCatalog(String catalogTitle, String catalogArtist, String catalogAlbum, String catalogCover) {
+		NowPlaying base = cleaned();
+		String newTitle = base.title;
+		String newArtist = firstPerson(base.artist, catalogArtist);
+		boolean swapped = titlesClose(base.title, catalogArtist) && !placeholder(catalogTitle);
+		boolean missing = placeholder(base.artist) && !placeholder(catalogArtist);
+		if ((swapped || missing) && !placeholder(catalogTitle)) {
+			newTitle = catalogTitle;
+			newArtist = catalogArtist;
+		}
+		return new NowPlaying(
+			newTitle,
+			newArtist,
+			firstNonBlank(base.album, catalogAlbum),
+			base.app,
+			base.source,
+			firstNonBlank(base.cover, catalogCover),
+			base.playing,
+			base.positionMs,
+			base.durationMs,
+			base.sampledAtNanos
+		);
+	}
+
+	static boolean related(NowPlaying left, NowPlaying right) {
+		if (left == null || right == null || !left.present() || !right.present()) {
+			return false;
+		}
+		return titlesClose(left.title(), right.title())
+			|| titlesClose(left.title(), right.artist())
+			|| titlesClose(left.artist(), right.title())
+			|| (!placeholder(left.artist()) && titlesClose(left.artist(), right.artist()));
+	}
+
 	public String artistLine() {
 		if (!placeholder(artist) && artist != null && !artist.isBlank()) {
 			return artist;
@@ -194,7 +228,7 @@ public record NowPlaying(
 			if (title.isEmpty()) {
 				return new Split("", "");
 			}
-			String[] seps = {" • ", " – ", " — "};
+			String[] seps = {" • ", " · ", " – ", " — ", " | ", " by "};
 			for (String sep : seps) {
 				int at = title.indexOf(sep);
 				if (at > 0 && at + sep.length() < title.length()) {
