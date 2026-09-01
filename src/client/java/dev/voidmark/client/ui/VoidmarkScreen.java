@@ -102,6 +102,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Node HUD", Tab.DISPLAY, "HUD"),
 		new SearchEntry("Music HUD", Tab.DISPLAY, "HUD"),
 		new SearchEntry("Raw mats", Tab.DISPLAY, "HUD"),
+		new SearchEntry("Enchanted materials", Tab.DISPLAY, "HUD"),
 		new SearchEntry("Spotify", Tab.DISPLAY, "Music"),
 		new SearchEntry("YouTube Music", Tab.DISPLAY, "Music"),
 		new SearchEntry("Hotbar", Tab.HUD, "Vanilla HUD"),
@@ -672,6 +673,7 @@ public class VoidmarkScreen extends Screen {
 				config.hudMusicY = -1f;
 				config.hudMusicScale = 1.0f;
 				config.rawmatsHudEnabled = true;
+				config.rawmatsEnchanted = false;
 				config.hudRawmatsX = -1f;
 				config.hudRawmatsY = -1f;
 				config.hudRawmatsScale = 1.0f;
@@ -914,11 +916,12 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(6), "Overlay");
+				y = featureCard(graphics, font, right, top, col, cardHeight(7), "Overlay");
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Music HUD", config.musicHudEnabled, v -> config.musicHudEnabled = v);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Raw mats HUD", config.rawmatsHudEnabled, v -> config.rawmatsHudEnabled = v);
+				y = cycle(graphics, font, rx, y, iw, mouseX, mouseY, "Materials", config.rawmatsModeLabel(), config::cycleRawmatsMode);
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Nametags", config.nametagsEnabled, v -> config.nametagsEnabled = v);
 				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
 			}

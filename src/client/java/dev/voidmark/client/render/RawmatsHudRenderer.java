@@ -3,6 +3,7 @@ package dev.voidmark.client.render;
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.item.RawmatsTracker;
+import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.Theme;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
@@ -10,6 +11,8 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemStack;
 
@@ -23,6 +26,7 @@ public final class RawmatsHudRenderer {
 	private static final float ROW = 18;
 	private static final float ICON = 16;
 	private static final int MAX_ROWS = 10;
+	private static Rect modeHit = Rect.EMPTY;
 
 	private RawmatsHudRenderer() {
 	}
@@ -47,17 +51,39 @@ public final class RawmatsHudRenderer {
 		return heightOf(snap);
 	}
 
+	public static boolean mouseClicked(MouseButtonEvent event) {
+		if (event.button() != 0 || !VoidmarkConfig.get().rawmatsHudEnabled) {
+			return false;
+		}
+		if (Minecraft.getInstance().screen instanceof HudEditorScreen) {
+			return false;
+		}
+		if (!(Minecraft.getInstance().screen instanceof ChatScreen)) {
+			return false;
+		}
+		if (modeHit.contains(event.x(), event.y())) {
+			VoidmarkConfig config = VoidmarkConfig.get();
+			config.cycleRawmatsMode();
+			config.save();
+			return true;
+		}
+		return false;
+	}
+
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.options.hideGui) {
+			modeHit = Rect.EMPTY;
 			return;
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
 		if (!config.rawmatsHudEnabled) {
+			modeHit = Rect.EMPTY;
 			return;
 		}
 		RawmatsTracker.Snapshot snap = RawmatsTracker.snapshot();
 		if (!snap.present() && !HudLayout.editorOpen()) {
+			modeHit = Rect.EMPTY;
 			return;
 		}
 		HudLayout.Box box = HudLayout.box(HudLayout.Id.RAWMATS, client.font, graphics.guiWidth(), graphics.guiHeight());
@@ -75,6 +101,12 @@ public final class RawmatsHudRenderer {
 
 		GuiDraw.panel(graphics, 0, 0, WIDTH, h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
 		GuiDraw.small(graphics, font, "RAW MATS", PAD + 4, PAD + 1, Theme.ACCENT);
+		boolean chat = client.screen instanceof ChatScreen;
+		String mode = VoidmarkConfig.get().rawmatsModeLabel();
+		float modeW = GuiDraw.smallWidth(font, mode);
+		int modeColor = chat ? Theme.ACCENT : Theme.MUTED;
+		GuiDraw.small(graphics, font, mode, WIDTH - PAD - modeW, PAD + 1, modeColor);
+		modeHit = new Rect(x + (WIDTH - PAD - modeW) * scale, y + PAD * scale, (modeW + 8) * scale, 12 * scale);
 
 		if (!snap.present()) {
 			GuiDraw.menu(graphics, font, "No item tracked", PAD + 4, PAD + 12, Theme.TEXT);
@@ -86,9 +118,9 @@ public final class RawmatsHudRenderer {
 		String title = ellipsize(font, snap.name(), WIDTH - PAD * 2 - 72, false);
 		GuiDraw.menu(graphics, font, title, PAD + 4, PAD + 12, Theme.TEXT);
 		String tally = snap.complete() + "/" + snap.total();
-		GuiDraw.small(graphics, font, tally, WIDTH - PAD - GuiDraw.smallWidth(font, tally), PAD + 1, Theme.MUTED);
 		String pct = Math.round(snap.progress() * 100f) + "%";
-		GuiDraw.small(graphics, font, pct, WIDTH - PAD - GuiDraw.smallWidth(font, pct), PAD + 12, Theme.ACCENT);
+		String right = tally + "  " + pct;
+		GuiDraw.small(graphics, font, right, WIDTH - PAD - GuiDraw.smallWidth(font, right), PAD + 12, Theme.MUTED);
 
 		List<RawmatsTracker.Line> lines = snap.lines();
 		if (lines.isEmpty()) {
@@ -188,5 +220,13 @@ public final class RawmatsHudRenderer {
 			}
 		}
 		return "..";
+	}
+
+	private record Rect(float x, float y, float w, float h) {
+		private static final Rect EMPTY = new Rect(0, 0, 0, 0);
+
+		boolean contains(double mx, double my) {
+			return w > 0 && h > 0 && mx >= x && mx <= x + w && my >= y && my <= y + h;
+		}
 	}
 }

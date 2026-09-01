@@ -17,8 +17,14 @@ public final class SkyblockRecipes {
 	public record Recipe(String id, long output, Map<String, Long> ingredients, String type) {
 	}
 
+	public enum Expand {
+		RAW,
+		ENCHANTED
+	}
+
 	private static final Map<String, Recipe> BY_ID = new HashMap<>();
 	private static final Map<String, Map<String, Long>> RAW_CACHE = new HashMap<>();
+	private static final Map<String, Map<String, Long>> ENCHANTED_CACHE = new HashMap<>();
 	private static boolean loaded;
 
 	private SkyblockRecipes() {
@@ -62,20 +68,36 @@ public final class SkyblockRecipes {
 	}
 
 	public static Map<String, Long> expand(String id) {
-		return expand(id, 1L);
+		return expand(id, 1L, Expand.RAW);
 	}
 
 	public static Map<String, Long> expand(String id, long quantity) {
+		return expand(id, quantity, Expand.RAW);
+	}
+
+	public static Map<String, Long> expand(String id, long quantity, Expand expand) {
 		load();
 		if (id == null || id.isBlank() || quantity <= 0L) {
 			return Map.of();
 		}
+		Expand mode = expand == null ? Expand.RAW : expand;
 		Map<String, Long> out = new LinkedHashMap<>();
-		walk(normalize(id), quantity, out, new HashMap<>());
+		walk(normalize(id), quantity, out, new HashMap<>(), mode);
 		return out;
 	}
 
-	private static void walk(String id, long quantity, Map<String, Long> out, Map<String, Integer> stack) {
+	/**
+	 * First enchanted compact form: Enchanted Iron, not Enchanted Iron Block
+	 * and not the collection item (Iron Ingot).
+	 */
+	public static boolean enchantedCompact(String id) {
+		if (id == null || !id.startsWith("ENCHANTED_") || id.endsWith("_BLOCK")) {
+			return false;
+		}
+		return id.length() > "ENCHANTED_".length();
+	}
+
+	private static void walk(String id, long quantity, Map<String, Long> out, Map<String, Integer> stack, Expand mode) {
 		if (quantity <= 0L) {
 			return;
 		}
@@ -84,22 +106,26 @@ public final class SkyblockRecipes {
 			out.merge(id, quantity, Long::sum);
 			return;
 		}
+		if (mode == Expand.ENCHANTED && !stack.isEmpty() && enchantedCompact(id)) {
+			out.merge(id, quantity, Long::sum);
+			return;
+		}
 		Recipe recipe = BY_ID.get(id);
 		if (recipe == null || recipe.ingredients.isEmpty()) {
 			out.merge(id, quantity, Long::sum);
 			return;
 		}
-		String cacheKey = id;
-		Map<String, Long> oneCraft = RAW_CACHE.get(cacheKey);
+		Map<String, Map<String, Long>> cache = mode == Expand.ENCHANTED ? ENCHANTED_CACHE : RAW_CACHE;
+		Map<String, Long> oneCraft = cache.get(id);
 		if (oneCraft == null) {
 			stack.put(id, 1);
 			Map<String, Long> craft = new LinkedHashMap<>();
 			for (Map.Entry<String, Long> ingredient : recipe.ingredients.entrySet()) {
-				walk(ingredient.getKey(), ingredient.getValue(), craft, stack);
+				walk(ingredient.getKey(), ingredient.getValue(), craft, stack, mode);
 			}
 			stack.remove(id);
 			oneCraft = Collections.unmodifiableMap(craft);
-			RAW_CACHE.put(cacheKey, oneCraft);
+			cache.put(id, oneCraft);
 		}
 		long crafts = (quantity + recipe.output - 1L) / recipe.output;
 		for (Map.Entry<String, Long> leaf : oneCraft.entrySet()) {

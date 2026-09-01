@@ -57,6 +57,7 @@ public final class VoidmarkConfig {
 	public boolean musicHudEnabled = true;
 	public boolean musicHideIdle = false;
 	public boolean rawmatsHudEnabled = true;
+	public boolean rawmatsEnchanted = false;
 	public String rawmatsItemId = "";
 	public boolean inventoryHudEnabled = true;
 	public boolean inventoryHudHotbar = true;
@@ -235,6 +236,14 @@ public final class VoidmarkConfig {
 
 	public String worldTintModeLabel() {
 		return worldTintUsesLightmap() ? "Lightmap" : "Shader";
+	}
+
+	public void cycleRawmatsMode() {
+		rawmatsEnchanted = !rawmatsEnchanted;
+	}
+
+	public String rawmatsModeLabel() {
+		return rawmatsEnchanted ? "Enchanted" : "Raw";
 	}
 
 	public void cycleInventoryHudAnchor() {

@@ -104,7 +104,10 @@ public final class RawmatsTracker {
 			return Snapshot.none();
 		}
 		SkyblockRecipes.load();
-		Map<String, Long> need = SkyblockRecipes.expand(id, 1L);
+		SkyblockRecipes.Expand expand = VoidmarkConfig.get().rawmatsEnchanted
+			? SkyblockRecipes.Expand.ENCHANTED
+			: SkyblockRecipes.Expand.RAW;
+		Map<String, Long> need = SkyblockRecipes.expand(id, 1L, expand);
 		boolean recipe = SkyblockRecipes.has(id);
 		if (need.isEmpty()) {
 			need = new LinkedHashMap<>();
@@ -113,7 +116,7 @@ public final class RawmatsTracker {
 		Minecraft client = Minecraft.getInstance();
 		Player player = client.player;
 		Map<String, Long> owned = player == null ? Map.of() : ItemStorage.counts(player);
-		Map<String, Long> have = credit(id, need, owned);
+		Map<String, Long> have = credit(id, need, owned, expand);
 		List<Line> lines = new ArrayList<>();
 		for (Map.Entry<String, Long> entry : need.entrySet()) {
 			long required = entry.getValue();
@@ -146,8 +149,14 @@ public final class RawmatsTracker {
 		);
 	}
 
-	private static Map<String, Long> credit(String target, Map<String, Long> need, Map<String, Long> owned) {
+	private static Map<String, Long> credit(
+		String target,
+		Map<String, Long> need,
+		Map<String, Long> owned,
+		SkyblockRecipes.Expand expand
+	) {
 		Map<String, Long> have = new HashMap<>();
+		Map<String, Long> leftover = new HashMap<>();
 		for (Map.Entry<String, Long> entry : owned.entrySet()) {
 			String id = entry.getKey();
 			long count = entry.getValue();
@@ -165,16 +174,53 @@ public final class RawmatsTracker {
 			if (direct) {
 				continue;
 			}
-			if (!SkyblockRecipes.has(id)) {
+			boolean used = false;
+			if (SkyblockRecipes.has(id)) {
+				for (Map.Entry<String, Long> leaf : SkyblockRecipes.expand(id, count, expand).entrySet()) {
+					if (need.containsKey(leaf.getKey()) && !leaf.getKey().equals(id)) {
+						have.merge(leaf.getKey(), leaf.getValue(), Long::sum);
+						used = true;
+					}
+				}
+			}
+			if (used) {
 				continue;
 			}
-			for (Map.Entry<String, Long> leaf : SkyblockRecipes.expand(id, count).entrySet()) {
-				if (need.containsKey(leaf.getKey()) && !leaf.getKey().equals(id)) {
-					have.merge(leaf.getKey(), leaf.getValue(), Long::sum);
+			if (expand == SkyblockRecipes.Expand.ENCHANTED) {
+				for (Map.Entry<String, Long> leaf : SkyblockRecipes.expand(id, count, SkyblockRecipes.Expand.RAW).entrySet()) {
+					leftover.merge(leaf.getKey(), leaf.getValue(), Long::sum);
 				}
 			}
 		}
+		if (expand == SkyblockRecipes.Expand.ENCHANTED) {
+			craftUp(need, leftover, have);
+		}
 		return have;
+	}
+
+	private static void craftUp(Map<String, Long> need, Map<String, Long> leftover, Map<String, Long> have) {
+		for (String leaf : need.keySet()) {
+			SkyblockRecipes.Recipe recipe = SkyblockRecipes.get(leaf);
+			if (recipe == null || recipe.ingredients().isEmpty()) {
+				continue;
+			}
+			long crafts = Long.MAX_VALUE;
+			for (Map.Entry<String, Long> ingredient : recipe.ingredients().entrySet()) {
+				if (need.containsKey(ingredient.getKey())) {
+					crafts = 0L;
+					break;
+				}
+				long avail = leftover.getOrDefault(ingredient.getKey(), 0L);
+				crafts = Math.min(crafts, avail / ingredient.getValue());
+			}
+			if (crafts <= 0L || crafts == Long.MAX_VALUE) {
+				continue;
+			}
+			have.merge(leaf, crafts * recipe.output(), Long::sum);
+			for (Map.Entry<String, Long> ingredient : recipe.ingredients().entrySet()) {
+				leftover.merge(ingredient.getKey(), -crafts * ingredient.getValue(), Long::sum);
+			}
+		}
 	}
 
 	private static boolean sameItem(String left, String right) {

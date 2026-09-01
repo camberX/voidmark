@@ -4,6 +4,7 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.ui.Theme;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -35,6 +36,12 @@ public final class RawmatsCommands {
 			String lower = remaining == null ? "" : remaining.trim().toLowerCase(Locale.ROOT);
 			if (lower.isEmpty() || "clear".startsWith(lower)) {
 				builder.suggest("clear");
+			}
+			if (lower.isEmpty() || "raw".startsWith(lower)) {
+				builder.suggest("raw");
+			}
+			if (lower.isEmpty() || "enchanted".startsWith(lower)) {
+				builder.suggest("enchanted");
 			}
 			if (lower.isEmpty()) {
 				return builder.buildFuture();
@@ -78,6 +85,14 @@ public final class RawmatsCommands {
 				.append(Component.literal(" cleared").withStyle(style(Theme.MUTED))));
 			return Command.SINGLE_SUCCESS;
 		}
+		if (trimmed.equalsIgnoreCase("raw") || trimmed.equalsIgnoreCase("enchanted") || trimmed.equalsIgnoreCase("ench")) {
+			VoidmarkConfig config = VoidmarkConfig.get();
+			config.rawmatsEnchanted = trimmed.toLowerCase(Locale.ROOT).startsWith("ench");
+			config.save();
+			tell(brand().append(sep()).append(Component.literal("RAW MATS").withStyle(style(Theme.ACCENT).withBold(true)))
+				.append(Component.literal(" " + config.rawmatsModeLabel()).withStyle(style(Theme.TEXT))));
+			return Command.SINGLE_SUCCESS;
+		}
 		ItemIds.Preview preview = ItemIds.resolve(trimmed);
 		String id = preview.kind() == ItemIds.Kind.SKYBLOCK
 			? SkyblockRecipes.normalize(preview.canonical())
@@ -93,7 +108,7 @@ public final class RawmatsCommands {
 			.append(Component.literal("RAW MATS").withStyle(style(Theme.ACCENT).withBold(true)))
 			.append(Component.literal(" " + snap.name()).withStyle(style(Theme.TEXT)));
 		if (snap.recipe()) {
-			line.append(Component.literal("  " + snap.complete() + "/" + snap.total() + " materials").withStyle(style(Theme.MUTED)));
+			line.append(Component.literal("  " + VoidmarkConfig.get().rawmatsModeLabel().toLowerCase(Locale.ROOT) + "  " + snap.complete() + "/" + snap.total() + " materials").withStyle(style(Theme.MUTED)));
 		} else {
 			line.append(Component.literal("  no craft tree, tracking the item itself").withStyle(style(Theme.MUTED)));
 		}
