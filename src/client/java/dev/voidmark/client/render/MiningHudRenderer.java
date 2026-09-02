@@ -4,6 +4,7 @@ import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.mining.MiningTracker;
 import dev.voidmark.client.ui.Anim;
+import dev.voidmark.client.ui.MenuFont;
 import dev.voidmark.client.ui.Theme;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
@@ -11,6 +12,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
@@ -118,21 +120,23 @@ public final class MiningHudRenderer {
 	private static void drawAlert(GuiGraphicsExtractor graphics, Font font, int guiW, int guiH, MiningTracker.Snapshot snap) {
 		float t = snap.alertT();
 		float fade = t > 0.75f ? 1f : t / 0.75f;
-		String title = "READY";
-		String name = snap.alertName();
-		float w = Math.max(132, GuiDraw.menuWidth(font, name) + 24);
+		Component title = alertLine("READY");
+		Component name = alertLine(snap.alertName());
+		float w = Math.max(132, font.width(name) + 24);
 		float h = 36;
 		float x = (guiW - w) * 0.5f;
 		float y = guiH * 0.28f;
 		int pane = Anim.fade(Theme.WINDOW, fade);
-		int line = Anim.fade(Theme.ACCENT, fade);
-		int text = Anim.fade(Theme.TEXT, fade);
 		int accent = Anim.fade(Theme.ACCENT, fade);
 		graphics.pose().pushMatrix();
-		GuiDraw.panel(graphics, x, y, w, h, 6, pane, line, accent);
-		GuiDraw.small(graphics, font, title, x + (w - GuiDraw.smallWidth(font, title)) * 0.5f, y + 6, accent);
-		GuiDraw.menu(graphics, font, name, x + (w - GuiDraw.menuWidth(font, name)) * 0.5f, y + 18, text);
+		GuiDraw.rounded(graphics, x, y, w, h, 6, pane);
+		GuiDraw.text(graphics, font, title, x + (w - font.width(title)) * 0.5f, y + 6, accent, false);
+		GuiDraw.text(graphics, font, name, x + (w - font.width(name)) * 0.5f, y + 18, accent, false);
 		graphics.pose().popMatrix();
+	}
+
+	private static Component alertLine(String value) {
+		return MenuFont.body(value == null ? "" : value).copy().withStyle(style -> style.withBold(true));
 	}
 
 	private static float heightOf(MiningTracker.Snapshot snap) {
