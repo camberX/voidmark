@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -17,20 +17,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 await mkdir(CAPES, { recursive: true });
 
 const store = {
-	codes: await loadJson(join(DATA, "codes.json"), []),
-	tokens: await loadJson(join(DATA, "tokens.json"), {}),
+	whitelist: await loadJson(join(DATA, "whitelist.json"), []),
 	config: await loadJson(join(DATA, "config.json"), {
 		paypal: "your-paypal@email.com",
 		price: "$1",
 		title: "VOIDMARK Capes"
 	})
 };
-
-if (store.codes.length === 0) {
-	store.codes.push("local-dev");
-	await saveJson(join(DATA, "codes.json"), store.codes);
-	console.log("Starter upload code: local-dev");
-}
 
 const MIME = {
 	".html": "text/html; charset=utf-8",
@@ -70,10 +63,10 @@ async function route(req, res) {
 		}
 		const file = capePath(id);
 		if (!existsSync(file)) {
-			json(res, 200, { has: false, hash: "" });
-			return;
-		}
-		json(res, 200, { has: true, hash: hashFile(file) });
+		json(res, 200, { has: false, hash: "", allowed: whitelisted(id) });
+		return;
+	}
+	json(res, 200, { has: true, hash: hashFile(file), allowed: whitelisted(id) });
 		return;
 	}
 	if (req.method === "GET" && path.startsWith("/capes/") && path.endsWith(".png")) {
@@ -105,7 +98,11 @@ async function route(req, res) {
 		return;
 	}
 	if (req.method === "POST" && path === "/api/grant") {
-		await handleGrant(req, res);
+		json(res, 410, { error: "Codes are gone. Whitelist the UUID instead." });
+		return;
+	}
+	if ((req.method === "POST" || req.method === "PUT" || req.method === "DELETE") && path === "/api/whitelist") {
+		await handleWhitelist(req, res);
 		return;
 	}
 	if (req.method === "GET") {
@@ -117,13 +114,12 @@ async function route(req, res) {
 
 async function handlePublish(req, res) {
 	const uuid = normalizeUuid(header(req, "x-uuid"));
-	const key = (header(req, "x-key") || header(req, "x-code") || header(req, "x-token")).trim();
 	if (!uuid) {
 		json(res, 400, { error: "Need a valid UUID" });
 		return;
 	}
-	if (!key) {
-		json(res, 401, { error: "Need an upload code or shop token" });
+	if (!whitelisted(uuid)) {
+		json(res, 403, { error: "uuid not whitelisted" });
 		return;
 	}
 	const body = await readBody(req, MAX_BYTES);
@@ -131,27 +127,18 @@ async function handlePublish(req, res) {
 		json(res, 400, { error: "Not a PNG" });
 		return;
 	}
-	const auth = authorize(uuid, key);
-	if (!auth.ok) {
-		json(res, auth.status, { error: auth.error });
-		return;
-	}
 	await writeFile(capePath(uuid), body);
-	await saveJson(join(DATA, "codes.json"), store.codes);
-	await saveJson(join(DATA, "tokens.json"), store.tokens);
-	json(res, 200, { ok: true, token: auth.token, uuid });
+	json(res, 200, { ok: true, uuid });
 }
 
 async function handleDelete(req, res) {
 	const uuid = normalizeUuid(header(req, "x-uuid"));
-	const key = (header(req, "x-key") || header(req, "x-token")).trim();
-	if (!uuid || !key) {
-		json(res, 400, { error: "Need UUID and token" });
+	if (!uuid) {
+		json(res, 400, { error: "Need a UUID" });
 		return;
 	}
-	const auth = authorize(uuid, key, false);
-	if (!auth.ok) {
-		json(res, auth.status, { error: auth.error });
+	if (!whitelisted(uuid)) {
+		json(res, 403, { error: "uuid not whitelisted" });
 		return;
 	}
 	const file = capePath(uuid);
@@ -162,35 +149,37 @@ async function handleDelete(req, res) {
 	json(res, 200, { ok: true });
 }
 
-async function handleGrant(req, res) {
-	const body = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}");
+async function handleWhitelist(req, res) {
+	let body;
+	try {
+		body = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}");
+	} catch {
+		body = {};
+	}
 	if ((body.admin || "") !== ADMIN) {
 		json(res, 403, { error: "Bad admin key" });
 		return;
 	}
-	const code = randomBytes(4).toString("hex");
-	store.codes.push(code);
-	await saveJson(join(DATA, "codes.json"), store.codes);
-	json(res, 200, { code });
+	if (req.method === "POST" && !body.uuid) {
+		json(res, 200, { uuids: store.whitelist });
+		return;
+	}
+	const uuid = normalizeUuid(body.uuid);
+	if (!uuid) {
+		json(res, 400, { error: "Need a valid UUID" });
+		return;
+	}
+	if (req.method === "DELETE") {
+		store.whitelist = store.whitelist.filter((id) => id !== uuid);
+	} else if (!store.whitelist.includes(uuid)) {
+		store.whitelist.push(uuid);
+	}
+	await saveJson(join(DATA, "whitelist.json"), store.whitelist);
+	json(res, 200, { ok: true, uuids: store.whitelist });
 }
 
-function authorize(uuid, key, allowCode = true) {
-	if (store.tokens[uuid] && store.tokens[uuid] === key) {
-		return { ok: true, token: key };
-	}
-	if (allowCode) {
-		const index = store.codes.indexOf(key);
-		if (index >= 0) {
-			store.codes.splice(index, 1);
-			const token = store.tokens[uuid] || randomBytes(16).toString("hex");
-			store.tokens[uuid] = token;
-			return { ok: true, token };
-		}
-	}
-	if (store.tokens[uuid]) {
-		return { ok: false, status: 403, error: "Wrong token for this UUID" };
-	}
-	return { ok: false, status: 401, error: "Unknown code. Pay first, then use the code you were sent." };
+function whitelisted(uuid) {
+	return store.whitelist.includes(uuid);
 }
 
 async function servePublic(res, requestPath) {
@@ -282,5 +271,4 @@ async function saveJson(path, value) {
 
 server.listen(PORT, "0.0.0.0", () => {
 	console.log(`Voidmark cape shop http://127.0.0.1:${PORT}`);
-	console.log(`Admin key: ${ADMIN}`);
 });

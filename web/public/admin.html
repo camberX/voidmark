@@ -2,32 +2,10 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>VOIDMARK Cape admin</title>
-	<style>
-		body { font-family: sans-serif; background: #05070d; color: #e8edf5; max-width: 420px; margin: 48px auto; }
-		input, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #1c2230; background: #12151c; color: inherit; }
-		button { background: #2fb5ff; color: #041018; font-weight: 700; border: 0; cursor: pointer; }
-		.out { margin-top: 12px; word-break: break-all; }
-	</style>
+	<meta http-equiv="refresh" content="0; url=/">
+	<title>VOIDMARK Cape list</title>
 </head>
 <body>
-	<h1>Grant upload code</h1>
-	<p>After a Friends and Family payment, generate a one-time code and send it to them.</p>
-	<input id="admin" type="password" placeholder="Admin key">
-	<button id="go">New code</button>
-	<div class="out" id="out"></div>
-	<script>
-		document.getElementById("go").onclick = async () => {
-			const out = document.getElementById("out");
-			const response = await fetch("/api/grant", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ admin: document.getElementById("admin").value })
-			});
-			const data = await response.json();
-			out.textContent = response.ok ? data.code : (data.error || "Failed");
-		};
-	</script>
+	<a href="/">Cape list</a>
 </body>
 </html>

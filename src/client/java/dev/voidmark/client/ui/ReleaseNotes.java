@@ -8,6 +8,10 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.107", new String[]{
+			"Cape settings stay locked until your UUID is on the shop list.",
+			"The shop rejects everyone else with uuid not whitelisted."
+		}),
 		new Entry("1.1.106", new String[]{
 			"Shop capes show for every Voidmark user, not just you.",
 			"Changing the cape in the menu updates it for everyone within a couple of seconds."

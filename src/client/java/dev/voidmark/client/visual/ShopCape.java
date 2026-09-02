@@ -34,6 +34,7 @@ public final class ShopCape {
 		.build();
 	private static final Map<UUID, Slot> SLOTS = new ConcurrentHashMap<>();
 	private static volatile String publishStatus = "";
+	private static volatile Boolean allowed;
 	private static int publishGen;
 
 	private ShopCape() {
@@ -41,7 +42,14 @@ public final class ShopCape {
 
 	public static void tick() {
 		Minecraft client = Minecraft.getInstance();
-		if (client.player == null || client.level == null || shopUrl().isEmpty()) {
+		if (shopUrl().isEmpty()) {
+			return;
+		}
+		UUID self = selfUuid();
+		if (self != null) {
+			ensure(self, false);
+		}
+		if (client.player == null || client.level == null) {
 			return;
 		}
 		for (AbstractClientPlayer player : client.level.players()) {
@@ -53,12 +61,34 @@ public final class ShopCape {
 		return publishStatus;
 	}
 
+	public static boolean allowed() {
+		return Boolean.TRUE.equals(allowed);
+	}
+
+	public static String lockLabel() {
+		if (shopUrl().isEmpty()) {
+			return "No cape server";
+		}
+		if (allowed == null) {
+			return "Checking cape list…";
+		}
+		return "uuid not whitelisted";
+	}
+
+	private static void setAllowed(boolean listed) {
+		boolean was = Boolean.TRUE.equals(allowed);
+		allowed = listed;
+		if (listed && !was && CustomCape.ready()) {
+			publish(CustomCape.png());
+		}
+	}
+
 	public static PlayerSkin patch(UUID uuid, PlayerSkin skin) {
 		if (skin == null || uuid == null) {
 			return skin;
 		}
 		Minecraft client = Minecraft.getInstance();
-		if (client.player != null && uuid.equals(client.player.getUUID()) && CustomCape.ready()) {
+		if (client.player != null && uuid.equals(client.player.getUUID()) && CustomCape.ready() && allowed()) {
 			return CustomCape.patch(skin);
 		}
 		Slot slot = SLOTS.get(uuid);
@@ -74,7 +104,7 @@ public final class ShopCape {
 			return false;
 		}
 		Minecraft client = Minecraft.getInstance();
-		if (client.player != null && uuid.equals(client.player.getUUID()) && CustomCape.ready()) {
+		if (client.player != null && uuid.equals(client.player.getUUID()) && CustomCape.ready() && allowed()) {
 			return true;
 		}
 		Slot slot = SLOTS.get(uuid);
@@ -83,10 +113,8 @@ public final class ShopCape {
 
 	public static void publish(byte[] png) {
 		UUID uuid = selfUuid();
-		String key = shopKey();
 		String base = shopUrl();
-		if (uuid == null || key.isEmpty() || base.isEmpty() || png == null || png.length < 24) {
-			publishStatus = key.isEmpty() ? "Set a shop key to sync this cape to everyone." : "";
+		if (uuid == null || base.isEmpty() || png == null || png.length < 24) {
 			return;
 		}
 		int gen = ++publishGen;
@@ -97,7 +125,6 @@ public final class ShopCape {
 					.timeout(Duration.ofSeconds(12))
 					.header("User-Agent", "Voidmark")
 					.header("X-UUID", uuid.toString())
-					.header("X-Key", key)
 					.PUT(HttpRequest.BodyPublishers.ofByteArray(png))
 					.build();
 				HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -108,12 +135,6 @@ public final class ShopCape {
 					if (response.statusCode() < 200 || response.statusCode() >= 300) {
 						publishStatus = publishError(response.body(), response.statusCode());
 						return;
-					}
-					String token = jsonField(response.body(), "token");
-					if (!token.isBlank()) {
-						VoidmarkConfig config = VoidmarkConfig.get();
-						config.capeShopKey = token;
-						config.save();
 					}
 					publishStatus = "Cape is live for everyone.";
 					ensure(uuid, true);
@@ -130,9 +151,8 @@ public final class ShopCape {
 
 	public static void unpublish() {
 		UUID uuid = selfUuid();
-		String key = shopKey();
 		String base = shopUrl();
-		if (uuid == null || key.isEmpty() || base.isEmpty()) {
+		if (uuid == null || base.isEmpty()) {
 			return;
 		}
 		int gen = ++publishGen;
@@ -143,7 +163,6 @@ public final class ShopCape {
 					.timeout(Duration.ofSeconds(12))
 					.header("User-Agent", "Voidmark")
 					.header("X-UUID", uuid.toString())
-					.header("X-Key", key)
 					.DELETE()
 					.build();
 				HTTP.send(request, HttpResponse.BodyHandlers.discarding());
@@ -201,6 +220,11 @@ public final class ShopCape {
 			}
 			boolean has = status.body().contains("\"has\":true") || status.body().contains("\"has\": true");
 			String hash = jsonField(status.body(), "hash");
+			boolean listed = status.body().contains("\"allowed\":true") || status.body().contains("\"allowed\": true");
+			if (uuid.equals(selfUuid())) {
+				boolean listedCopy = listed;
+				Minecraft.getInstance().execute(() -> setAllowed(listedCopy));
+			}
 			if (!has) {
 				miss(slot);
 				return;
@@ -278,14 +302,16 @@ public final class ShopCape {
 		return url.endsWith("/") ? url.substring(0, url.length() - 1).trim() : url.trim();
 	}
 
-	private static String shopKey() {
-		String key = VoidmarkConfig.get().capeShopKey;
-		return key == null ? "" : key.trim();
-	}
-
 	private static UUID selfUuid() {
 		Minecraft client = Minecraft.getInstance();
-		return client.player == null ? null : client.player.getUUID();
+		if (client.player != null) {
+			return client.player.getUUID();
+		}
+		try {
+			return client.getGameProfile().id();
+		} catch (Exception ignored) {
+			return null;
+		}
 	}
 
 	private static String jsonField(String body, String field) {

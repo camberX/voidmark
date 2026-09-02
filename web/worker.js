@@ -31,11 +31,12 @@ async function route(request, env) {
 		if (!id) {
 			return json(400, { error: "Bad UUID" });
 		}
+		const listed = (await loadState(env)).whitelist.includes(id);
 		const head = await env.CAPES.head(capeKey(id));
 		if (!head) {
-			return json(200, { has: false, hash: "" });
+			return json(200, { has: false, hash: "", allowed: listed });
 		}
-		return json(200, { has: true, hash: head.customMetadata?.hash || "" });
+		return json(200, { has: true, hash: head.customMetadata?.hash || "", allowed: listed });
 	}
 	if (request.method === "GET" && path.startsWith("/capes/") && path.endsWith(".png")) {
 		const id = normalizeUuid(path.slice("/capes/".length, -4));
@@ -62,64 +63,53 @@ async function route(request, env) {
 	if (request.method === "DELETE" && path === "/api/cape") {
 		return handleDelete(request, env);
 	}
-	if (request.method === "POST" && path === "/api/grant") {
-		return handleGrant(request, env);
+	if ((request.method === "POST" || request.method === "PUT" || request.method === "DELETE") && path === "/api/whitelist") {
+		return handleWhitelist(request, env);
 	}
 	if (request.method === "GET" && env.ASSETS) {
 		return env.ASSETS.fetch(request);
 	}
-	if (request.method === "GET" && (path === "/" || path === "/index.html")) {
-		return page(INDEX_HTML);
-	}
-	if (request.method === "GET" && path === "/admin.html") {
-		return page(ADMIN_HTML);
+	if (request.method === "GET" && (path === "/" || path === "/index.html" || path === "/admin.html")) {
+		return page(PAGE_HTML);
 	}
 	return json(404, { error: "Not found" });
 }
 
 async function handlePublish(request, env) {
 	const uuid = normalizeUuid(request.headers.get("x-uuid"));
-	const key = (request.headers.get("x-key") || request.headers.get("x-code") || request.headers.get("x-token") || "").trim();
 	if (!uuid) {
 		return json(400, { error: "Need a valid UUID" });
 	}
-	if (!key) {
-		return json(401, { error: "Need an upload code or shop token" });
+	const state = await loadState(env);
+	if (!state.whitelist.includes(uuid)) {
+		return json(403, { error: "uuid not whitelisted" });
 	}
 	const body = new Uint8Array(await request.arrayBuffer());
 	if (!isPng(body)) {
 		return json(400, { error: "Not a PNG" });
-	}
-	const state = await loadState(env);
-	const auth = authorize(state, uuid, key, true);
-	if (!auth.ok) {
-		return json(auth.status, { error: auth.error });
 	}
 	const hash = await hashBytes(body);
 	await env.CAPES.put(capeKey(uuid), body, {
 		httpMetadata: { contentType: "image/png" },
 		customMetadata: { hash }
 	});
-	await saveState(env, state);
-	return json(200, { ok: true, token: auth.token, uuid });
+	return json(200, { ok: true, uuid });
 }
 
 async function handleDelete(request, env) {
 	const uuid = normalizeUuid(request.headers.get("x-uuid"));
-	const key = (request.headers.get("x-key") || request.headers.get("x-token") || "").trim();
-	if (!uuid || !key) {
-		return json(400, { error: "Need UUID and token" });
+	if (!uuid) {
+		return json(400, { error: "Need a UUID" });
 	}
 	const state = await loadState(env);
-	const auth = authorize(state, uuid, key, false);
-	if (!auth.ok) {
-		return json(auth.status, { error: auth.error });
+	if (!state.whitelist.includes(uuid)) {
+		return json(403, { error: "uuid not whitelisted" });
 	}
 	await env.CAPES.delete(capeKey(uuid));
 	return json(200, { ok: true });
 }
 
-async function handleGrant(request, env) {
+async function handleWhitelist(request, env) {
 	const admin = env.ADMIN || "";
 	if (!admin) {
 		return json(500, { error: "Admin key is not set on the Worker" });
@@ -134,44 +124,34 @@ async function handleGrant(request, env) {
 		return json(403, { error: "Bad admin key" });
 	}
 	const state = await loadState(env);
-	const code = hexBytes(4);
-	state.codes.push(code);
+	if (request.method === "POST" && !body.uuid) {
+		return json(200, { uuids: state.whitelist });
+	}
+	const uuid = normalizeUuid(body.uuid);
+	if (!uuid) {
+		return json(400, { error: "Need a valid UUID" });
+	}
+	if (request.method === "DELETE") {
+		state.whitelist = state.whitelist.filter((id) => id !== uuid);
+	} else if (!state.whitelist.includes(uuid)) {
+		state.whitelist.push(uuid);
+	}
 	await saveState(env, state);
-	return json(200, { code });
-}
-
-function authorize(state, uuid, key, allowCode) {
-	if (state.tokens[uuid] && state.tokens[uuid] === key) {
-		return { ok: true, token: key };
-	}
-	if (allowCode) {
-		const index = state.codes.indexOf(key);
-		if (index >= 0) {
-			state.codes.splice(index, 1);
-			const token = state.tokens[uuid] || hexBytes(16);
-			state.tokens[uuid] = token;
-			return { ok: true, token };
-		}
-	}
-	if (state.tokens[uuid]) {
-		return { ok: false, status: 403, error: "Wrong token for this UUID" };
-	}
-	return { ok: false, status: 401, error: "Unknown code. Pay first, then use the code you were sent." };
+	return json(200, { ok: true, uuids: state.whitelist });
 }
 
 async function loadState(env) {
 	const object = await env.CAPES.get("state.json");
 	if (!object) {
-		return { codes: [], tokens: {} };
+		return { whitelist: [] };
 	}
 	try {
 		const parsed = JSON.parse(await object.text());
 		return {
-			codes: Array.isArray(parsed.codes) ? parsed.codes : [],
-			tokens: parsed.tokens && typeof parsed.tokens === "object" ? parsed.tokens : {}
+			whitelist: Array.isArray(parsed.whitelist) ? parsed.whitelist : []
 		};
 	} catch {
-		return { codes: [], tokens: {} };
+		return { whitelist: [] };
 	}
 }
 
@@ -186,12 +166,6 @@ function capeKey(uuid) {
 async function hashBytes(bytes) {
 	const digest = await crypto.subtle.digest("SHA-256", bytes);
 	return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
-}
-
-function hexBytes(n) {
-	const bytes = new Uint8Array(n);
-	crypto.getRandomValues(bytes);
-	return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function normalizeUuid(value) {
@@ -232,12 +206,12 @@ function page(html) {
 	});
 }
 
-const INDEX_HTML = `<!DOCTYPE html>
+const PAGE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>VOIDMARK Capes</title>
+	<title>VOIDMARK Cape list</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 	<style>
@@ -248,126 +222,92 @@ const INDEX_HTML = `<!DOCTYPE html>
 		h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: 0.18em; }
 		.rule { width: 18px; height: 2px; background: var(--accent); border-radius: 2px; margin: 10px 0 16px; }
 		p, label { color: var(--muted); font-size: 14px; line-height: 1.5; }
-		ol { color: var(--muted); font-size: 14px; padding-left: 18px; }
 		label { display: block; margin: 14px 0 6px; font-weight: 700; color: var(--text); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
-		input[type=text], input[type=file] { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px 12px; font: inherit; }
-		input[type=file] { padding: 8px; }
-		button { margin-top: 18px; width: 100%; border: 0; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 800; padding: 12px; cursor: pointer; }
-		button:disabled { opacity: 0.5; cursor: default; }
+		input { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px 12px; font: inherit; }
+		.row { display: flex; gap: 8px; }
+		.row input { flex: 1; }
+		button { border: 0; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 800; padding: 10px 14px; cursor: pointer; }
+		button.ghost { background: var(--card); color: var(--text); border: 1px solid var(--line); }
 		.status { min-height: 20px; margin-top: 14px; font-size: 13px; }
 		.status.ok { color: var(--accent); }
 		.status.err { color: var(--warn); }
-		.token { word-break: break-all; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 8px; font-size: 13px; }
-		.preview { display: none; margin-top: 12px; width: 100%; max-height: 180px; object-fit: contain; background: #000; border-radius: 8px; }
-		.foot { margin-top: 22px; font-size: 12px; color: var(--muted); }
-		a { color: var(--accent); }
+		ul { list-style: none; padding: 0; margin: 16px 0 0; }
+		li { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 8px; font-size: 13px; word-break: break-all; }
+		.empty { color: var(--muted); font-size: 13px; margin-top: 16px; }
 	</style>
 </head>
 <body>
 	<main>
 		<h1>VOIDMARK</h1>
 		<div class="rule"></div>
-		<p id="lead">Custom cape. Pay via PayPal Friends and Family, get an upload code, then drop your PNG here. Voidmark players see it in-game. Change it later from the Voidmark Cape menu and everyone updates.</p>
-		<ol>
-			<li>Send <strong id="price">$1</strong> Friends and Family to <strong id="paypal">your-paypal@email.com</strong> with your Minecraft name.</li>
-			<li>You get an upload code back.</li>
-			<li>Paste your UUID, the code, and a PNG.</li>
-		</ol>
-		<form id="form">
-			<label for="uuid">Minecraft UUID</label>
-			<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="f1b21931-667f-4be2-91bb-a06074978e0e" required>
-			<label for="code">Upload code</label>
-			<input id="code" type="text" autocomplete="off" spellcheck="false" placeholder="code from after payment" required>
-			<label for="file">Cape PNG</label>
-			<input id="file" type="file" accept="image/png,.png" required>
-			<img id="preview" class="preview" alt="Cape preview">
-			<button type="submit" id="go">Upload cape</button>
-		</form>
+		<p>After someone pays, paste their Minecraft UUID. They set the cape in Voidmark. Everyone else running the mod sees it.</p>
+		<label for="admin">Admin key</label>
+		<input id="admin" type="password" autocomplete="current-password" placeholder="Worker secret">
+		<label for="uuid">Minecraft UUID</label>
+		<div class="row">
+			<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="f1b21931-667f-4be2-91bb-a06074978e0e">
+			<button type="button" id="add">Add</button>
+		</div>
+		<button type="button" class="ghost" id="load" style="margin-top:12px;width:100%">Load list</button>
 		<div class="status" id="status"></div>
-		<div class="token" id="token" hidden></div>
-		<p class="foot">Keep the shop token. Paste it in Voidmark → Player → Cape if you want to change the cape in-game. Friends and Family has no PayPal purchase protection. Capes only show for Voidmark users. <a href="/admin.html">Admin</a></p>
+		<ul id="list"></ul>
+		<p class="empty" id="empty">No UUIDs yet.</p>
 	</main>
 	<script>
-		const preview = document.getElementById("preview");
-		document.getElementById("file").addEventListener("change", (event) => {
-			const file = event.target.files[0];
-			if (!file) { preview.style.display = "none"; return; }
-			preview.src = URL.createObjectURL(file);
-			preview.style.display = "block";
-		});
-		fetch("/api/config").then((r) => r.json()).then((cfg) => {
-			document.getElementById("paypal").textContent = cfg.paypal;
-			document.getElementById("price").textContent = cfg.price;
-		}).catch(() => {});
-		document.getElementById("form").addEventListener("submit", async (event) => {
-			event.preventDefault();
-			const status = document.getElementById("status");
-			const token = document.getElementById("token");
-			const go = document.getElementById("go");
-			const file = document.getElementById("file").files[0];
-			status.className = "status";
-			status.textContent = "Uploading…";
-			token.hidden = true;
-			go.disabled = true;
+		const admin = document.getElementById("admin");
+		const uuid = document.getElementById("uuid");
+		const status = document.getElementById("status");
+		const list = document.getElementById("list");
+		const empty = document.getElementById("empty");
+		admin.value = sessionStorage.getItem("voidmark-admin") || "";
+
+		function setStatus(ok, text) {
+			status.className = "status " + (ok ? "ok" : "err");
+			status.textContent = text;
+		}
+
+		function draw(uuids) {
+			list.innerHTML = "";
+			empty.style.display = uuids.length ? "none" : "block";
+			for (const id of uuids) {
+				const item = document.createElement("li");
+				const label = document.createElement("span");
+				label.textContent = id;
+				const remove = document.createElement("button");
+				remove.type = "button";
+				remove.className = "ghost";
+				remove.textContent = "Remove";
+				remove.onclick = () => send("DELETE", id);
+				item.append(label, remove);
+				list.append(item);
+			}
+		}
+
+		async function send(method, id) {
+			const key = admin.value.trim();
+			sessionStorage.setItem("voidmark-admin", key);
 			try {
-				const response = await fetch("/api/cape", {
-					method: "PUT",
-					headers: {
-						"X-UUID": document.getElementById("uuid").value.trim(),
-						"X-Key": document.getElementById("code").value.trim()
-					},
-					body: file
+				const response = await fetch("/api/whitelist", {
+					method,
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ admin: key, uuid: id || undefined })
 				});
 				const data = await response.json();
-				if (!response.ok) throw new Error(data.error || "Upload failed");
-				status.className = "status ok";
-				status.textContent = "Cape is live. Other Voidmark users will see it within a few seconds.";
-				token.hidden = false;
-				token.textContent = "Shop token (paste in Voidmark Cape menu to change it in-game): " + data.token;
+				if (!response.ok) throw new Error(data.error || "Failed");
+				draw(data.uuids || []);
+				setStatus(true, method === "DELETE" ? "Removed." : (id ? "Whitelisted. They can set a cape in Voidmark." : "Loaded."));
+				if (id && method !== "DELETE") uuid.value = "";
 			} catch (error) {
-				status.className = "status err";
-				status.textContent = error.message;
-			} finally {
-				go.disabled = false;
+				setStatus(false, error.message);
 			}
-		});
-	</script>
-</body>
-</html>
-`;
+		}
 
-const ADMIN_HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>VOIDMARK Cape admin</title>
-	<style>
-		body { font-family: sans-serif; background: #05070d; color: #e8edf5; max-width: 420px; margin: 48px auto; }
-		input, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #1c2230; background: #12151c; color: inherit; }
-		button { background: #2fb5ff; color: #041018; font-weight: 700; border: 0; cursor: pointer; }
-		.out { margin-top: 12px; word-break: break-all; }
-	</style>
-</head>
-<body>
-	<h1>Grant upload code</h1>
-	<p>After a Friends and Family payment, generate a one-time code and send it to them.</p>
-	<input id="admin" type="password" placeholder="Admin key">
-	<button id="go">New code</button>
-	<div class="out" id="out"></div>
-	<script>
-		document.getElementById("go").onclick = async () => {
-			const out = document.getElementById("out");
-			const response = await fetch("/api/grant", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ admin: document.getElementById("admin").value })
-			});
-			const data = await response.json();
-			out.textContent = response.ok ? data.code : (data.error || "Failed");
+		document.getElementById("load").onclick = () => send("POST");
+		document.getElementById("add").onclick = () => {
+			if (!uuid.value.trim()) { setStatus(false, "Paste a UUID"); return; }
+			send("PUT", uuid.value.trim());
 		};
 	</script>
 </body>
 </html>
 `;
-

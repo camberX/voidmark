@@ -1,6 +1,6 @@
 # Host the cape shop on Cloudflare (free)
 
-This puts the upload site and cape files on Cloudflare Workers + R2. You are not running a VPS. The free tier is enough for Voidmark: 10 GB of PNGs, no bandwidth bill.
+This puts the UUID list and cape files on Cloudflare Workers + R2. You are not running a VPS. The free tier is enough for Voidmark: 10 GB of PNGs, no bandwidth bill.
 
 **R2 asks for a card even on the free plan.** That is verification, not a charge. Stay under the free limits and the bill is $0. After you add a card, set a spending cap (step 10 in the CLI path).
 
@@ -19,7 +19,7 @@ Origin has no Download ZIP. Do not type your Google password into Git.
    - `PAYPAL` → your Friends and Family email (plain text).
    - `PRICE` → `$1` (plain text).
 6. Deploy again if it asks.
-7. Open the Worker URL (`https://voidmark-capes.…workers.dev`). You should see the cape page. Grant codes at `/admin.html`.
+7. Open the Worker URL (`https://voidmark-capes.…workers.dev`). Paste paid UUIDs on that page. The in-game Cape card stays locked until you add theirs.
 8. In `.minecraft/config/voidmark.json` set `capeServerUrl` to that URL, no trailing slash. Restart Minecraft.
 
 ## 0. What you need (CLI path)
@@ -93,7 +93,7 @@ Wrangler prints a URL like:
 https://voidmark-capes.YOURNAME.workers.dev
 ```
 
-Open it. You should see the VOIDMARK cape page. `/admin.html` is the grant page.
+Open it. You should see the UUID whitelist page.
 
 If deploy fails with a bucket error, the bucket name in the dashboard does not match `voidmark-capes`. Rename it or change `bucket_name` in `wrangler.toml` to match.
 
@@ -109,14 +109,14 @@ No trailing slash. Restart Minecraft (or reopen the world) so the mod reloads co
 
 If you ship a jar to other people, they all need this same public URL. Localhost will only work on your machine.
 
-## 8. Grant a code after someone pays
+## 8. After someone pays
 
-1. They send $1 Friends and Family to the PayPal address on the site, with their Minecraft name.
-2. You open `https://voidmark-capes.YOURNAME.workers.dev/admin.html`.
-3. Paste the admin secret from step 4.
-4. Click **New code**.
-5. Send them that code (Discord DM, etc.).
-6. They paste UUID + code + PNG on the homepage. They get a shop token to paste in Voidmark → Player → Cape if they want to change it in-game.
+1. They send $1 Friends and Family with their Minecraft name.
+2. Look up their UUID (NameMC, etc.).
+3. Open `https://voidmark-capes.YOURNAME.workers.dev`.
+4. Paste the admin secret from step 4.
+5. Paste their UUID and click **Add**.
+6. They set the cape in Voidmark → Player → Cape. Until you add them, that card stays locked.
 
 Friends and Family has no PayPal purchase protection. Capes only show for Voidmark users.
 
@@ -126,7 +126,7 @@ Friends and Family has no PayPal purchase protection. Capes only show for Voidma
 curl https://voidmark-capes.YOURNAME.workers.dev/api/config
 ```
 
-You should see your PayPal and price. After an upload:
+You should see your PayPal and price. After they set a cape in-game:
 
 ```bash
 curl https://voidmark-capes.YOURNAME.workers.dev/api/cape/THEIR-UUID
@@ -157,7 +157,7 @@ cd web
 npx wrangler deploy
 ```
 
-Changing the `ADMIN` secret is another `npx wrangler secret put ADMIN`. Old codes and cape PNGs stay in the R2 bucket.
+Changing the `ADMIN` secret is another `npx wrangler secret put ADMIN`. The UUID list and cape PNGs stay in the R2 bucket.
 
 ## Local testing (not Cloudflare)
 

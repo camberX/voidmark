@@ -196,11 +196,9 @@ public class VoidmarkScreen extends Screen {
 	private boolean featureOpen;
 	private Feature featureId;
 	private boolean capeFocused;
-	private boolean capeKeyFocused;
 	private boolean nickFocused;
 	private String searchQuery = "";
 	private String capeUrlDraft = "";
-	private String capeKeyDraft = "";
 	private boolean dragging;
 	private boolean moved;
 	private double dragOffX;
@@ -230,9 +228,6 @@ public class VoidmarkScreen extends Screen {
 	private float capeFieldX;
 	private float capeFieldY;
 	private float capeFieldW;
-	private float capeKeyFieldX;
-	private float capeKeyFieldY;
-	private float capeKeyFieldW;
 	private float nickFieldX;
 	private float nickFieldY;
 	private float nickFieldW;
@@ -671,7 +666,6 @@ public class VoidmarkScreen extends Screen {
 		hits.add(new Hit(rx, y, iw, 16, () -> {
 			nickFocused = true;
 			capeFocused = false;
-			capeKeyFocused = false;
 			searchOpen = false;
 		}));
 		y += 22;
@@ -705,10 +699,17 @@ public class VoidmarkScreen extends Screen {
 			}
 		}
 
-		float y = featureCard(graphics, font, right, top, col, cardHeight(5), "Cape");
+		float y = featureCard(graphics, font, right, top, col, ShopCape.allowed() ? cardHeight(4) : cardHeight(2), "Cape");
+		if (!ShopCape.allowed()) {
+			GuiDraw.small(graphics, font, ShopCape.lockLabel(), rx, y + 2, Theme.WARN);
+			y += ROW;
+			GuiDraw.panel(graphics, rx, y + 1, iw, ROW - 2, 5, Theme.CARD, Theme.LINE);
+			GuiDraw.menu(graphics, font, "Cape locked", rx + 5, GuiDraw.middle(y, ROW), Theme.MUTED);
+			return;
+		}
 		String shop = ShopCape.publishStatus();
 		String label = !shop.isBlank() ? shop : CustomCape.statusLabel();
-		GuiDraw.small(graphics, font, label, rx, y + 2, CustomCape.status() == CustomCape.Status.ERROR || shop.contains("failed") || shop.contains("Need") || shop.contains("Wrong") ? Theme.WARN : Theme.MUTED);
+		GuiDraw.small(graphics, font, label, rx, y + 2, CustomCape.status() == CustomCape.Status.ERROR || shop.contains("failed") || shop.contains("not whitelisted") || shop.contains("Need") || shop.contains("Wrong") ? Theme.WARN : Theme.MUTED);
 		y += ROW;
 
 		capeFieldX = rx;
@@ -722,26 +723,6 @@ public class VoidmarkScreen extends Screen {
 		NickHider.resume();
 		hits.add(new Hit(rx, y, iw, ROW, () -> {
 			capeFocused = true;
-			capeKeyFocused = false;
-			nickFocused = false;
-			searchOpen = false;
-		}));
-		y += ROW;
-
-		if (!capeKeyFocused) {
-			String key = VoidmarkConfig.get().capeShopKey;
-			capeKeyDraft = key == null ? "" : key;
-		}
-		capeKeyFieldX = rx;
-		capeKeyFieldY = y;
-		capeKeyFieldW = iw;
-		boolean hoverKey = GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
-		GuiDraw.panel(graphics, rx, y, iw, ROW, 4, capeKeyFocused || hoverKey ? Theme.CARD_HOVER : Theme.CARD, capeKeyFocused ? Theme.ACCENT : Theme.LINE);
-		String keyShown = capeKeyDraft.isEmpty() && !capeKeyFocused ? "Shop code / token" : capeKeyDraft + (capeKeyFocused ? "|" : "");
-		GuiDraw.menu(graphics, font, clip(font, keyShown, (int) iw - 10), rx + 5, GuiDraw.middle(y, ROW), capeKeyDraft.isEmpty() && !capeKeyFocused ? Theme.MUTED : Theme.TEXT);
-		hits.add(new Hit(rx, y, iw, ROW, () -> {
-			capeKeyFocused = true;
-			capeFocused = false;
 			nickFocused = false;
 			searchOpen = false;
 		}));
@@ -763,6 +744,9 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private void commitCapeUrl() {
+		if (!ShopCape.allowed()) {
+			return;
+		}
 		String draft = capeUrlDraft.trim();
 		VoidmarkConfig config = VoidmarkConfig.get();
 		if (draft.isEmpty()) {
@@ -777,19 +761,6 @@ public class VoidmarkScreen extends Screen {
 		}
 		if (draft.startsWith("http://") || draft.startsWith("https://")) {
 			CustomCape.applyUrl(draft);
-		}
-	}
-
-	private void commitCapeKey() {
-		String key = capeKeyDraft.trim();
-		VoidmarkConfig config = VoidmarkConfig.get();
-		if (key.equals(config.capeShopKey == null ? "" : config.capeShopKey)) {
-			return;
-		}
-		config.capeShopKey = key;
-		config.save();
-		if (CustomCape.ready()) {
-			ShopCape.publish(CustomCape.png());
 		}
 	}
 
@@ -1540,7 +1511,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.106");
+			.orElse("1.1.107");
 	}
 
 	@Override
@@ -1553,15 +1524,10 @@ public class VoidmarkScreen extends Screen {
 		double lx = localX(event.x());
 		double ly = lastClickY;
 		boolean onCape = GuiDraw.hovered(lx, ly, capeFieldX, capeFieldY, capeFieldW, ROW);
-		boolean onCapeKey = GuiDraw.hovered(lx, ly, capeKeyFieldX, capeKeyFieldY, capeKeyFieldW, ROW);
 		boolean onNick = GuiDraw.hovered(lx, ly, nickFieldX, nickFieldY, nickFieldW, 16);
 		if (capeFocused && !onCape) {
 			capeFocused = false;
 			commitCapeUrl();
-		}
-		if (capeKeyFocused && !onCapeKey) {
-			capeKeyFocused = false;
-			commitCapeKey();
 		}
 		if (nickFocused && !onNick) {
 			nickFocused = false;
@@ -1673,11 +1639,6 @@ public class VoidmarkScreen extends Screen {
 				commitCapeUrl();
 				return true;
 			}
-			if (capeKeyFocused) {
-				capeKeyFocused = false;
-				commitCapeKey();
-				return true;
-			}
 			if (nickFocused) {
 				nickFocused = false;
 				return true;
@@ -1719,12 +1680,6 @@ public class VoidmarkScreen extends Screen {
 			}
 			return true;
 		}
-		if (capeKeyFocused && event.key() == InputConstants.KEY_BACKSPACE) {
-			if (!capeKeyDraft.isEmpty()) {
-				capeKeyDraft = capeKeyDraft.substring(0, capeKeyDraft.length() - 1);
-			}
-			return true;
-		}
 		if (nickFocused && event.key() == InputConstants.KEY_BACKSPACE) {
 			String nick = VoidmarkConfig.get().nick;
 			if (nick != null && !nick.isEmpty()) {
@@ -1744,11 +1699,6 @@ public class VoidmarkScreen extends Screen {
 			commitCapeUrl();
 			return true;
 		}
-		if (capeKeyFocused && event.key() == InputConstants.KEY_RETURN) {
-			capeKeyFocused = false;
-			commitCapeKey();
-			return true;
-		}
 		if (nickFocused && event.key() == InputConstants.KEY_RETURN) {
 			nickFocused = false;
 			return true;
@@ -1757,13 +1707,6 @@ public class VoidmarkScreen extends Screen {
 			String clip = minecraft.keyboardHandler.getClipboard();
 			if (clip != null && !clip.isBlank()) {
 				capeUrlDraft += clip.replace("\n", "").replace("\r", "").trim();
-			}
-			return true;
-		}
-		if (capeKeyFocused && event.key() == InputConstants.KEY_V && event.hasControlDown()) {
-			String clip = minecraft.keyboardHandler.getClipboard();
-			if (clip != null && !clip.isBlank()) {
-				capeKeyDraft += clip.replace("\n", "").replace("\r", "").trim();
 			}
 			return true;
 		}
@@ -1787,7 +1730,6 @@ public class VoidmarkScreen extends Screen {
 			notesOpen = false;
 			featureOpen = false;
 			capeFocused = false;
-			capeKeyFocused = false;
 			nickFocused = false;
 			mobSearchFocused = false;
 			return true;
@@ -1799,10 +1741,6 @@ public class VoidmarkScreen extends Screen {
 	public boolean charTyped(CharacterEvent event) {
 		if (capeFocused && event.isAllowedChatCharacter()) {
 			capeUrlDraft += event.codepointAsString();
-			return true;
-		}
-		if (capeKeyFocused && event.isAllowedChatCharacter()) {
-			capeKeyDraft += event.codepointAsString();
 			return true;
 		}
 		if (nickFocused && event.isAllowedChatCharacter()) {
@@ -1842,7 +1780,6 @@ public class VoidmarkScreen extends Screen {
 		}
 		VoidmarkConfig.get().save();
 		commitCapeUrl();
-		commitCapeKey();
 		if (!closing && VoidmarkConfig.get().uiAnimations && appear > 0.04f) {
 			closing = true;
 			capeFocused = false;

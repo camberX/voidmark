@@ -131,10 +131,18 @@ public final class CustomCape {
 	}
 
 	public static void applyUrl(String url) {
+		if (!ShopCape.allowed()) {
+			fail("uuid not whitelisted");
+			return;
+		}
 		loadUrl(url, true);
 	}
 
 	public static void pickLocal() {
+		if (!ShopCape.allowed()) {
+			fail("uuid not whitelisted");
+			return;
+		}
 		Minecraft client = Minecraft.getInstance();
 		try {
 			client.mouseHandler.releaseMouse();

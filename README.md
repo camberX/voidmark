@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.106.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.107.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -65,7 +65,7 @@ Config is saved to `.minecraft/config/voidmark.json`, including click-GUI positi
 
 ## Cape shop
 
-Paid custom capes ($1 via PayPal Friends and Family). The website takes a Minecraft UUID, an upload code, and a PNG. After that, Voidmark clients fetch `/capes/{uuid}.png` so everyone running the mod sees the cape. Changing the PNG in the Voidmark Cape menu (or uploading again) overwrites that file; other clients pick up the new hash within a couple of seconds.
+Paid custom capes ($1 via PayPal Friends and Family). You whitelist their Minecraft UUID on the cape site. They set the PNG in Voidmark. Other Voidmark clients fetch `/capes/{uuid}.png`. Changing the cape in the menu overwrites that file; others pick up the new hash within a couple of seconds. If a UUID is not on the list, the in-game Cape card stays locked. The shop still answers `uuid not whitelisted` if someone bypasses the lock.
 
 **Host it on Cloudflare (free, not a VPS):** follow **[web/CLOUDFLARE.md](web/CLOUDFLARE.md)**. That deploys a Worker + R2 bucket, stores the admin key as a secret (not in the HTML), then you put the `https://voidmark-capes.…workers.dev` URL in `capeServerUrl`.
 
@@ -77,10 +77,9 @@ Local testing only:
 node web/server.mjs
 ```
 
-- Site and API: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`).
-- After a payment, open `/admin.html`, enter `VOIDMARK_CAPE_ADMIN` (default `change-me`), and send the one-time code.
-- Edit `web/data/config.json` for the PayPal address and price shown on the page.
-- Keep `web/data/tokens.json` and `web/data/codes.json` off git.
+- Site: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`).
+- After a payment, open the page, enter `VOIDMARK_CAPE_ADMIN` (default `change-me`), and add their UUID.
+- Keep `web/data/whitelist.json` off git.
 
 Developer builds stamp a small **DEV** tag on the watermark next to VOIDMARK.
 
