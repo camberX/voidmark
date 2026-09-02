@@ -1216,7 +1216,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			<input id="d-file" type="file" accept="image/png,.png" hidden>
 			<div class="row">
 				<button type="button" class="ghost" id="d-copy">Copy UUID</button>
-				<button type="button" class="ghost" id="d-cape">Upload PNG</button>
+				<button type="button" class="ghost" id="d-upload">Upload PNG</button>
 				<button type="button" class="ghost" id="d-tag">Head tag</button>
 			</div>
 			<div class="row" style="margin-top:8px">
@@ -1633,7 +1633,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			if (!selected) return;
 			navigator.clipboard.writeText(selected).then(function () { setStatus(true, "UUID copied."); });
 		};
-		document.getElementById("d-cape").onclick = function () { document.getElementById("d-file").click(); };
+		document.getElementById("d-upload").onclick = function () { document.getElementById("d-file").click(); };
 		document.getElementById("d-file").onchange = function () {
 			const file = document.getElementById("d-file").files[0];
 			if (!file || !selected) return;
@@ -1641,7 +1641,8 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				.then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || "Upload failed"); }); })
 				.then(function () { return loadPlayers(false); })
 				.then(function () { setStatus(true, "Cape updated."); })
-				.catch(function (error) { setStatus(false, error.message); });
+				.catch(function (error) { setStatus(false, error.message); })
+				.finally(function () { document.getElementById("d-file").value = ""; });
 		};
 		document.getElementById("d-urlgo").onclick = function () {
 			const url = document.getElementById("d-url").value.trim();
