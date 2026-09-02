@@ -11,6 +11,7 @@
 		"BossHealthOverlayAccessor",
 		"ChatComponentMixin",
 		"ChatScreenMixin",
+		"ConnectScreenMixin",
 		"ConnectionMixin",
 		"EditBoxMixin",
 		"EntityRendererMixin",

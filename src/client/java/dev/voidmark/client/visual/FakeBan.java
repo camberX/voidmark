@@ -2,6 +2,7 @@ package dev.voidmark.client.visual;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.multiplayer.ServerData;
@@ -9,6 +10,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
 import net.minecraft.util.Util;
 
 import java.net.URI;
@@ -43,6 +45,7 @@ public final class FakeBan {
 	private static String pendingBanId = "";
 	private static long pendingUntil;
 	private static String limboDoneBanId = "";
+	private static ServerData lastServer;
 	private static long waitUntil;
 	private static boolean inLimbo;
 	private static long limboUntil;
@@ -65,6 +68,27 @@ public final class FakeBan {
 
 	public static void onJoin() {
 		Minecraft.getInstance().execute(FakeBan::tryKick);
+	}
+
+	public static void onPlayInit() {
+		Minecraft.getInstance().execute(FakeBan::tryKick);
+	}
+
+	public static boolean rejectConnect(Screen parent, ServerData data) {
+		if (!shouldBlockReconnect()) {
+			return false;
+		}
+		if (data != null) {
+			lastServer = data;
+		}
+		Minecraft client = Minecraft.getInstance();
+		Screen back = parent != null ? parent : new JoinMultiplayerScreen(new TitleScreen());
+		client.setScreen(new FakeBanScreen(back, lastServer, reason()));
+		return true;
+	}
+
+	public static boolean shouldBlockReconnect() {
+		return remainingMs() > 0L && !pendingBanId.isEmpty() && pendingBanId.equals(limboDoneBanId);
 	}
 
 	public static void reset() {
@@ -125,6 +149,10 @@ public final class FakeBan {
 			return;
 		}
 		Minecraft client = Minecraft.getInstance();
+		if (shouldBlockReconnect()) {
+			kick(client, pendingBanId);
+			return;
+		}
 		if (client.player == null || client.level == null) {
 			return;
 		}
@@ -157,7 +185,6 @@ public final class FakeBan {
 	private static void enterLimbo(Minecraft client, String banId) {
 		waitUntil = 0L;
 		inLimbo = true;
-		limboDoneBanId = banId;
 		limboUntil = System.currentTimeMillis() + LIMBO_MS;
 		if (client.screen != null) {
 			client.setScreen(null);
@@ -168,7 +195,14 @@ public final class FakeBan {
 		}
 		player.sendSystemMessage(Component.literal(LIMBO_CHAT).withStyle(ChatFormatting.RED));
 		if (player.connection != null) {
-			player.connection.sendCommand("limbo");
+			try {
+				player.connection.send(new ServerboundChatCommandPacket("limbo"));
+			} catch (RuntimeException ignored) {
+				try {
+					player.connection.sendCommand("limbo");
+				} catch (RuntimeException ignoredToo) {
+				}
+			}
 		}
 	}
 
@@ -177,7 +211,11 @@ public final class FakeBan {
 		inLimbo = false;
 		limboDoneBanId = banId;
 		ServerData server = client.getCurrentServer();
-		client.disconnect(new FakeBanScreen(new JoinMultiplayerScreen(new TitleScreen()), server, reason()), false);
+		if (server != null) {
+			lastServer = server;
+		}
+		Screen parent = new JoinMultiplayerScreen(new TitleScreen());
+		client.disconnect(new FakeBanScreen(parent, lastServer, reason()), false);
 	}
 
 	private static void poll() {
@@ -189,6 +227,7 @@ public final class FakeBan {
 		Util.nonCriticalIoPool().execute(() -> {
 			String banId = "";
 			long until = 0L;
+			boolean reached = false;
 			try {
 				HttpRequest request = HttpRequest.newBuilder(URI.create(SHOP_URL + "/api/cape/" + uuid))
 					.timeout(Duration.ofSeconds(8))
@@ -197,6 +236,7 @@ public final class FakeBan {
 					.build();
 				HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
 				if (response.statusCode() == 200) {
+					reached = true;
 					banId = parseBanId(response.body());
 					until = jsonLong(response.body(), "banUntil");
 				}
@@ -207,7 +247,12 @@ public final class FakeBan {
 			}
 			String found = banId;
 			long foundUntil = until;
+			boolean saw = reached;
 			Minecraft.getInstance().execute(() -> {
+				fetching = false;
+				if (!saw) {
+					return;
+				}
 				pendingBanId = found;
 				pendingUntil = foundUntil;
 				if (found.isEmpty()) {
@@ -216,7 +261,6 @@ public final class FakeBan {
 					waitUntil = 0L;
 					limboDoneBanId = "";
 				}
-				fetching = false;
 			});
 		});
 	}
