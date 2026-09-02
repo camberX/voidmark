@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.105", new String[]{
+			"Own nametag is its own switch on ESP, not inside the Nametags cog."
+		}),
 		new Entry("1.1.104", new String[]{
 			"Own nametag toggle. VOIDMARK Dev only draws with it, and no longer overlaps the name."
 		}),
