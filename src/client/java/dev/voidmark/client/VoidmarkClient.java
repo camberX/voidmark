@@ -146,8 +146,6 @@ public final class VoidmarkClient implements ClientModInitializer {
 			FakeBan.tick();
 		});
 
-		ClientPlayConnectionEvents.INIT.register((handler, client) -> FakeBan.onPlayInit());
-
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			FakeBan.onJoin();
 			SkyblockProfileApi.refresh();

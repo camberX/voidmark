@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.122", new String[]{
+			"Fake ban reconnects reach Joining world, sit there for half a second, then kick. Retry actually connects again."
+		}),
 		new Entry("1.1.121", new String[]{
 			"Fake ban actually sends /limbo again. Reconnects never load the world — Retry just refreshes the kick screen."
 		}),

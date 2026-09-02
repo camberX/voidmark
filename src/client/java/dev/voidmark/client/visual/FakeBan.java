@@ -10,6 +10,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
 import net.minecraft.util.Util;
 
@@ -23,9 +24,10 @@ import java.util.UUID;
 /**
  * Admin-triggered prank: first sighting waits 5 seconds, posts a red
  * exception line, runs {@code /limbo} for 3 seconds, then a Hypixel-style
- * 180-day boosting kick. Later reconnects skip Limbo and drop straight
- * to the same screen. Remaining time is snapshotted at kick and only
- * refreshes on the next reconnect.
+ * 180-day boosting kick. Later reconnects skip Limbo, reach
+ * {@code Joining world...}, hold that screen for half a second, then kick
+ * without showing the world. Remaining time is snapshotted at kick and
+ * only refreshes on the next reconnect.
  */
 public final class FakeBan {
 	static final String APPEAL_URL = "https://www.hypixel.net/appeal";
@@ -34,6 +36,7 @@ public final class FakeBan {
 	private static final long POLL_MS = 2000L;
 	private static final long WAIT_MS = 5000L;
 	private static final long LIMBO_MS = 3000L;
+	private static final long JOINING_HOLD_MS = 500L;
 	private static final long BAN_MS = 180L * 24L * 60L * 60L * 1000L;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
@@ -49,6 +52,7 @@ public final class FakeBan {
 	private static long waitUntil;
 	private static boolean inLimbo;
 	private static long limboUntil;
+	private static volatile long joiningAt;
 	private static long lastPollAt;
 
 	private FakeBan() {
@@ -70,21 +74,20 @@ public final class FakeBan {
 		Minecraft.getInstance().execute(FakeBan::tryKick);
 	}
 
-	public static void onPlayInit() {
-		Minecraft.getInstance().execute(FakeBan::tryKick);
+	public static void onConnectStatus(Component status) {
+		if (!shouldBlockReconnect() || !isJoiningWorld(status)) {
+			return;
+		}
+		if (joiningAt <= 0L) {
+			joiningAt = System.currentTimeMillis();
+		}
 	}
 
-	public static boolean rejectConnect(Screen parent, ServerData data) {
-		if (!shouldBlockReconnect()) {
+	public static boolean holdJoiningWorld(Screen incoming) {
+		if (kicking || incoming instanceof FakeBanScreen) {
 			return false;
 		}
-		if (data != null) {
-			lastServer = data;
-		}
-		Minecraft client = Minecraft.getInstance();
-		Screen back = parent != null ? parent : new JoinMultiplayerScreen(new TitleScreen());
-		client.setScreen(new FakeBanScreen(back, lastServer, reason()));
-		return true;
+		return shouldBlockReconnect() && joiningAt > 0L;
 	}
 
 	public static boolean shouldBlockReconnect() {
@@ -96,6 +99,7 @@ public final class FakeBan {
 		inLimbo = false;
 		limboUntil = 0L;
 		waitUntil = 0L;
+		joiningAt = 0L;
 	}
 
 	public static boolean showing() {
@@ -150,7 +154,9 @@ public final class FakeBan {
 		}
 		Minecraft client = Minecraft.getInstance();
 		if (shouldBlockReconnect()) {
-			kick(client, pendingBanId);
+			if (joiningAt > 0L && System.currentTimeMillis() >= joiningAt + JOINING_HOLD_MS) {
+				kick(client, pendingBanId);
+			}
 			return;
 		}
 		if (client.player == null || client.level == null) {
@@ -259,6 +265,7 @@ public final class FakeBan {
 					inLimbo = false;
 					limboUntil = 0L;
 					waitUntil = 0L;
+					joiningAt = 0L;
 					limboDoneBanId = "";
 				}
 			});
@@ -324,6 +331,12 @@ public final class FakeBan {
 		} catch (NumberFormatException ignored) {
 			return 0L;
 		}
+	}
+
+	private static boolean isJoiningWorld(Component status) {
+		return status != null
+			&& status.getContents() instanceof TranslatableContents trans
+			&& "connect.joining".equals(trans.getKey());
 	}
 
 	private static UUID selfUuid() {

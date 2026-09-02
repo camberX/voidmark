@@ -5,8 +5,10 @@ import net.minecraft.client.gui.components.MultiLineTextWidget;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.layouts.FrameLayout;
 import net.minecraft.client.gui.layouts.LinearLayout;
+import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -51,6 +53,17 @@ public final class FakeBanScreen extends Screen {
 	}
 
 	private void retry() {
-		minecraft.setScreen(new FakeBanScreen(parent, server, FakeBan.reason()));
+		if (server == null || server.ip == null || server.ip.isBlank()) {
+			minecraft.setScreen(parent);
+			return;
+		}
+		ConnectScreen.startConnecting(
+			parent,
+			minecraft,
+			ServerAddress.parseString(server.ip),
+			server,
+			false,
+			null
+		);
 	}
 }
