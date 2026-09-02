@@ -15,6 +15,12 @@ public final class Theme {
 	public static int LINE = 0xFF1C2430;
 	public static int TRACK = 0xFF1A222C;
 	public static int PANEL = 0xFF0B1118;
+	public static int HUD_WINDOW = 0xFF0B0E14;
+	public static int HUD_LINE = 0xFF1C2430;
+	public static int HUD_TRACK = 0xFF1A222C;
+	public static int HUD_CARD = 0xFF12151C;
+	public static int HUD_CARD_HOVER = 0xFF171B24;
+	public static int HUD_PANEL = 0xFF0B1118;
 	public static int TEXT = 0xFFF2F4F7;
 	public static int MUTED = 0xFF8A9AAB;
 	public static int HEADER = 0xFFC4CED8;
@@ -58,6 +64,8 @@ public final class Theme {
 
 		float opacity = VoidmarkConfig.clamp(VoidmarkConfig.get().themePaneOpacity, 0.20f, 1f);
 		int paneA = Math.round(opacity * 255);
+		float hudOpacity = VoidmarkConfig.clamp(VoidmarkConfig.get().hudOpacity, 0.20f, 1f);
+		int hudA = Math.round(hudOpacity * 255);
 
 		ACCENT = 0xFF000000 | accent;
 		ACCENT_DIM = 0xFF000000 | mix(accent, pane, 0.42f);
@@ -69,6 +77,12 @@ public final class Theme {
 		LINE = withAlpha(mix(pane, 0xFFFFFF, 0.14f), Math.max(paneA, 90));
 		TRACK = withAlpha(mix(pane, 0xFFFFFF, 0.08f), paneA);
 		PANEL = withAlpha(mix(pane, 0x000000, 0.18f), paneA);
+		HUD_WINDOW = withAlpha(pane, hudA);
+		HUD_LINE = withAlpha(mix(pane, 0xFFFFFF, 0.14f), Math.max(hudA, 90));
+		HUD_TRACK = withAlpha(mix(pane, 0xFFFFFF, 0.08f), hudA);
+		HUD_CARD = withAlpha(mix(pane, 0xFFFFFF, 0.055f), hudA);
+		HUD_CARD_HOVER = withAlpha(mix(pane, 0xFFFFFF, 0.10f), hudA);
+		HUD_PANEL = withAlpha(mix(pane, 0x000000, 0.18f), hudA);
 		OFF = withAlpha(mix(pane, 0xFFFFFF, 0.22f), paneA);
 		HEADER = 0xFF000000 | mix(0xC4CED8, pane, 0.10f);
 		NAV_PILL = withAlpha(mix(pane, accent, 0.55f), Math.round(230 * opacity));

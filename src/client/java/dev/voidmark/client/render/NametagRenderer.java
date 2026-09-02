@@ -3,7 +3,6 @@ package dev.voidmark.client.render;
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.ui.Anim;
-import dev.voidmark.client.ui.MenuFont;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.visual.NickHider;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -17,8 +16,6 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.Entity;
@@ -239,8 +236,8 @@ public final class NametagRenderer {
 		}
 		float scale = distanceScale(tag.dist) * userScale;
 		boolean showDist = showDistance && !tag.self;
-		Component name = menuText(tag.name);
-		float nameW = pillWidth(nameWidth(font, name), showDist ? distWidth(font, tag.dist) : 0f);
+		Component name = tag.name;
+		float nameW = pillWidth(font.width(name), showDist ? distWidth(font, tag.dist) : 0f);
 		float badgeW = tag.dev ? badgeWidth(font) : 0f;
 		float w = nameW;
 		float x = -w * 0.5f;
@@ -265,25 +262,6 @@ public final class NametagRenderer {
 		graphics.pose().popMatrix();
 	}
 
-	private static Component menuText(Component name) {
-		return applyFont(name, MenuFont.SMALL);
-	}
-
-	private static Component applyFont(Component src, Style fontStyle) {
-		if (src == null) {
-			return Component.empty().setStyle(fontStyle);
-		}
-		MutableComponent out = src.plainCopy().setStyle(src.getStyle().withFont(fontStyle.getFont()));
-		for (Component sibling : src.getSiblings()) {
-			out.append(applyFont(sibling, fontStyle));
-		}
-		return out;
-	}
-
-	private static float nameWidth(Font font, Component name) {
-		return Math.max(font.width(name), GuiDraw.smallWidth(font, name.getString()));
-	}
-
 	private static void drawNameText(
 		GuiGraphicsExtractor graphics,
 		Font font,
@@ -298,19 +276,19 @@ public final class NametagRenderer {
 		GuiDraw.text(graphics, font, name, x + PAD_X, GuiDraw.middle(y, TAG_H), Anim.fade(0xFFFFFFFF, alpha), false);
 		if (showDist) {
 			String dist = GuiDraw.meters(tag.dist);
-			float distX = x + w - PAD_X - GuiDraw.smallWidth(font, dist);
-			GuiDraw.small(graphics, font, dist, distX, GuiDraw.middle(y, TAG_H) + 1f, Anim.fade(Theme.MUTED, alpha));
+			float distX = x + w - PAD_X - font.width(dist);
+			GuiDraw.text(graphics, font, dist, distX, GuiDraw.middle(y, TAG_H), Anim.fade(Theme.MUTED, alpha), false);
 		}
 	}
 
 	private static void drawBadgeText(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, float alpha) {
-		float brandW = GuiDraw.menuWidth(font, BADGE_BRAND);
-		float roleW = GuiDraw.smallWidth(font, BADGE_ROLE);
+		float brandW = font.width(BADGE_BRAND);
+		float roleW = font.width(BADGE_ROLE);
 		float inner = brandW + 3f + roleW;
 		float cx = x + (w - inner) * 0.5f;
 		float textY = GuiDraw.middle(y, BADGE_H);
-		GuiDraw.menu(graphics, font, BADGE_BRAND, cx, textY, Anim.fade(Theme.ACCENT, alpha));
-		GuiDraw.small(graphics, font, BADGE_ROLE, cx + brandW + 3f, textY, Anim.fade(Theme.WARN, alpha));
+		GuiDraw.text(graphics, font, BADGE_BRAND, cx, textY, Anim.fade(Theme.ACCENT, alpha), false);
+		GuiDraw.text(graphics, font, BADGE_ROLE, cx + brandW + 3f, textY, Anim.fade(Theme.WARN, alpha), false);
 	}
 
 	private static float pillWidth(float nameW, float distW) {
@@ -318,18 +296,24 @@ public final class NametagRenderer {
 	}
 
 	private static float distWidth(Font font, double dist) {
-		return GuiDraw.smallWidth(font, GuiDraw.meters(dist));
+		return font.width(GuiDraw.meters(dist));
 	}
 
 	private static float badgeWidth(Font font) {
-		return 5f + GuiDraw.menuWidth(font, BADGE_BRAND) + 3f + GuiDraw.smallWidth(font, BADGE_ROLE) + 5f;
+		return 5f + font.width(BADGE_BRAND) + 3f + font.width(BADGE_ROLE) + 5f;
 	}
 
-	public static void drawPreview(GuiGraphicsExtractor graphics, Font font, float cx, float y, Component name, boolean dev) {
+	/** Vanilla nametag: default font, option background, white text, centered. */
+	public static void drawVanilla(GuiGraphicsExtractor graphics, Font font, float cx, float y, Component name) {
 		if (name == null || name.getString().isBlank()) {
 			return;
 		}
-		drawStack(graphics, font, new Tag(name, 12, cx, y, true, dev, 1f), false, 0.82f, 1f);
+		int w = font.width(name);
+		int x = Math.round(cx - w * 0.5f);
+		int top = Math.round(y);
+		int bg = Minecraft.getInstance().options.getBackgroundColor(0.25f);
+		graphics.fill(x - 1, top - 1, x + w + 1, top + 9, bg);
+		graphics.text(font, name, x, top, 0xFFFFFFFF, false);
 	}
 
 	public static boolean isDev(UUID uuid) {

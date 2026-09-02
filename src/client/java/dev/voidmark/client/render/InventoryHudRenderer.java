@@ -122,7 +122,7 @@ public final class InventoryHudRenderer {
 		}
 
 		if (config.inventoryHudHotbar) {
-			GuiDraw.hline(graphics, gridX, layout.hotbarY - 3, layout.gridW, Theme.LINE);
+			GuiDraw.hline(graphics, gridX, layout.hotbarY - 3, layout.gridW, Theme.HUD_LINE);
 			int selected = inventory.getSelectedSlot();
 			for (int col = 0; col < COLS; col++) {
 				slot(graphics, font, player, inventory.getItem(col), gridX + col * (SLOT + GAP), layout.hotbarY, col, null, col == selected);
@@ -163,8 +163,8 @@ public final class InventoryHudRenderer {
 		String emptyMark,
 		boolean selected
 	) {
-		int fill = selected ? Theme.CARD_HOVER : Theme.TRACK;
-		int outline = selected ? Theme.ACCENT : Theme.LINE;
+		int fill = selected ? Theme.HUD_CARD_HOVER : Theme.HUD_TRACK;
+		int outline = selected ? Theme.ACCENT : Theme.HUD_LINE;
 		GuiDraw.panel(graphics, x, y, SLOT, SLOT, 3, fill, outline);
 		if (stack == null || stack.isEmpty()) {
 			if (emptyMark != null) {

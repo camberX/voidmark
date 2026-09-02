@@ -143,7 +143,7 @@ public final class MusicHudRenderer {
 		float barX = textX;
 		float barW = Math.max(24f, WIDTH - textX - clockW - 14);
 		float barY = 30;
-		GuiDraw.rounded(graphics, barX, barY, barW, 3, 1.5f, Theme.TRACK);
+		GuiDraw.rounded(graphics, barX, barY, barW, 3, 1.5f, Theme.HUD_TRACK);
 		float filled = Math.max(live ? 2f : 0f, barW * track.progress());
 		GuiDraw.rounded(graphics, barX, barY, filled, 3, 1.5f, Theme.ACCENT);
 		if (GuiDraw.smallWidth(font, clock) >= 4f) {
@@ -177,10 +177,10 @@ public final class MusicHudRenderer {
 		float x = COVER_PAD;
 		float y = (panelH - size) * 0.5f;
 		CoverArt.bind(track);
-		GuiDraw.rounded(graphics, x, y, size, size, 5, Theme.CARD);
+		GuiDraw.rounded(graphics, x, y, size, size, 5, Theme.HUD_CARD);
 		if (CoverArt.ready()) {
 			int tex = CoverArt.size();
-			GuiDraw.roundedBlit(graphics, CoverArt.id(), x, y, size, size, 5, tex, Theme.CARD);
+			GuiDraw.roundedBlit(graphics, CoverArt.id(), x, y, size, size, 5, tex, Theme.HUD_CARD);
 			return size;
 		}
 		GuiDraw.icon(graphics, font, ICON, x + size * 0.5f - 5f, y + size * 0.5f - 5f, live ? Theme.ACCENT : Theme.MUTED);

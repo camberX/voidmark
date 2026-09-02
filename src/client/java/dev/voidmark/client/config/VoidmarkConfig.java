@@ -117,6 +117,7 @@ public final class VoidmarkConfig {
 	public String menuTab = "WORLD";
 	public String changelogSeen = "";
 	public float themePaneOpacity = 0.90f;
+	public float hudOpacity = 0.90f;
 	public String capeUrl = "";
 	public String capePath = "";
 	public boolean nickEnabled = false;
@@ -290,6 +291,9 @@ public final class VoidmarkConfig {
 				loaded.themePaneOpacity = loaded.themePaneOpacity <= 0f
 					? 0.90f
 					: clamp(loaded.themePaneOpacity, 0.20f, 1f);
+				loaded.hudOpacity = loaded.hudOpacity <= 0f
+					? 0.90f
+					: clamp(loaded.hudOpacity, 0.20f, 1f);
 				instance = loaded;
 			}
 		} catch (Exception exception) {

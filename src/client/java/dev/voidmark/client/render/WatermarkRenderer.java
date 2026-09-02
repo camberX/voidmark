@@ -95,7 +95,7 @@ public final class WatermarkRenderer {
 			}
 			if (i + 1 < parts.size()) {
 				cx += gap / 2f;
-				GuiDraw.fill(graphics, cx, 4, 1, HEIGHT - 8, Theme.LINE);
+				GuiDraw.fill(graphics, cx, 4, 1, HEIGHT - 8, Theme.HUD_LINE);
 				cx += gap / 2f + 1;
 			}
 		}

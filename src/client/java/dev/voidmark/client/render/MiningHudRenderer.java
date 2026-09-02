@@ -89,7 +89,7 @@ public final class MiningHudRenderer {
 		float barX = PAD + 2;
 		float barW = WIDTH - PAD * 2 - 2;
 		float barY = PAD + HEAD;
-		GuiDraw.rounded(graphics, barX, barY, barW, BAR, 1.1f, Theme.TRACK);
+		GuiDraw.rounded(graphics, barX, barY, barW, BAR, 1.1f, Theme.HUD_TRACK);
 		float filled = Math.max(snap.abilityReady() ? barW : 0f, barW * snap.abilityProgress());
 		if (filled > 0.4f) {
 			GuiDraw.rounded(graphics, barX, barY, filled, BAR, 1.1f, snap.abilityReady() ? Theme.ACCENT : Theme.ACCENT_DIM);
@@ -126,7 +126,7 @@ public final class MiningHudRenderer {
 		float h = 36;
 		float x = (guiW - w) * 0.5f;
 		float y = guiH * 0.28f;
-		int pane = Anim.fade(Theme.WINDOW, fade);
+		int pane = Anim.fade(Theme.HUD_WINDOW, fade);
 		int accent = Anim.fade(Theme.ACCENT, fade);
 		graphics.pose().pushMatrix();
 		GuiDraw.rounded(graphics, x, y, w, h, 6, pane);

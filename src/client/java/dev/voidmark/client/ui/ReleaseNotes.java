@@ -8,6 +8,11 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.92", new String[]{
+			"Nametags use the default Minecraft font.",
+			"HUD opacity is separate from the click-GUI pane.",
+			"Player preview is smaller, follows menu scale, and uses a vanilla nametag above the model."
+		}),
 		new Entry("1.1.91", new String[]{
 			"Removed Efficient Miner prediction.",
 			"HUD stars and GUI fills cost less while looking the same."

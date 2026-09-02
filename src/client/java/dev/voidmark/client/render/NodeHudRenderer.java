@@ -95,7 +95,7 @@ public final class NodeHudRenderer {
 
 			float barWidth = width - 24;
 			float needle = Mth.clamp((delta + 180.0f) / 360.0f, 0.0f, 1.0f);
-			GuiDraw.fill(graphics, 12, 47, barWidth, 2, Theme.TRACK);
+			GuiDraw.fill(graphics, 12, 47, barWidth, 2, Theme.HUD_TRACK);
 			GuiDraw.fill(graphics, 12 + needle * (barWidth - 4), 45, 4, 6, Theme.ACCENT);
 		}
 		graphics.pose().popMatrix();

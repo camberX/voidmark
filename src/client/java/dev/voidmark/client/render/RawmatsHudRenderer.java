@@ -159,7 +159,7 @@ public final class RawmatsHudRenderer {
 		int seed
 	) {
 		ItemStack stack = line.icon();
-		GuiDraw.rounded(graphics, x, y + 1, ICON, ICON, 3, Theme.TRACK);
+		GuiDraw.rounded(graphics, x, y + 1, ICON, ICON, 3, Theme.HUD_TRACK);
 		if (stack != null && !stack.isEmpty() && player != null) {
 			graphics.item(player, stack, Math.round(x), Math.round(y + 1), 200 + seed);
 		}
@@ -173,7 +173,7 @@ public final class RawmatsHudRenderer {
 		float barX = textX;
 		float barW = WIDTH - textX - PAD;
 		float barY = y + 12;
-		GuiDraw.rounded(graphics, barX, barY, barW, 2.5f, 1.2f, Theme.TRACK);
+		GuiDraw.rounded(graphics, barX, barY, barW, 2.5f, 1.2f, Theme.HUD_TRACK);
 		float filled = Math.max(line.have() > 0L ? 2f : 0f, barW * line.progress());
 		GuiDraw.rounded(graphics, barX, barY, filled, 2.5f, 1.2f, line.done() ? Theme.ACCENT : Theme.ACCENT_DIM);
 	}

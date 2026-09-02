@@ -53,7 +53,7 @@ public class VoidmarkScreen extends Screen {
 	private static final float PICKER_H = 122;
 	private static final float PANEL_W = 168;
 	private static final float FEATURE_W = 176;
-	private static final float SETTINGS_H = 248;
+	private static final float SETTINGS_H = 264;
 	private static final float COG_W = 14;
 
 	private enum Group {
@@ -140,6 +140,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Nametag size", Tab.ESP, "ESP"),
 		new SearchEntry("Nametag opacity", Tab.ESP, "ESP"),
 		new SearchEntry("Menu scale", Tab.OVERLAY, "Theme"),
+		new SearchEntry("HUD opacity", Tab.OVERLAY, "Theme"),
 		new SearchEntry("HUD stars", Tab.OVERLAY, "Theme"),
 		new SearchEntry("Markers", Tab.NODES, "Nodes"),
 		new SearchEntry("Node HUD", Tab.NODES, "Nodes"),
@@ -611,21 +612,33 @@ public class VoidmarkScreen extends Screen {
 			}
 		}
 		boolean previewHover = GuiDraw.hovered(mouseX, mouseY, previewX, previewY, previewW, previewH);
-		if (!PlayerPreview.draw(graphics, previewX, previewY, previewW, previewH, previewYaw, previewPitch)) {
-			PlayerSkin skin = playerSkin();
-			if (skin != null && skin.body() != null) {
-				int face = 40;
-				int fx = Math.round(previewX + (previewW - face) * 0.5f);
-				int fy = Math.round(previewY + (previewH - face) * 0.5f - 8);
-				PlayerFaceExtractor.extractRenderState(graphics, skin, fx, fy, face);
-			}
-			GuiDraw.menu(graphics, font, "Join a world to rotate", previewX + 4, previewY + previewH - 16, Theme.MUTED);
-		}
+		PlayerPreview.Drawn drawn = PlayerPreview.draw(
+			graphics,
+			previewX,
+			previewY,
+			previewW,
+			previewH,
+			previewYaw,
+			previewPitch,
+			new PlayerPreview.View(viewScale, viewCx, viewCy, viewLift)
+		);
 		NickHider.suppress();
 		Component tag = config.nickEnabled ? NickHider.formattedNick() : Component.literal(playerName());
 		NickHider.resume();
-		boolean dev = minecraft.player != null && NametagRenderer.isDev(minecraft.player.getUUID());
-		NametagRenderer.drawPreview(graphics, font, previewX + previewW * 0.5f, previewY + 18, tag, dev);
+		if (drawn == null) {
+			PlayerSkin skin = playerSkin();
+			if (skin != null && skin.body() != null) {
+				int face = 28;
+				int fx = Math.round(previewX + (previewW - face) * 0.5f);
+				int fy = Math.round(previewY + previewH * 0.55f - face * 0.5f);
+				PlayerFaceExtractor.extractRenderState(graphics, skin, fx, fy, face);
+				NametagRenderer.drawVanilla(graphics, font, previewX + previewW * 0.5f, fy - 12, tag);
+			} else {
+				GuiDraw.menu(graphics, font, "Join a world to rotate", previewX + 4, previewY + previewH - 16, Theme.MUTED);
+			}
+		} else {
+			NametagRenderer.drawVanilla(graphics, font, drawn.nameX(), drawn.nameY(), tag);
+		}
 		if (previewHover) {
 			GuiDraw.small(graphics, font, "Drag to rotate", previewX + 4, previewY + previewH - 12, Theme.MUTED);
 		}
@@ -1045,6 +1058,10 @@ public class VoidmarkScreen extends Screen {
 		y = chipRow(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, new String[]{"100%", "90%", "75%", "50%"}, menuScaleChip(), index -> {
 			float[] values = {1.00f, 0.90f, 0.75f, 0.50f};
 			VoidmarkConfig.get().menuScale = values[index];
+		});
+		y = slider(graphics, font, settingsX + 8, y, PANEL_W - 16, "HUD", Math.round(VoidmarkConfig.get().hudOpacity * 100) + "%", (VoidmarkConfig.get().hudOpacity - 0.20f) / 0.80f, v -> {
+			VoidmarkConfig.get().hudOpacity = VoidmarkConfig.clamp(0.20f + v * 0.80f, 0.20f, 1f);
+			Theme.refresh();
 		});
 		y = toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "HUD stars", VoidmarkConfig.get().hudStarfield, v -> VoidmarkConfig.get().hudStarfield = v);
 		toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Animations", VoidmarkConfig.get().uiAnimations, v -> VoidmarkConfig.get().uiAnimations = v);
@@ -1592,7 +1609,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.91");
+			.orElse("1.1.92");
 	}
 
 	@Override
