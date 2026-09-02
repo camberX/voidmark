@@ -68,6 +68,12 @@ async function route(request, env) {
 	if (request.method === "GET" && env.ASSETS) {
 		return env.ASSETS.fetch(request);
 	}
+	if (request.method === "GET" && (path === "/" || path === "/index.html")) {
+		return page(INDEX_HTML);
+	}
+	if (request.method === "GET" && path === "/admin.html") {
+		return page(ADMIN_HTML);
+	}
 	return json(404, { error: "Not found" });
 }
 
@@ -219,3 +225,149 @@ function cors() {
 		"Access-Control-Allow-Headers": "Content-Type, X-UUID, X-Key, X-Code, X-Token"
 	};
 }
+
+function page(html) {
+	return new Response(html, {
+		headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }
+	});
+}
+
+const INDEX_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>VOIDMARK Capes</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+	<style>
+		:root { --bg:#05070d; --pane:#0b0e14; --card:#12151c; --line:#1c2230; --text:#e8edf5; --muted:#8b95a8; --accent:#2fb5ff; --warn:#e8b86d; }
+		* { box-sizing: border-box; }
+		body { margin: 0; min-height: 100vh; font-family: "Nunito Sans", sans-serif; background: radial-gradient(1200px 600px at 50% -10%, #12324a 0%, var(--bg) 55%); color: var(--text); }
+		main { width: min(520px, calc(100% - 32px)); margin: 48px auto; background: color-mix(in srgb, var(--pane) 92%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 28px 26px 24px; box-shadow: 0 24px 80px #0008; }
+		h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: 0.18em; }
+		.rule { width: 18px; height: 2px; background: var(--accent); border-radius: 2px; margin: 10px 0 16px; }
+		p, label { color: var(--muted); font-size: 14px; line-height: 1.5; }
+		ol { color: var(--muted); font-size: 14px; padding-left: 18px; }
+		label { display: block; margin: 14px 0 6px; font-weight: 700; color: var(--text); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+		input[type=text], input[type=file] { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px 12px; font: inherit; }
+		input[type=file] { padding: 8px; }
+		button { margin-top: 18px; width: 100%; border: 0; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 800; padding: 12px; cursor: pointer; }
+		button:disabled { opacity: 0.5; cursor: default; }
+		.status { min-height: 20px; margin-top: 14px; font-size: 13px; }
+		.status.ok { color: var(--accent); }
+		.status.err { color: var(--warn); }
+		.token { word-break: break-all; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 8px; font-size: 13px; }
+		.preview { display: none; margin-top: 12px; width: 100%; max-height: 180px; object-fit: contain; background: #000; border-radius: 8px; }
+		.foot { margin-top: 22px; font-size: 12px; color: var(--muted); }
+		a { color: var(--accent); }
+	</style>
+</head>
+<body>
+	<main>
+		<h1>VOIDMARK</h1>
+		<div class="rule"></div>
+		<p id="lead">Custom cape. Pay via PayPal Friends and Family, get an upload code, then drop your PNG here. Voidmark players see it in-game. Change it later from the Voidmark Cape menu and everyone updates.</p>
+		<ol>
+			<li>Send <strong id="price">$1</strong> Friends and Family to <strong id="paypal">your-paypal@email.com</strong> with your Minecraft name.</li>
+			<li>You get an upload code back.</li>
+			<li>Paste your UUID, the code, and a PNG.</li>
+		</ol>
+		<form id="form">
+			<label for="uuid">Minecraft UUID</label>
+			<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="f1b21931-667f-4be2-91bb-a06074978e0e" required>
+			<label for="code">Upload code</label>
+			<input id="code" type="text" autocomplete="off" spellcheck="false" placeholder="code from after payment" required>
+			<label for="file">Cape PNG</label>
+			<input id="file" type="file" accept="image/png,.png" required>
+			<img id="preview" class="preview" alt="Cape preview">
+			<button type="submit" id="go">Upload cape</button>
+		</form>
+		<div class="status" id="status"></div>
+		<div class="token" id="token" hidden></div>
+		<p class="foot">Keep the shop token. Paste it in Voidmark → Player → Cape if you want to change the cape in-game. Friends and Family has no PayPal purchase protection. Capes only show for Voidmark users. <a href="/admin.html">Admin</a></p>
+	</main>
+	<script>
+		const preview = document.getElementById("preview");
+		document.getElementById("file").addEventListener("change", (event) => {
+			const file = event.target.files[0];
+			if (!file) { preview.style.display = "none"; return; }
+			preview.src = URL.createObjectURL(file);
+			preview.style.display = "block";
+		});
+		fetch("/api/config").then((r) => r.json()).then((cfg) => {
+			document.getElementById("paypal").textContent = cfg.paypal;
+			document.getElementById("price").textContent = cfg.price;
+		}).catch(() => {});
+		document.getElementById("form").addEventListener("submit", async (event) => {
+			event.preventDefault();
+			const status = document.getElementById("status");
+			const token = document.getElementById("token");
+			const go = document.getElementById("go");
+			const file = document.getElementById("file").files[0];
+			status.className = "status";
+			status.textContent = "Uploading…";
+			token.hidden = true;
+			go.disabled = true;
+			try {
+				const response = await fetch("/api/cape", {
+					method: "PUT",
+					headers: {
+						"X-UUID": document.getElementById("uuid").value.trim(),
+						"X-Key": document.getElementById("code").value.trim()
+					},
+					body: file
+				});
+				const data = await response.json();
+				if (!response.ok) throw new Error(data.error || "Upload failed");
+				status.className = "status ok";
+				status.textContent = "Cape is live. Other Voidmark users will see it within a few seconds.";
+				token.hidden = false;
+				token.textContent = "Shop token (paste in Voidmark Cape menu to change it in-game): " + data.token;
+			} catch (error) {
+				status.className = "status err";
+				status.textContent = error.message;
+			} finally {
+				go.disabled = false;
+			}
+		});
+	</script>
+</body>
+</html>
+`;
+
+const ADMIN_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>VOIDMARK Cape admin</title>
+	<style>
+		body { font-family: sans-serif; background: #05070d; color: #e8edf5; max-width: 420px; margin: 48px auto; }
+		input, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #1c2230; background: #12151c; color: inherit; }
+		button { background: #2fb5ff; color: #041018; font-weight: 700; border: 0; cursor: pointer; }
+		.out { margin-top: 12px; word-break: break-all; }
+	</style>
+</head>
+<body>
+	<h1>Grant upload code</h1>
+	<p>After a Friends and Family payment, generate a one-time code and send it to them.</p>
+	<input id="admin" type="password" placeholder="Admin key">
+	<button id="go">New code</button>
+	<div class="out" id="out"></div>
+	<script>
+		document.getElementById("go").onclick = async () => {
+			const out = document.getElementById("out");
+			const response = await fetch("/api/grant", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ admin: document.getElementById("admin").value })
+			});
+			const data = await response.json();
+			out.textContent = response.ok ? data.code : (data.error || "Failed");
+		};
+	</script>
+</body>
+</html>
+`;
+
