@@ -7,6 +7,11 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 	<style>
+		@font-face {
+			font-family: "Minecraft";
+			src: url("https://cdn.jsdelivr.net/npm/skinview3d@3.4.1/assets/minecraft.woff2") format("woff2");
+			font-display: swap;
+		}
 		:root { --bg:#03050a; --pane:#0a0e18; --card:#10151f; --line:#1a2336; --text:#e8edf5; --muted:#8b95a8; --accent:#2fb5ff; --warn:#e8b86d; --danger:#ff6b7a; --ok:#3ee0a0; }
 		* { box-sizing: border-box; }
 		html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: "Nunito Sans", sans-serif; }
@@ -66,17 +71,16 @@
 		.sheet { width: min(460px, 100%); border: 1px solid var(--line); border-radius: 16px; border-left: 1px solid var(--line); }
 		.who { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
 		.preview { margin-bottom: 16px; }
-		.stage { position: relative; height: 280px; border-radius: 14px; overflow: hidden; background: #070b12; border: 1px solid var(--line); }
+		.stage { position: relative; height: 360px; border-radius: 10px; overflow: hidden; background: #070b12; border: 1px solid var(--line); }
 		.stage canvas { display: block; width: 100%; height: 100%; }
-		.labels { position: absolute; left: 8px; right: 8px; top: 10px; display: flex; flex-direction: column; align-items: center; gap: 3px; pointer-events: none; z-index: 1; }
-		.plate { font-family: "Minecraft", "Courier New", monospace; font-size: 14px; line-height: 1.2; text-shadow: 1px 1px #000; background: #000c; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; color: #fff; max-width: 100%; }
-		.plate.tag { font-size: 13px; }
+		.labels { position: absolute; left: 8px; right: 8px; top: 6%; display: flex; flex-direction: column; align-items: center; gap: 1px; pointer-events: none; z-index: 1; }
+		.mc-tag { font-family: "Minecraft", monospace; font-size: 16px; line-height: 1; -webkit-font-smoothing: none; image-rendering: pixelated; background: rgba(0, 0, 0, 0.25); color: #fff; text-shadow: 1px 1px 0 #3f3f3f; padding: 1px 4px; white-space: nowrap; max-width: 100%; overflow: hidden; }
 		.drag { position: absolute; left: 10px; bottom: 8px; margin: 0; color: var(--muted); font-size: 11px; letter-spacing: 0.06em; pointer-events: none; }
-		.nocape { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+		.preview .nocape { font-size: 12px; margin: 8px 0 0; text-align: left; }
 		.codes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
 		.swatch { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #ffffff33; padding: 0; color: #111; font-size: 11px; font-weight: 800; }
 		.swatch.fmt { background: var(--card); color: var(--text); width: auto; padding: 0 8px; }
-		.preview-plate { background: #000a; border: 1px solid var(--line); border-radius: 8px; min-height: 40px; display: flex; align-items: center; justify-content: center; padding: 10px 12px; margin: 0 0 14px; font-family: "Minecraft", "Courier New", monospace; font-size: 16px; text-shadow: 1px 1px #000; }
+		.preview-plate { background: rgba(0, 0, 0, 0.25); min-height: 22px; display: flex; align-items: center; justify-content: center; padding: 4px 8px; margin: 0 0 14px; font-family: "Minecraft", monospace; font-size: 16px; line-height: 1; image-rendering: pixelated; -webkit-font-smoothing: none; }
 		.field { margin: 0 0 12px; }
 		.bypass { display: flex; align-items: center; gap: 8px; font-weight: 800; cursor: pointer; }
 		@media (max-width: 860px) {
@@ -160,8 +164,8 @@
 				<div class="stage" id="d-stage">
 					<canvas id="d-model"></canvas>
 					<div class="labels">
-						<div class="plate tag" id="d-htag" hidden></div>
-						<div class="plate name" id="d-nname"></div>
+						<div class="mc-tag" id="d-htag" hidden></div>
+						<div class="mc-tag" id="d-nname"></div>
 					</div>
 					<p class="drag">Drag to rotate</p>
 				</div>
@@ -232,6 +236,7 @@
 		let selected = "";
 		let tagTarget = "";
 		let skinViewer = null;
+		const STAGE_H = 360;
 		const COLORS = [
 			["0", "#000000"], ["1", "#0000aa"], ["2", "#00aa00"], ["3", "#00aaaa"],
 			["4", "#aa0000"], ["5", "#aa00aa"], ["6", "#ffaa00"], ["7", "#aaaaaa"],
@@ -312,6 +317,16 @@
 			tagpreview.append(rendered);
 		}
 
+		function shadowOf(hex) {
+			const n = parseInt(hex.slice(1), 16);
+			if (isNaN(n)) return "#3f3f3f";
+			const r = Math.floor(((n >> 16) & 255) * 0.25);
+			const g = Math.floor(((n >> 8) & 255) * 0.25);
+			const b = Math.floor((n & 255) * 0.25);
+			function hex2(v) { return (v < 16 ? "0" : "") + v.toString(16); }
+			return "#" + hex2(r) + hex2(g) + hex2(b);
+		}
+
 		function renderLegacy(raw) {
 			const root = document.createElement("span");
 			let color = "#ffffff";
@@ -325,6 +340,7 @@
 				const span = document.createElement("span");
 				span.textContent = buffer;
 				span.style.color = color;
+				span.style.textShadow = "1px 1px 0 " + shadowOf(color);
 				if (bold) span.style.fontWeight = "800";
 				if (italic) span.style.fontStyle = "italic";
 				const deco = [];
@@ -542,8 +558,8 @@
 			skinViewer = new skinview3d.SkinViewer({
 				canvas: canvas,
 				width: Math.max(220, canvas.clientWidth || 360),
-				height: 280,
-				zoom: 0.86
+				height: STAGE_H,
+				zoom: 0.7
 			});
 			skinViewer.autoRotate = true;
 			skinViewer.autoRotateSpeed = 0.38;
@@ -557,7 +573,7 @@
 			if (!viewer) return;
 			viewer.renderPaused = false;
 			const stage = document.getElementById("d-stage");
-			viewer.setSize(Math.max(220, stage.clientWidth || 360), 280);
+			viewer.setSize(Math.max(220, stage.clientWidth || 360), STAGE_H);
 			viewer.loadSkin("https://crafthead.net/skin/" + player.uuid).catch(function () {
 				return viewer.loadSkin("https://mc-heads.net/skin/" + player.uuid);
 			});
@@ -637,7 +653,7 @@
 		drawer.addEventListener("click", function (event) { if (event.target === drawer) closeDrawer(); });
 		window.addEventListener("resize", function () {
 			if (drawer.hidden || !skinViewer || !selected) return;
-			skinViewer.setSize(Math.max(220, document.getElementById("d-stage").clientWidth), 280);
+			skinViewer.setSize(Math.max(220, document.getElementById("d-stage").clientWidth), STAGE_H);
 		});
 		document.getElementById("d-copy").onclick = function () {
 			if (!selected) return;
