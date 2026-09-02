@@ -8,6 +8,10 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.100", new String[]{
+			"VOIDMARK Dev uses the menu font and sits on the nametag.",
+			"Nametags no longer fade in or out."
+		}),
 		new Entry("1.1.99", new String[]{
 			"Removed the toolbar Reset button.",
 			"Adjacent Titanium ESP ores merge into one outline."

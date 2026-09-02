@@ -27,10 +27,7 @@ import org.joml.Vector3fc;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -40,15 +37,13 @@ import java.util.UUID;
  */
 public final class NametagRenderer {
 	private static final float TAG_H = 14f;
-	private static final float BADGE_H = 11f;
+	private static final float BADGE_H = 13f;
 	private static final float PAD_X = 8f;
 	private static final String BADGE_BRAND = "VOIDMARK";
 	private static final String BADGE_ROLE = "Dev";
 	private static final UUID DEV_UUID = UUID.fromString("f1b21931-667f-4be2-91bb-a06074978e0e");
 	private static final int NPC_UUID_VERSION = 2;
 	private static final int PLAYER_UUID_VERSION = 4;
-	private static final Map<UUID, Track> FADES = new HashMap<>();
-	private static long lastNs = System.nanoTime();
 
 	private NametagRenderer() {
 	}
@@ -75,17 +70,12 @@ public final class NametagRenderer {
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.player == null || client.level == null || client.options.hideGui) {
-			FADES.clear();
 			return;
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
 		if (!config.nametagsEnabled) {
-			FADES.clear();
 			return;
 		}
-		long now = System.nanoTime();
-		float dt = Math.min(0.05f, (now - lastNs) / 1_000_000_000f);
-		lastNs = now;
 		float partial = deltaTracker.getGameTimeDeltaPartialTick(true);
 		Camera camera = client.gameRenderer.getMainCamera();
 		if (!camera.isInitialized()) {
@@ -95,7 +85,7 @@ public final class NametagRenderer {
 		double maxSq = maxRange * maxRange;
 		Vec3 camPos = camera.position();
 		Vector3fc forward = camera.forwardVector();
-		Map<UUID, Tag> visible = new HashMap<>();
+		List<Tag> tags = new ArrayList<>();
 		for (AbstractClientPlayer player : client.level.players()) {
 			if (!include(client, player, config, maxSq, camPos)) {
 				continue;
@@ -116,57 +106,22 @@ public final class NametagRenderer {
 			float x = (float) ((ndc.x * 0.5 + 0.5) * graphics.guiWidth());
 			float y = (float) ((-ndc.y * 0.5 + 0.5) * graphics.guiHeight());
 			double dist = Math.sqrt(player.distanceToSqr(camPos));
-			visible.put(player.getUUID(), new Tag(
+			tags.add(new Tag(
 				label(player),
 				dist,
 				x,
 				y,
 				player == client.player,
-				DEV_UUID.equals(player.getUUID()),
-				1f
+				DEV_UUID.equals(player.getUUID())
 			));
 		}
-		List<Tag> tags = tickFades(visible, dt);
 		tags.sort(Comparator.comparingDouble((Tag tag) -> tag.dist).reversed());
 		Font font = client.font;
 		float userScale = VoidmarkConfig.clampHudScale(config.nametagScale);
 		float opacity = VoidmarkConfig.clamp(config.nametagOpacity, 0.15f, 1f);
 		for (Tag tag : tags) {
-			drawStack(graphics, font, tag, config.nametagDistance, userScale, opacity * tag.fade);
+			drawStack(graphics, font, tag, config.nametagDistance, userScale, opacity);
 		}
-	}
-
-	private static List<Tag> tickFades(Map<UUID, Tag> visible, float dt) {
-		for (Map.Entry<UUID, Tag> entry : visible.entrySet()) {
-			Track track = FADES.computeIfAbsent(entry.getKey(), id -> new Track());
-			Tag tag = entry.getValue();
-			track.name = tag.name;
-			track.dist = tag.dist;
-			track.x = tag.x;
-			track.y = tag.y;
-			track.self = tag.self;
-			track.dev = tag.dev;
-			track.seen = true;
-			track.fade = approach(track.fade, 1f, 9f, dt);
-		}
-		List<Tag> out = new ArrayList<>();
-		Iterator<Map.Entry<UUID, Track>> it = FADES.entrySet().iterator();
-		while (it.hasNext()) {
-			Map.Entry<UUID, Track> entry = it.next();
-			Track track = entry.getValue();
-			if (!visible.containsKey(entry.getKey())) {
-				track.seen = false;
-				track.fade = approach(track.fade, 0f, 8f, dt);
-				if (track.fade < 0.02f) {
-					it.remove();
-					continue;
-				}
-			}
-			if (track.fade > 0.02f && track.name != null) {
-				out.add(new Tag(track.name, track.dist, track.x, track.y, track.self, track.dev, track.fade));
-			}
-		}
-		return out;
 	}
 
 	private static boolean include(
@@ -255,11 +210,37 @@ public final class NametagRenderer {
 		drawNameText(graphics, font, name, tag, x, y, w, showDist, alpha);
 		if (tag.dev) {
 			float bx = -badgeW * 0.5f;
-			float by = y - BADGE_H - 2f;
-			GuiDraw.panel(graphics, bx, by, badgeW, BADGE_H, 4, pane, line);
+			float by = y - BADGE_H;
+			GuiDraw.panel(graphics, bx, by, badgeW, BADGE_H, 5, pane, line);
+			stitch(graphics, bx, by, badgeW, x, y, w, pane, line);
 			drawBadgeText(graphics, font, bx, by, badgeW, alpha);
 		}
 		graphics.pose().popMatrix();
+	}
+
+	/**
+	 * Square the shared edge so the Dev pill sits on the name plate instead of
+	 * floating a gap above it.
+	 */
+	private static void stitch(
+		GuiGraphicsExtractor graphics,
+		float bx,
+		float by,
+		float badgeW,
+		float nx,
+		float ny,
+		float nameW,
+		int pane,
+		int line
+	) {
+		GuiDraw.fill(graphics, bx + 1f, by + BADGE_H - 5f, badgeW - 2f, 5f, pane);
+		float overlapL = Math.max(bx, nx);
+		float overlapR = Math.min(bx + badgeW, nx + nameW);
+		if (overlapR > overlapL + 2f) {
+			GuiDraw.fill(graphics, overlapL + 1f, ny, overlapR - overlapL - 2f, 2f, pane);
+		}
+		GuiDraw.fill(graphics, bx, by + BADGE_H - 1f, 1f, 2f, line);
+		GuiDraw.fill(graphics, bx + badgeW - 1f, by + BADGE_H - 1f, 1f, 2f, line);
 	}
 
 	private static void drawNameText(
@@ -282,13 +263,13 @@ public final class NametagRenderer {
 	}
 
 	private static void drawBadgeText(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, float alpha) {
-		float brandW = font.width(BADGE_BRAND);
-		float roleW = font.width(BADGE_ROLE);
+		float brandW = GuiDraw.menuWidth(font, BADGE_BRAND);
+		float roleW = GuiDraw.menuWidth(font, BADGE_ROLE);
 		float inner = brandW + 3f + roleW;
 		float cx = x + (w - inner) * 0.5f;
 		float textY = GuiDraw.middle(y, BADGE_H);
-		GuiDraw.text(graphics, font, BADGE_BRAND, cx, textY, Anim.fade(Theme.ACCENT, alpha), false);
-		GuiDraw.text(graphics, font, BADGE_ROLE, cx + brandW + 3f, textY, Anim.fade(Theme.WARN, alpha), false);
+		GuiDraw.menu(graphics, font, BADGE_BRAND, cx, textY, Anim.fade(Theme.ACCENT, alpha));
+		GuiDraw.menu(graphics, font, BADGE_ROLE, cx + brandW + 3f, textY, Anim.fade(Theme.WARN, alpha));
 	}
 
 	private static float pillWidth(float nameW, float distW) {
@@ -300,7 +281,7 @@ public final class NametagRenderer {
 	}
 
 	private static float badgeWidth(Font font) {
-		return 5f + font.width(BADGE_BRAND) + 3f + font.width(BADGE_ROLE) + 5f;
+		return 5f + GuiDraw.menuWidth(font, BADGE_BRAND) + 3f + GuiDraw.menuWidth(font, BADGE_ROLE) + 5f;
 	}
 
 	/** Vanilla nametag: default font, option background, white text, centered. */
@@ -320,29 +301,11 @@ public final class NametagRenderer {
 		return uuid != null && DEV_UUID.equals(uuid);
 	}
 
-	private static float approach(float current, float target, float speed, float dt) {
-		if (Math.abs(target - current) < 0.003f) {
-			return target;
-		}
-		return current + (target - current) * (1f - (float) Math.exp(-speed * dt));
-	}
-
 	/** Larger up close, smaller far away. Anchored so ~12m reads as 1.0 before the Size slider. */
 	private static float distanceScale(double dist) {
 		return Mth.clamp(24f / (12f + (float) dist), 0.52f, 1.35f);
 	}
 
-	private record Tag(Component name, double dist, float x, float y, boolean self, boolean dev, float fade) {
-	}
-
-	private static final class Track {
-		Component name;
-		double dist;
-		float x;
-		float y;
-		boolean self;
-		boolean dev;
-		boolean seen;
-		float fade;
+	private record Tag(Component name, double dist, float x, float y, boolean self, boolean dev) {
 	}
 }
