@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.96", new String[]{
+			"Player preview fits inside the You card instead of clipping the head."
+		}),
 		new Entry("1.1.95", new String[]{
 			"Titanium ESP stays inside the named commission area instead of a huge radius around the emissary."
 		}),

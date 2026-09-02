@@ -17,14 +17,14 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Full-card inventory-style player in the click GUI. {@code graphics.entity} is a
+ * Inventory-style player in the click GUI. {@code graphics.entity} is a
  * picture-in-picture pass that ignores the 2D pose, so clip and size are mapped
  * through the menu scale into screen space. Armor and held items are stripped
  * from the extracted state only — in-world rendering is unchanged.
  */
 public final class PlayerPreview {
-	private static final float NAME_PAD = 16f;
-	private static final float HINT_PAD = 14f;
+	private static final float NAME_PAD = 18f;
+	private static final float HINT_PAD = 16f;
 
 	private PlayerPreview() {
 	}
@@ -63,7 +63,7 @@ public final class PlayerPreview {
 		if (boxW < 16f || boxH < 24f) {
 			return null;
 		}
-		float size = Math.min(boxW * 0.96f, boxH * 0.94f);
+		float size = Math.min(boxW * 0.70f, boxH * 0.55f);
 		float boxX = x + (w - boxW) * 0.5f;
 		float boxY = y + NAME_PAD;
 		int x0 = view.sx(boxX);
@@ -84,7 +84,8 @@ public final class PlayerPreview {
 		Vector3f translation = new Vector3f(0f, state.boundingBoxHeight * 0.5f, 0f);
 		graphics.entity(state, size * scale, translation, pose, camera, x0, y0, x1, y1);
 		float headX = boxX + boxW * 0.5f;
-		return new Drawn(headX, y + 2f);
+		float headTop = boxY + boxH * 0.5f - size * 0.5f;
+		return new Drawn(headX, headTop - 14f);
 	}
 
 	/**
