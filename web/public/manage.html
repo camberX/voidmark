@@ -62,11 +62,17 @@
 		.overlay { position: fixed; inset: 0; background: #03050acc; display: flex; align-items: stretch; justify-content: flex-end; z-index: 20; }
 		.overlay[hidden] { display: none; }
 		.overlay.center { align-items: center; justify-content: center; padding: 16px; }
-		.drawer, .sheet { width: min(420px, 100%); background: var(--pane); border-left: 1px solid var(--line); padding: 22px; overflow: auto; box-shadow: -20px 0 80px #000a; }
+		.drawer, .sheet { width: min(440px, 100%); background: var(--pane); border-left: 1px solid var(--line); padding: 22px; overflow: auto; box-shadow: -20px 0 80px #000a; }
 		.sheet { width: min(460px, 100%); border: 1px solid var(--line); border-radius: 16px; border-left: 1px solid var(--line); }
 		.who { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
-		.preview { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; margin-bottom: 16px; }
-		.body { width: 96px; height: 132px; object-fit: contain; image-rendering: pixelated; background: #000; border-radius: 12px; }
+		.preview { margin-bottom: 16px; }
+		.stage { position: relative; height: 280px; border-radius: 14px; overflow: hidden; background: #070b12; border: 1px solid var(--line); }
+		.stage canvas { display: block; width: 100%; height: 100%; }
+		.labels { position: absolute; left: 8px; right: 8px; top: 10px; display: flex; flex-direction: column; align-items: center; gap: 3px; pointer-events: none; z-index: 1; }
+		.plate { font-family: "Minecraft", "Courier New", monospace; font-size: 14px; line-height: 1.2; text-shadow: 1px 1px #000; background: #000c; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; color: #fff; max-width: 100%; }
+		.plate.tag { font-size: 13px; }
+		.drag { position: absolute; left: 10px; bottom: 8px; margin: 0; color: var(--muted); font-size: 11px; letter-spacing: 0.06em; pointer-events: none; }
+		.nocape { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
 		.codes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
 		.swatch { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #ffffff33; padding: 0; color: #111; font-size: 11px; font-weight: 800; }
 		.swatch.fmt { background: var(--card); color: var(--text); width: auto; padding: 0 8px; }
@@ -151,9 +157,15 @@
 			</div>
 			<p class="who" id="d-who"></p>
 			<div class="preview">
-				<img class="body" id="d-body" alt="Skin" width="96" height="132">
-				<img class="cape" id="d-cape" alt="Cape" width="46" height="72" hidden>
-				<div class="nocape" id="d-nocape">No cape</div>
+				<div class="stage" id="d-stage">
+					<canvas id="d-model"></canvas>
+					<div class="labels">
+						<div class="plate tag" id="d-htag" hidden></div>
+						<div class="plate name" id="d-nname"></div>
+					</div>
+					<p class="drag">Drag to rotate</p>
+				</div>
+				<p class="nocape" id="d-nocape">No cape</p>
 			</div>
 			<div class="field">
 				<label>Note</label>
@@ -200,6 +212,7 @@
 			</div>
 		</div>
 	</div>
+	<script src="https://cdn.jsdelivr.net/npm/skinview3d@3.4.1/bundles/skinview3d.bundle.js"></script>
 	<script>
 		const key = sessionStorage.getItem("voidmark-admin") || "";
 		if (!key) location.replace("/admin.html");
@@ -218,6 +231,7 @@
 		let filter = "all";
 		let selected = "";
 		let tagTarget = "";
+		let skinViewer = null;
 		const COLORS = [
 			["0", "#000000"], ["1", "#0000aa"], ["2", "#00aa00"], ["3", "#00aaaa"],
 			["4", "#aa0000"], ["5", "#aa00aa"], ["6", "#ffaa00"], ["7", "#aaaaaa"],
@@ -501,36 +515,75 @@
 		function fillDrawer(player) {
 			selected = player.uuid;
 			document.getElementById("d-who").textContent = (player.name || "Unknown") + "  ·  " + player.uuid + (player.banId ? "  ·  " + player.banId + (player.banUntil ? "  ·  " + formatBanLeft(player.banUntil) : "") : "");
-			document.getElementById("d-body").src = "https://crafthead.net/body/" + player.uuid + "/128";
 			document.getElementById("d-note").value = player.note || "";
 			document.getElementById("d-bypass").checked = Boolean(player.bypass);
 			document.getElementById("d-url").value = "";
-			const cape = document.getElementById("d-cape");
-			const none = document.getElementById("d-nocape");
-			if (player.cape) {
-				cape.hidden = false;
-				none.hidden = true;
-				cape.src = "/capes/" + player.uuid + ".png?h=" + encodeURIComponent(player.hash || Date.now());
+			document.getElementById("d-nname").textContent = player.name || "Unknown";
+			const tagEl = document.getElementById("d-htag");
+			tagEl.innerHTML = "";
+			if (player.tag) {
+				tagEl.hidden = false;
+				tagEl.appendChild(renderLegacy(player.tag));
 			} else {
-				cape.hidden = true;
-				none.hidden = false;
+				tagEl.hidden = true;
 			}
+			document.getElementById("d-nocape").hidden = Boolean(player.cape);
 			document.getElementById("d-dl").disabled = !player.cape;
 			document.getElementById("d-reset").disabled = !(player.retryIn > 0);
 			document.getElementById("d-ban").hidden = Boolean(player.ban);
 			document.getElementById("d-unban").hidden = !player.ban;
+			loadModel(player);
+		}
+
+		function ensureViewer() {
+			if (skinViewer) return skinViewer;
+			if (!window.skinview3d || !skinview3d.SkinViewer) return null;
+			const canvas = document.getElementById("d-model");
+			skinViewer = new skinview3d.SkinViewer({
+				canvas: canvas,
+				width: Math.max(220, canvas.clientWidth || 360),
+				height: 280,
+				zoom: 0.86
+			});
+			skinViewer.autoRotate = true;
+			skinViewer.autoRotateSpeed = 0.38;
+			skinViewer.controls.enableZoom = false;
+			skinViewer.controls.enablePan = false;
+			return skinViewer;
+		}
+
+		function loadModel(player) {
+			const viewer = ensureViewer();
+			if (!viewer) return;
+			viewer.renderPaused = false;
+			const stage = document.getElementById("d-stage");
+			viewer.setSize(Math.max(220, stage.clientWidth || 360), 280);
+			viewer.loadSkin("https://crafthead.net/skin/" + player.uuid).catch(function () {
+				return viewer.loadSkin("https://mc-heads.net/skin/" + player.uuid);
+			});
+			if (player.cape) {
+				viewer.loadCape("/capes/" + player.uuid + ".png?h=" + encodeURIComponent(player.hash || Date.now())).catch(function () {
+					viewer.loadCape(null);
+				});
+			} else {
+				viewer.loadCape(null);
+			}
 		}
 
 		function openPlayer(id) {
 			const player = playerBy(id);
 			if (!player) return;
-			fillDrawer(player);
 			drawer.hidden = false;
+			fillDrawer(player);
+			requestAnimationFrame(function () {
+				if (selected === player.uuid) loadModel(player);
+			});
 		}
 
 		function closeDrawer() {
 			drawer.hidden = true;
 			selected = "";
+			if (skinViewer) skinViewer.renderPaused = true;
 		}
 
 		async function loadPlayers(force) {
@@ -582,6 +635,10 @@
 		};
 		document.getElementById("close").onclick = closeDrawer;
 		drawer.addEventListener("click", function (event) { if (event.target === drawer) closeDrawer(); });
+		window.addEventListener("resize", function () {
+			if (drawer.hidden || !skinViewer || !selected) return;
+			skinViewer.setSize(Math.max(220, document.getElementById("d-stage").clientWidth), 280);
+		});
 		document.getElementById("d-copy").onclick = function () {
 			if (!selected) return;
 			navigator.clipboard.writeText(selected).then(function () { setStatus(true, "UUID copied."); });
