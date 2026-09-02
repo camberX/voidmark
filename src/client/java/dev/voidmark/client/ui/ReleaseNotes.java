@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.89", new String[]{
+			"Efficient Miner uses Hypixel's spread math in a 3×3×3, not a vein fill."
+		}),
 		new Entry("1.1.88", new String[]{
 			"Titanium ESP while a Titanium commission is active.",
 			"Efficient Miner overlay on the extra blocks Mining Spread will break."

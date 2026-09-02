@@ -101,7 +101,7 @@ public class VoidmarkScreen extends Screen {
 		RAWMATS("Raw mats", 1),
 		MINING("Mining HUD", 1),
 		TITANIUM("Titanium ESP", 3),
-		EFFICIENT("Efficient Miner", 3),
+		EFFICIENT("Efficient Miner", 4),
 		INVENTORY("Inventory", 3),
 		NAMETAGS("Nametags", 5),
 		NODES("Nodes", 5);
@@ -1369,12 +1369,12 @@ public class VoidmarkScreen extends Screen {
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.titaniumEspRgb, PickerTarget.TITANIUM);
 			}
 			case EFFICIENT -> {
-				int spread = MiningTracker.effectiveSpread();
-				int extra = EfficientMiner.extraCount(spread);
-				String spreadLabel = extra + " extra" + (MiningTracker.tabSpread() > 0 ? " · tab" : "");
+				EfficientMiner.Breakdown math = EfficientMiner.breakdown(MiningTracker.effectiveSpread());
+				String spreadLabel = math.label() + (MiningTracker.tabSpread() > 0 ? " · tab" : "");
 				y = slider(graphics, font, ix, y, iw, "Spread", spreadLabel, VoidmarkConfig.clamp(config.miningSpread, 0, 2500) / 2500f, v -> config.miningSpread = VoidmarkConfig.clamp(Math.round(v * 2500f), 0, 2500));
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.efficientMinerThroughWalls, v -> config.efficientMinerThroughWalls = v);
-				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.efficientMinerRgb, PickerTarget.EFFICIENT);
+				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.efficientMinerRgb, PickerTarget.EFFICIENT);
+				hint(graphics, font, ix, y, iw, "floor(S/100) extra, 3×3×3");
 			}
 			case INVENTORY -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hotbar", config.inventoryHudHotbar, v -> config.inventoryHudHotbar = v);
@@ -1610,7 +1610,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.88");
+			.orElse("1.1.89");
 	}
 
 	@Override

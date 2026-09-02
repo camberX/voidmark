@@ -9,7 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoProperties;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 

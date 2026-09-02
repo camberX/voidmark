@@ -5,7 +5,6 @@ import dev.voidmark.client.item.ItemIds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemStack;
@@ -16,32 +15,36 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Queue;
-import java.util.Set;
 
 /**
- * Predicts extra blocks Mining Spread / Efficient Miner will break.
+ * Mining Spread / Efficient Miner extras, from Hypixel's 0.20.6 rules.
  *
- * Hypixel rules we can observe:
- * <ul>
- *   <li>Only the same block type, except prismarine / bricks / dark prismarine stay one family.</li>
- *   <li>Walks face-adjacent neighbors (BFS), closest first.</li>
- *   <li>Does not break blocks below your feet unless you are looking down (pitch &gt; 0).</li>
- *   <li>Does not apply to gemstone glass after the spread split.</li>
- *   <li>Spread 145 → 1 guaranteed extra + 45% chance of a second. We highlight the
- *       guaranteed extras, then the next candidate at lower opacity.</li>
- * </ul>
+ * Count (official):
+ * <pre>
+ *   guaranteed = floor(S / 100)
+ *   chance%    = S mod 100
+ *   extras     = guaranteed, plus one more with chance% probability
+ * </pre>
+ * Example: S=350 → 3 extras guaranteed, 50% chance of a 4th.
+ * Example: S=303 → 3 extras, 3% chance of a 4th. Efficient Miner 100 is +300.
+ *
+ * Pool (tested + wiki):
+ * only the 3×3×3 around the block you mine (Chebyshev radius 1, 26 neighbors).
+ * Same block type (prismarine / bricks / dark prismarine share a family).
+ * Gemstone glass is Gemstone Spread, not this.
+ * Blocks below your feet are skipped unless pitch &gt; 0 (looking down).
+ *
+ * Pick order among the pool, used so the overlay is deterministic:
+ * face-adjacent first, then edges, then corners; up before down; then X, Z.
+ * Hypixel does not publish the neighbor shuffle, so leftover chance% is the
+ * only remaining roll. Guaranteed extras in this order are the prediction.
  */
 public final class EfficientMiner {
-	private static final Direction[] WALK = {
-		Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.UP, Direction.DOWN
-	};
-	private static final int VISIT_CAP = 160;
+	private static final int[][] OFFSETS = bakeOffsets();
 
 	private EfficientMiner() {
 	}
@@ -65,66 +68,76 @@ public final class EfficientMiner {
 		if (!mineable(state)) {
 			return List.of();
 		}
-		int spread = MiningTracker.effectiveSpread();
-		int extra = extraCount(spread);
-		if (extra <= 0) {
+		Breakdown math = breakdown(MiningTracker.effectiveSpread());
+		if (math.maxExtras() <= 0) {
 			return List.of();
 		}
-		int guaranteed = spread / 100;
 		boolean lookingDown = client.player.getXRot() > 0.5f;
 		int feetY = client.player.blockPosition().getY();
-		return collect(client.level, origin, state.getBlock(), extra, guaranteed, feetY, lookingDown);
+		return collect(client.level, origin, state.getBlock(), math, feetY, lookingDown);
+	}
+
+	public static Breakdown breakdown(int spread) {
+		spread = VoidmarkConfig.clamp(spread, 0, 10_000);
+		return new Breakdown(spread, spread / 100, spread % 100);
 	}
 
 	public static int extraCount(int spread) {
-		spread = VoidmarkConfig.clamp(spread, 0, 10_000);
-		int guaranteed = spread / 100;
-		int chance = spread % 100;
-		return guaranteed + (chance > 0 ? 1 : 0);
+		return breakdown(spread).maxExtras();
 	}
 
 	private static List<Target> collect(
 		Level level,
 		BlockPos origin,
 		Block type,
-		int extra,
-		int guaranteed,
+		Breakdown math,
 		int feetY,
 		boolean lookingDown
 	) {
-		List<Target> out = new ArrayList<>(extra);
-		Set<Long> seen = new HashSet<>();
-		Queue<BlockPos> queue = new ArrayDeque<>();
-		seen.add(origin.asLong());
-		queue.add(origin);
-		int visits = 0;
-		while (!queue.isEmpty() && out.size() < extra && visits < VISIT_CAP) {
-			BlockPos current = queue.poll();
-			visits++;
-			for (Direction dir : WALK) {
-				BlockPos next = current.relative(dir);
-				if (!seen.add(next.asLong())) {
-					continue;
-				}
-				if (!lookingDown && next.getY() < feetY) {
-					continue;
-				}
-				if (!level.hasChunkAt(next)) {
-					continue;
-				}
-				BlockState state = level.getBlockState(next);
-				if (!sameVein(type, state.getBlock()) || !mineable(state)) {
-					continue;
-				}
-				boolean sure = out.size() < guaranteed;
-				out.add(new Target(next, sure));
-				queue.add(next);
-				if (out.size() >= extra) {
-					break;
+		List<Target> out = new ArrayList<>(math.maxExtras());
+		int want = math.maxExtras();
+		for (int[] off : OFFSETS) {
+			if (out.size() >= want) {
+				break;
+			}
+			BlockPos next = origin.offset(off[0], off[1], off[2]);
+			if (!lookingDown && next.getY() < feetY) {
+				continue;
+			}
+			if (!level.hasChunkAt(next)) {
+				continue;
+			}
+			BlockState state = level.getBlockState(next);
+			if (!sameVein(type, state.getBlock()) || !mineable(state)) {
+				continue;
+			}
+			out.add(new Target(next, out.size() < math.guaranteed()));
+		}
+		return List.copyOf(out);
+	}
+
+	/**
+	 * 26 neighbors of a 3×3×3, ordered by manhattan (faces, edges, corners),
+	 * then higher Y, then X, then Z.
+	 */
+	private static int[][] bakeOffsets() {
+		List<int[]> raw = new ArrayList<>(26);
+		for (int x = -1; x <= 1; x++) {
+			for (int y = -1; y <= 1; y++) {
+				for (int z = -1; z <= 1; z++) {
+					if (x == 0 && y == 0 && z == 0) {
+						continue;
+					}
+					raw.add(new int[]{x, y, z});
 				}
 			}
 		}
-		return List.copyOf(out);
+		raw.sort(Comparator
+			.comparingInt((int[] o) -> Math.abs(o[0]) + Math.abs(o[1]) + Math.abs(o[2]))
+			.thenComparingInt((int[] o) -> -o[1])
+			.thenComparingInt((int[] o) -> o[0])
+			.thenComparingInt((int[] o) -> o[2]));
+		return raw.toArray(new int[0][]);
 	}
 
 	static boolean sameVein(Block origin, Block other) {
@@ -175,6 +188,25 @@ public final class EfficientMiner {
 			|| key.contains("PICKAXE")
 			|| key.contains("GAUNTLET")
 			|| key.contains("CHISEL");
+	}
+
+	public record Breakdown(int spread, int guaranteed, int chancePercent) {
+		public int maxExtras() {
+			return guaranteed + (chancePercent > 0 ? 1 : 0);
+		}
+
+		public String label() {
+			if (spread <= 0) {
+				return "0 extra";
+			}
+			if (guaranteed == 0) {
+				return chancePercent + "% for 1";
+			}
+			if (chancePercent == 0) {
+				return guaranteed + " extra";
+			}
+			return guaranteed + " extra + " + chancePercent + "%";
+		}
 	}
 
 	public record Target(BlockPos pos, boolean guaranteed) {
