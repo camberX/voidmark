@@ -236,6 +236,9 @@
 		let selected = "";
 		let tagTarget = "";
 		let skinViewer = null;
+		let capeLoadGen = 0;
+		const atlasCache = {};
+		const atlasWait = {};
 		const STAGE_H = 360;
 		const COLORS = [
 			["0", "#000000"], ["1", "#0000aa"], ["2", "#00aa00"], ["3", "#00aaaa"],
@@ -515,7 +518,11 @@
 					capeBox = document.createElement("img");
 					capeBox.className = "cape";
 					capeBox.alt = "Cape";
-					capeBox.src = "/capes/" + player.uuid + ".png?h=" + encodeURIComponent(player.hash || Date.now());
+					capeBox.dataset.uuid = player.uuid;
+					loadCapeAtlas(player, function (atlas) {
+						if (!atlas || capeBox.dataset.uuid !== player.uuid) return;
+						capeBox.src = capeFaceUrl(atlas);
+					});
 				} else {
 					capeBox = document.createElement("div");
 					capeBox.className = "nocape";
@@ -578,12 +585,258 @@
 				return viewer.loadSkin("https://mc-heads.net/skin/" + player.uuid);
 			});
 			if (player.cape) {
-				viewer.loadCape("/capes/" + player.uuid + ".png?h=" + encodeURIComponent(player.hash || Date.now())).catch(function () {
-					viewer.loadCape(null);
-				});
+				applyCape(viewer, player);
 			} else {
+				capeLoadGen++;
 				viewer.loadCape(null);
 			}
+		}
+
+		function applyCape(viewer, player) {
+			const gen = ++capeLoadGen;
+			loadCapeAtlas(player, function (atlas) {
+				if (gen !== capeLoadGen) return;
+				if (!atlas) {
+					viewer.loadCape(null);
+					return;
+				}
+				try {
+					viewer.loadCape(atlas);
+				} catch (error) {
+					viewer.loadCape(null);
+				}
+			});
+		}
+
+		function capeSrc(player) {
+			return "/capes/" + player.uuid + ".png?h=" + encodeURIComponent(player.hash || Date.now());
+		}
+
+		function loadCapeAtlas(player, done) {
+			const key = player.uuid + ":" + (player.hash || "");
+			if (Object.prototype.hasOwnProperty.call(atlasCache, key)) {
+				done(atlasCache[key]);
+				return;
+			}
+			if (!atlasWait[key]) atlasWait[key] = [];
+			atlasWait[key].push(done);
+			if (atlasWait[key].length > 1) return;
+			const img = new Image();
+			img.crossOrigin = "anonymous";
+			img.onload = function () {
+				let atlas = null;
+				try {
+					atlas = capeAtlas(img);
+				} catch (error) {
+					atlas = null;
+				}
+				finishCapeAtlas(key, atlas);
+			};
+			img.onerror = function () {
+				finishCapeAtlas(key, null);
+			};
+			img.src = capeSrc(player);
+		}
+
+		function finishCapeAtlas(key, atlas) {
+			atlasCache[key] = atlas;
+			const waiting = atlasWait[key] || [];
+			delete atlasWait[key];
+			for (let i = 0; i < waiting.length; i++) waiting[i](atlas);
+		}
+
+		function capeFaceUrl(atlas) {
+			const scale = atlas.width / 64;
+			const face = document.createElement("canvas");
+			face.width = 40;
+			face.height = 64;
+			const ctx = face.getContext("2d");
+			ctx.imageSmoothingEnabled = false;
+			ctx.drawImage(atlas, scale, scale, 10 * scale, 16 * scale, 0, 0, 40, 64);
+			return face.toDataURL("image/png");
+		}
+
+		function capeAtlas(img) {
+			const w = img.width;
+			const h = img.height;
+			if (w >= 64 && h >= 32 && w % 64 === 0 && h % 32 === 0 && w / 64 === h / 32) {
+				return img;
+			}
+			return bakeCape(img);
+		}
+
+		function bakeCape(img) {
+			const srcCanvas = document.createElement("canvas");
+			srcCanvas.width = img.width;
+			srcCanvas.height = img.height;
+			const srcCtx = srcCanvas.getContext("2d", { willReadFrequently: true });
+			srcCtx.drawImage(img, 0, 0);
+			const src = srcCtx.getImageData(0, 0, img.width, img.height);
+			const sw = src.width;
+			const sh = src.height;
+			const sd = src.data;
+			const scale = pickCapeScale(sw, sh);
+			const aw = 64 * scale;
+			const ah = 32 * scale;
+			const out = document.createElement("canvas");
+			out.width = aw;
+			out.height = ah;
+			const ctx = out.getContext("2d");
+			const dest = ctx.createImageData(aw, ah);
+			const dd = dest.data;
+			for (let i = 0; i < dd.length; i += 4) {
+				dd[i] = 0;
+				dd[i + 1] = 0;
+				dd[i + 2] = 0;
+				dd[i + 3] = 255;
+			}
+			const pad = capeBorder(sd, sw, sh);
+			const fu = scale;
+			const fv = scale;
+			const fw = 10 * scale;
+			const fh = 16 * scale;
+			paintCapeFace(sd, sw, sh, dd, aw, fu, fv, fw, fh, pad);
+			copyCapeRect(dd, aw, fu, fv, 11 * scale, 0, fw, fh);
+			paintCapeEdges(dd, aw, scale);
+			ctx.putImageData(dest, 0, 0);
+			return out;
+		}
+
+		function pickCapeScale(sw, sh) {
+			const needed = Math.max(4, Math.min(16, Math.max(Math.floor(sw / 10), Math.floor(sh / 16))));
+			return Math.min(16, Math.max(4, needed));
+		}
+
+		function capeBorder(sd, sw, sh) {
+			let r = 0;
+			let g = 0;
+			let b = 0;
+			let n = 0;
+			function add(x, y) {
+				const i = (y * sw + x) * 4;
+				r += sd[i];
+				g += sd[i + 1];
+				b += sd[i + 2];
+				n++;
+			}
+			for (let x = 0; x < sw; x++) {
+				add(x, 0);
+				add(x, sh - 1);
+			}
+			for (let y = 1; y < sh - 1; y++) {
+				add(0, y);
+				add(sw - 1, y);
+			}
+			if (!n) return [0, 0, 0, 255];
+			return [Math.floor(r / n), Math.floor(g / n), Math.floor(b / n), 255];
+		}
+
+		function paintCapeFace(sd, sw, sh, dd, aw, dx, dy, dw, dh, pad) {
+			const fit = Math.min(dw / sw, dh / sh);
+			const rw = sw * fit;
+			const rh = sh * fit;
+			const ox = dx + (dw - rw) * 0.5;
+			const oy = dy + (dh - rh) * 0.5;
+			const bilinear = fit < 1;
+			for (let y = 0; y < dh; y++) {
+				for (let x = 0; x < dw; x++) {
+					const px = dx + x + 0.5;
+					const py = dy + y + 0.5;
+					const di = ((dy + y) * aw + (dx + x)) * 4;
+					if (px < ox || py < oy || px >= ox + rw || py >= oy + rh) {
+						dd[di] = pad[0];
+						dd[di + 1] = pad[1];
+						dd[di + 2] = pad[2];
+						dd[di + 3] = 255;
+						continue;
+					}
+					const sx = (px - ox) / fit - 0.5;
+					const sy = (py - oy) / fit - 0.5;
+					const color = bilinear ? sampleBilinear(sd, sw, sh, sx, sy) : sampleNearest(sd, sw, sh, sx, sy);
+					dd[di] = color[0];
+					dd[di + 1] = color[1];
+					dd[di + 2] = color[2];
+					dd[di + 3] = 255;
+				}
+			}
+		}
+
+		function paintCapeEdges(dd, aw, scale) {
+			const fu = scale;
+			const fv = scale;
+			const fw = 10 * scale;
+			const fh = 16 * scale;
+			for (let y = 0; y < fh; y++) {
+				const left = ((fv + y) * aw + fu) * 4;
+				const right = ((fv + y) * aw + (fu + fw - 1)) * 4;
+				for (let x = 0; x < scale; x++) {
+					copyPixel(dd, left, ((fv + y) * aw + x) * 4);
+					copyPixel(dd, right, ((fv + y) * aw + (11 * scale + x)) * 4);
+				}
+			}
+			for (let x = 0; x < fw; x++) {
+				const top = (fv * aw + (fu + x)) * 4;
+				const bottom = ((fv + fh - 1) * aw + (fu + x)) * 4;
+				for (let y = 0; y < scale; y++) {
+					copyPixel(dd, top, (y * aw + (fu + x)) * 4);
+					copyPixel(dd, bottom, (y * aw + (11 * scale + x)) * 4);
+				}
+			}
+		}
+
+		function copyCapeRect(dd, aw, x, y, dx, dy, w, h) {
+			for (let j = 0; j < h; j++) {
+				for (let i = 0; i < w; i++) {
+					copyPixel(dd, ((y + j) * aw + (x + i)) * 4, ((y + dy + j) * aw + (x + dx + i)) * 4);
+				}
+			}
+		}
+
+		function copyPixel(dd, from, to) {
+			dd[to] = dd[from];
+			dd[to + 1] = dd[from + 1];
+			dd[to + 2] = dd[from + 2];
+			dd[to + 3] = dd[from + 3];
+		}
+
+		function sampleNearest(sd, sw, sh, x, y) {
+			const sx = clampCape(Math.floor(x + 0.5), 0, sw - 1);
+			const sy = clampCape(Math.floor(y + 0.5), 0, sh - 1);
+			const i = (sy * sw + sx) * 4;
+			return [sd[i], sd[i + 1], sd[i + 2]];
+		}
+
+		function sampleBilinear(sd, sw, sh, x, y) {
+			const x0 = clampCape(Math.floor(x), 0, sw - 1);
+			const y0 = clampCape(Math.floor(y), 0, sh - 1);
+			const x1 = clampCape(x0 + 1, 0, sw - 1);
+			const y1 = clampCape(y0 + 1, 0, sh - 1);
+			const tx = x - Math.floor(x);
+			const ty = y - Math.floor(y);
+			return mixCape(
+				mixCape(pixelAt(sd, sw, x0, y0), pixelAt(sd, sw, x1, y0), tx),
+				mixCape(pixelAt(sd, sw, x0, y1), pixelAt(sd, sw, x1, y1), tx),
+				ty
+			);
+		}
+
+		function pixelAt(sd, sw, x, y) {
+			const i = (y * sw + x) * 4;
+			return [sd[i], sd[i + 1], sd[i + 2]];
+		}
+
+		function mixCape(a, b, t) {
+			if (t < 0) t = 0;
+			if (t > 1) t = 1;
+			return [
+				Math.round(a[0] + (b[0] - a[0]) * t),
+				Math.round(a[1] + (b[1] - a[1]) * t),
+				Math.round(a[2] + (b[2] - a[2]) * t)
+			];
+		}
+
+		function clampCape(value, min, max) {
+			return Math.max(min, Math.min(max, value));
 		}
 
 		function openPlayer(id) {
