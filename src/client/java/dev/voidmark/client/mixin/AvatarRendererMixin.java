@@ -1,8 +1,7 @@
 package dev.voidmark.client.mixin;
 
 import dev.voidmark.client.render.NametagRenderer;
-import dev.voidmark.client.visual.CustomCape;
-import net.minecraft.client.Minecraft;
+import dev.voidmark.client.visual.ShopCape;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.world.entity.Avatar;
@@ -19,12 +18,13 @@ public class AvatarRendererMixin {
 		at = @At("RETURN")
 	)
 	private void voidmark$showCustomCape(Avatar entity, AvatarRenderState state, float tickDelta, CallbackInfo ci) {
-		Minecraft client = Minecraft.getInstance();
-		if (client.player == null || entity != client.player || !CustomCape.ready()) {
+		if (entity == null || state.skin == null) {
 			return;
 		}
-		state.showCape = true;
-		state.skin = CustomCape.patch(state.skin);
+		state.skin = ShopCape.patch(entity.getUUID(), state.skin);
+		if (ShopCape.showing(entity.getUUID())) {
+			state.showCape = true;
+		}
 	}
 
 	@Inject(method = "shouldShowName(Lnet/minecraft/world/entity/Avatar;D)Z", at = @At("HEAD"), cancellable = true)

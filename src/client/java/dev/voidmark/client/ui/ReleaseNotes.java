@@ -8,6 +8,10 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.106", new String[]{
+			"Shop capes show for every Voidmark user, not just you.",
+			"Changing the cape in the menu updates it for everyone within a couple of seconds."
+		}),
 		new Entry("1.1.105", new String[]{
 			"Own nametag is its own switch on ESP, not inside the Nametags cog."
 		}),

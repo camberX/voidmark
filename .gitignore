@@ -23,3 +23,7 @@ replay_*.log
 agent-tools/
 libs/
 *.jar
+web/data/codes.json
+web/data/tokens.json
+web/data/capes/*.png
+!web/data/capes/.gitkeep

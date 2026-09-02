@@ -44,6 +44,7 @@ public final class CustomCape {
 	private static volatile int srcW;
 	private static volatile int srcH;
 	private static volatile boolean fitted;
+	private static volatile byte[] lastPng = new byte[0];
 	private static int generation;
 
 	private CustomCape() {
@@ -116,6 +117,10 @@ public final class CustomCape {
 
 	public static boolean ready() {
 		return status == Status.READY && asset != null;
+	}
+
+	public static byte[] png() {
+		return lastPng;
 	}
 
 	public static PlayerSkin patch(PlayerSkin skin) {
@@ -210,6 +215,8 @@ public final class CustomCape {
 		drop();
 		status = Status.EMPTY;
 		error = "";
+		lastPng = new byte[0];
+		ShopCape.unpublish();
 	}
 
 	private static void loadUrl(String url, boolean save) {
@@ -328,8 +335,10 @@ public final class CustomCape {
 				srcW = originalW;
 				srcH = originalH;
 				fitted = needsFit;
+				lastPng = bytes;
 				status = Status.READY;
 				error = "";
+				ShopCape.publish(bytes);
 			} catch (Exception exception) {
 				atlas.close();
 				fail("Register failed");

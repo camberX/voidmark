@@ -36,6 +36,7 @@ import dev.voidmark.client.ui.ItemEditScreen;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.ui.VoidmarkScreen;
 import dev.voidmark.client.visual.CustomCape;
+import dev.voidmark.client.visual.ShopCape;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
@@ -140,6 +141,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			RawmatsTracker.tick(client);
 			MiningTracker.tick(client);
 			TitaniumTracker.get().tick(client);
+			ShopCape.tick();
 		});
 
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> SkyblockProfileApi.refresh());

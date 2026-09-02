@@ -120,6 +120,8 @@ public final class VoidmarkConfig {
 	public float hudOpacity = 0.90f;
 	public String capeUrl = "";
 	public String capePath = "";
+	public String capeServerUrl = "http://127.0.0.1:43150";
+	public String capeShopKey = "";
 	public boolean nickEnabled = false;
 	public String nick = "";
 	public boolean nametagsEnabled = true;
@@ -228,8 +230,11 @@ public final class VoidmarkConfig {
 				if (loaded.capeUrl == null) {
 					loaded.capeUrl = "";
 				}
-				if (loaded.capePath == null) {
-					loaded.capePath = "";
+				if (loaded.capeServerUrl == null) {
+					loaded.capeServerUrl = "http://127.0.0.1:43150";
+				}
+				if (loaded.capeShopKey == null) {
+					loaded.capeShopKey = "";
 				}
 				if (loaded.nick == null) {
 					loaded.nick = "";
