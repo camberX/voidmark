@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.120", new String[]{
+			"Fake ban has no confirm popup. After 5 seconds you get a red limbo exception line, then 3 seconds in Limbo before the kick."
+		}),
 		new Entry("1.1.119", new String[]{
 			"Fake ban duration is white. Remaining time stays frozen on the kick screen and only updates when you reconnect."
 		}),

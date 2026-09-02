@@ -19,16 +19,19 @@ import java.time.Duration;
 import java.util.UUID;
 
 /**
- * Admin-triggered prank: first sighting runs {@code /limbo} for two seconds,
- * then a Hypixel-style 180-day boosting kick. Later reconnects skip Limbo
- * and drop straight to the same screen. Remaining time is snapshotted at
- * kick and only refreshes on the next reconnect.
+ * Admin-triggered prank: first sighting waits 5 seconds, posts a red
+ * exception line, runs {@code /limbo} for 3 seconds, then a Hypixel-style
+ * 180-day boosting kick. Later reconnects skip Limbo and drop straight
+ * to the same screen. Remaining time is snapshotted at kick and only
+ * refreshes on the next reconnect.
  */
 public final class FakeBan {
 	static final String APPEAL_URL = "https://www.hypixel.net/appeal";
 	private static final String SHOP_URL = "https://voidmark.cloud";
+	private static final String LIMBO_CHAT = "An exception occured in your connection, so you have been routed to limbo!";
 	private static final long POLL_MS = 2000L;
-	private static final long LIMBO_MS = 2000L;
+	private static final long WAIT_MS = 5000L;
+	private static final long LIMBO_MS = 3000L;
 	private static final long BAN_MS = 180L * 24L * 60L * 60L * 1000L;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
@@ -40,6 +43,7 @@ public final class FakeBan {
 	private static String pendingBanId = "";
 	private static long pendingUntil;
 	private static String limboDoneBanId = "";
+	private static long waitUntil;
 	private static boolean inLimbo;
 	private static long limboUntil;
 	private static long lastPollAt;
@@ -67,6 +71,7 @@ public final class FakeBan {
 		kicking = false;
 		inLimbo = false;
 		limboUntil = 0L;
+		waitUntil = 0L;
 	}
 
 	public static boolean showing() {
@@ -126,6 +131,7 @@ public final class FakeBan {
 		if (remainingMs() <= 0L) {
 			inLimbo = false;
 			limboUntil = 0L;
+			waitUntil = 0L;
 			return;
 		}
 		String id = pendingBanId;
@@ -133,23 +139,35 @@ public final class FakeBan {
 			kick(client, id);
 			return;
 		}
-		if (!inLimbo) {
-			enterLimbo(client);
+		if (inLimbo) {
+			if (System.currentTimeMillis() >= limboUntil) {
+				kick(client, id);
+			}
 			return;
 		}
-		if (System.currentTimeMillis() >= limboUntil) {
-			kick(client, id);
+		if (waitUntil <= 0L) {
+			waitUntil = System.currentTimeMillis() + WAIT_MS;
+			return;
+		}
+		if (System.currentTimeMillis() >= waitUntil) {
+			enterLimbo(client, id);
 		}
 	}
 
-	private static void enterLimbo(Minecraft client) {
+	private static void enterLimbo(Minecraft client, String banId) {
+		waitUntil = 0L;
 		inLimbo = true;
+		limboDoneBanId = banId;
 		limboUntil = System.currentTimeMillis() + LIMBO_MS;
 		if (client.screen != null) {
 			client.setScreen(null);
 		}
 		LocalPlayer player = client.player;
-		if (player != null && player.connection != null) {
+		if (player == null) {
+			return;
+		}
+		player.sendSystemMessage(Component.literal(LIMBO_CHAT).withStyle(ChatFormatting.RED));
+		if (player.connection != null) {
 			player.connection.sendCommand("limbo");
 		}
 	}
@@ -195,6 +213,7 @@ public final class FakeBan {
 				if (found.isEmpty()) {
 					inLimbo = false;
 					limboUntil = 0L;
+					waitUntil = 0L;
 					limboDoneBanId = "";
 				}
 				fetching = false;

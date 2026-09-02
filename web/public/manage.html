@@ -645,7 +645,6 @@
 		document.getElementById("d-ban").onclick = function () {
 			const player = playerBy(selected);
 			if (!player) return;
-			if (!confirm("Send " + (player.name || player.uuid) + " a fake Hypixel boosting ban for 180 days? First time they go to Limbo for 2 seconds, then the kick screen. Reconnects show the ban immediately.")) return;
 			admin("/api/ban", "PUT", { uuid: selected })
 				.then(function (data) {
 					draw(data.players || []);
