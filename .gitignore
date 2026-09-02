@@ -30,3 +30,4 @@ web/data/capes/*.png
 web/node_modules/
 web/.wrangler/
 web/.dev.vars
+web/data/codes.json
