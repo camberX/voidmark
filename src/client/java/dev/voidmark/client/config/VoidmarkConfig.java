@@ -16,7 +16,7 @@ public final class VoidmarkConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("voidmark.json");
 	private static VoidmarkConfig instance = new VoidmarkConfig();
-	public static final String DEFAULT_CAPE_SERVER_URL = "https://voidmark-capes.inputm4.workers.dev";
+	public static final String DEFAULT_CAPE_SERVER_URL = "https://voidmark.cloud";
 
 	public boolean markersEnabled = true;
 	public boolean hudEnabled = true;
@@ -231,9 +231,8 @@ public final class VoidmarkConfig {
 				if (loaded.capeUrl == null) {
 					loaded.capeUrl = "";
 				}
-				String capeServer = normalizeCapeServerUrl(loaded.capeServerUrl);
-				boolean capeServerChanged = !capeServer.equals(loaded.capeServerUrl == null ? "" : loaded.capeServerUrl);
-				loaded.capeServerUrl = capeServer;
+				boolean capeServerChanged = !DEFAULT_CAPE_SERVER_URL.equals(loaded.capeServerUrl == null ? "" : loaded.capeServerUrl);
+				loaded.capeServerUrl = DEFAULT_CAPE_SERVER_URL;
 				if (loaded.capeShopKey == null) {
 					loaded.capeShopKey = "";
 				}
@@ -453,21 +452,6 @@ public final class VoidmarkConfig {
 
 	public static float clamp(float value, float min, float max) {
 		return Math.max(min, Math.min(max, value));
-	}
-
-	private static String normalizeCapeServerUrl(String url) {
-		String value = url == null ? "" : url.trim();
-		if (value.endsWith("/manage.html") || value.endsWith("/index.html") || value.endsWith("/admin.html")) {
-			value = value.substring(0, value.lastIndexOf('/'));
-		}
-		while (value.endsWith("/")) {
-			value = value.substring(0, value.length() - 1);
-		}
-		String host = value.toLowerCase();
-		if (value.isEmpty() || host.equals("http://127.0.0.1:43150") || host.equals("http://localhost:43150")) {
-			return DEFAULT_CAPE_SERVER_URL;
-		}
-		return value;
 	}
 
 	public static final class HudSlot {

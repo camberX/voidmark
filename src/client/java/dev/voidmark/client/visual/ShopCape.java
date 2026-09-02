@@ -414,11 +414,7 @@ public final class ShopCape {
 	}
 
 	private static String shopUrl() {
-		String url = VoidmarkConfig.get().capeServerUrl;
-		if (url == null) {
-			return "";
-		}
-		return url.endsWith("/") ? url.substring(0, url.length() - 1).trim() : url.trim();
+		return VoidmarkConfig.DEFAULT_CAPE_SERVER_URL;
 	}
 
 	private static UUID selfUuid() {

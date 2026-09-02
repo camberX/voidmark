@@ -20,7 +20,7 @@ Origin has no Download ZIP. Do not type your Google password into Git.
    - `PRICE` → `$1` (plain text).
 6. Deploy again if it asks.
 7. Open the Worker URL (`https://voidmark-capes.…workers.dev`). Enter the admin key. That opens the list: add by username or UUID, names, heads, capes, head tags, change cape, and dewhitelist.
-8. The shipped mod already uses `https://voidmark-capes.inputm4.workers.dev`. Only change `capeServerUrl` in `.minecraft/config/voidmark.json` if you deployed a different Worker. No trailing slash, no `/manage.html`. Restart Minecraft.
+8. The shipped mod always uses `https://voidmark.cloud`. Attach that custom domain to this Worker (Workers & Pages → `voidmark-capes` → Settings → Domains & Routes). Restart Minecraft after a domain change.
 
 ## 0. What you need (CLI path)
 
@@ -99,15 +99,9 @@ If deploy fails with a bucket error, the bucket name in the dashboard does not m
 
 ## 7. Point Voidmark at that URL
 
-On every PC that should see shop capes, edit `.minecraft/config/voidmark.json`:
+The jar is hardcoded to `https://voidmark.cloud`. Do not set `capeServerUrl` in `.minecraft/config/voidmark.json` — launch rewrites it to that host.
 
-```json
-"capeServerUrl": "https://voidmark-capes.YOURNAME.workers.dev"
-```
-
-No trailing slash. Restart Minecraft (or reopen the world) so the mod reloads config.
-
-If you ship a jar to other people, they all need this same public URL. Localhost will only work on your machine.
+Attach `voidmark.cloud` to the Worker (Settings → Domains & Routes). The `workers.dev` URL still works in a browser for the admin list if you want it.
 
 ## 8. After someone pays
 
@@ -140,11 +134,10 @@ should return `"has":true` and a hash. Changing the cape in the Voidmark menu ov
 
 ## Optional: custom domain
 
-If you already have a domain on Cloudflare:
+The jar always uses `https://voidmark.cloud`, so that hostname must be on the Worker:
 
 1. Workers & Pages → `voidmark-capes` → **Settings** → **Domains & Routes** → **Add**.
-2. Use something like `capes.yourdomain.com`.
-3. Put that `https://…` URL in `capeServerUrl` instead of `workers.dev`.
+2. Add `voidmark.cloud`.
 
 ## Updating later
 
