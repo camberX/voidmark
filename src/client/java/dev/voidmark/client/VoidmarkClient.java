@@ -18,12 +18,14 @@ import dev.voidmark.client.item.SkyblockRecipes;
 import dev.voidmark.client.media.MediaChat;
 import dev.voidmark.client.media.MediaSession;
 import dev.voidmark.client.mining.MiningTracker;
+import dev.voidmark.client.mining.TitaniumTracker;
 import dev.voidmark.client.render.InventoryHudRenderer;
 import dev.voidmark.client.render.MusicHudRenderer;
 import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.render.NodeHudRenderer;
 import dev.voidmark.client.render.RawmatsHudRenderer;
 import dev.voidmark.client.render.MiningHudRenderer;
+import dev.voidmark.client.render.MiningWorldRenderer;
 import dev.voidmark.client.render.BlockOutlineGlow;
 import dev.voidmark.client.render.MobGlowRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
@@ -62,6 +64,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		NodeWorldRenderer.init();
 		MobGlowRenderer.init();
 		BlockOutlineGlow.init();
+		MiningWorldRenderer.init();
 		WatermarkRenderer.init();
 		InventoryHudRenderer.init();
 		NodeHudRenderer.init();
@@ -136,6 +139,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			ConnectionPing.tick(client);
 			RawmatsTracker.tick(client);
 			MiningTracker.tick(client);
+			TitaniumTracker.get().tick(client);
 		});
 
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> SkyblockProfileApi.refresh());
@@ -145,6 +149,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			EnderNodeTracker.get().clear();
 			ConnectionPing.reset();
 			MiningTracker.reset();
+			TitaniumTracker.get().clear();
 		});
 	}
 

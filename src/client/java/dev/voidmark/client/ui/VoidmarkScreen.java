@@ -4,7 +4,9 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.voidmark.client.config.UnloadState;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
+import dev.voidmark.client.mining.EfficientMiner;
 import dev.voidmark.client.mining.MiningTracker;
+import dev.voidmark.client.mining.TitaniumTracker;
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.HudStats;
 import dev.voidmark.client.render.MobCatalog;
@@ -97,7 +99,9 @@ public class VoidmarkScreen extends Screen {
 		WATERMARK("Watermark", 4),
 		MUSIC("Music", 1),
 		RAWMATS("Raw mats", 1),
-		MINING("Mining", 1),
+		MINING("Mining HUD", 1),
+		TITANIUM("Titanium ESP", 3),
+		EFFICIENT("Efficient Miner", 3),
 		INVENTORY("Inventory", 3),
 		NAMETAGS("Nametags", 5),
 		NODES("Nodes", 5);
@@ -116,7 +120,7 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private enum PickerTarget {
-		WORLD, SKY, FOG, NODE, THEME, PANE, MOB, BLOCK
+		WORLD, SKY, FOG, NODE, THEME, PANE, MOB, BLOCK, TITANIUM, EFFICIENT
 	}
 
 	private record SearchEntry(String label, Tab tab, String hint) {
@@ -142,6 +146,9 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Markers", Tab.NODES, "Nodes"),
 		new SearchEntry("Node HUD", Tab.NODES, "Nodes"),
 		new SearchEntry("Mining HUD", Tab.MINING, "Mining"),
+		new SearchEntry("Titanium ESP", Tab.MINING, "Mining"),
+		new SearchEntry("Efficient Miner", Tab.MINING, "Mining"),
+		new SearchEntry("Mining Spread", Tab.MINING, "Mining"),
 		new SearchEntry("Commissions", Tab.MINING, "Mining"),
 		new SearchEntry("Pickaxe ability", Tab.MINING, "Mining"),
 		new SearchEntry("Ability alert", Tab.MINING, "Mining"),
@@ -962,6 +969,14 @@ public class VoidmarkScreen extends Screen {
 			case MINING -> {
 				config.miningHudEnabled = true;
 				config.miningAbilityAlert = true;
+				config.titaniumEsp = true;
+				config.titaniumEspThroughWalls = true;
+				config.titaniumEspRange = 48;
+				config.titaniumEspRgb = 0xE8ECF2;
+				config.efficientMinerEsp = true;
+				config.efficientMinerThroughWalls = true;
+				config.miningSpread = 300;
+				config.efficientMinerRgb = 0x6CFF9A;
 				config.hudMiningX = -1f;
 				config.hudMiningY = -1f;
 				config.hudMiningScale = 1.0f;
@@ -1173,15 +1188,19 @@ public class VoidmarkScreen extends Screen {
 				GuiDraw.menu(graphics, font, clip(font, area, (int) iw - 4), rx, GuiDraw.middle(y, ROW), Theme.MUTED);
 			}
 			case MINING -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(1), "HUD");
-				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mining HUD", config.miningHudEnabled, v -> config.miningHudEnabled = v, Feature.MINING);
+				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Mining");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mining HUD", config.miningHudEnabled, v -> config.miningHudEnabled = v, Feature.MINING);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Titanium ESP", config.titaniumEsp, v -> config.titaniumEsp = v, Feature.TITANIUM);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Efficient Miner", config.efficientMinerEsp, v -> config.efficientMinerEsp = v, Feature.EFFICIENT);
 
-				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 42 + CARD_PAD, "Live");
+				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 54 + CARD_PAD, "Live");
 				var snap = MiningTracker.snapshot();
 				GuiDraw.menu(graphics, font, snap.ability(), rx, y + 2, Theme.TEXT);
 				GuiDraw.menu(graphics, font, snap.abilityReady() ? "Ready" : snap.abilityLabel(), rx, y + 14, snap.abilityReady() ? Theme.ACCENT : Theme.MUTED);
 				String jobs = snap.commissions().isEmpty() ? "No commissions" : snap.commissions().size() + " commission" + (snap.commissions().size() == 1 ? "" : "s");
 				GuiDraw.menu(graphics, font, jobs, rx, y + 26, Theme.MUTED);
+				String titanium = MiningTracker.hasTitaniumCommission() ? TitaniumTracker.get().count() + " titanium" : "No titanium job";
+				GuiDraw.menu(graphics, font, titanium, rx, y + 38, MiningTracker.hasTitaniumCommission() ? Theme.ACCENT : Theme.MUTED);
 			}
 			case PLAYER -> drawPlayerTab(graphics, font, mouseX, mouseY);
 		}
@@ -1344,6 +1363,19 @@ public class VoidmarkScreen extends Screen {
 			case MUSIC -> toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
 			case RAWMATS -> cycle(graphics, font, ix, y, iw, mouseX, mouseY, "Materials", config.rawmatsModeLabel(), config::cycleRawmatsMode);
 			case MINING -> toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ability alert", config.miningAbilityAlert, v -> config.miningAbilityAlert = v);
+			case TITANIUM -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.titaniumEspThroughWalls, v -> config.titaniumEspThroughWalls = v);
+				y = slider(graphics, font, ix, y, iw, "Range", config.titaniumEspRange + "m", (config.titaniumEspRange - 24) / 56f, v -> config.titaniumEspRange = VoidmarkConfig.clamp(24 + Math.round(v * 56f), 24, 80));
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.titaniumEspRgb, PickerTarget.TITANIUM);
+			}
+			case EFFICIENT -> {
+				int spread = MiningTracker.effectiveSpread();
+				int extra = EfficientMiner.extraCount(spread);
+				String spreadLabel = extra + " extra" + (MiningTracker.tabSpread() > 0 ? " · tab" : "");
+				y = slider(graphics, font, ix, y, iw, "Spread", spreadLabel, VoidmarkConfig.clamp(config.miningSpread, 0, 2500) / 2500f, v -> config.miningSpread = VoidmarkConfig.clamp(Math.round(v * 2500f), 0, 2500));
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.efficientMinerThroughWalls, v -> config.efficientMinerThroughWalls = v);
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.efficientMinerRgb, PickerTarget.EFFICIENT);
+			}
 			case INVENTORY -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hotbar", config.inventoryHudHotbar, v -> config.inventoryHudHotbar = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Armor", config.inventoryHudArmor, v -> config.inventoryHudArmor = v);
@@ -1541,6 +1573,8 @@ public class VoidmarkScreen extends Screen {
 			case NODE -> config.colorRgb = packed;
 			case MOB -> config.mobGlowRgb = packed;
 			case BLOCK -> config.blockOutlineRgb = packed;
+			case TITANIUM -> config.titaniumEspRgb = packed;
+			case EFFICIENT -> config.efficientMinerRgb = packed;
 			case THEME -> Theme.applyCustom(packed);
 			case PANE -> Theme.applyPane(packed);
 		}
@@ -1576,7 +1610,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.87");
+			.orElse("1.1.88");
 	}
 
 	@Override

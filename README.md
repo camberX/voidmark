@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.87.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.88.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -20,7 +20,7 @@ Java **25** is required.
 - `/vm rawmats sb:HYPERION` (or `/voidmark rawmats`, or `/vm rawmats` while holding the item) expands that Skyblock craft and shows a HUD with item icons, have/need counts, and a live progress bar per ingredient. **Materials** (Overlay tab cog, or click Raw/Enchanted on the HUD with chat open) picks **Raw** (Iron Ingot) or **Enchanted** (Enchanted Iron). Inventory and armor are counted live. Ender Chest and backpacks come from your Skyblock profile (`hypixel.odtheking.com`) when you join a server and whenever you run `/vm rawmats`. `/vm rawmats refresh` pulls storage again; `/vm rawmats raw` / `/vm rawmats enchanted` switch the mode; `/vm rawmats clear` hides the tracker.
 - The **Music HUD** (Overlay tab) shows the song that is playing in Spotify or YouTube Music: cover art, title, artist, source, a progress bar, and elapsed/duration on the right of the bar (`1:23/3:45`). Pause freezes the bar; scrubbing updates it when the player reports a real timestamp. YouTube Music in a browser often keeps SMTC position at `0` — use YouTube Music Desktop (port 9863) or th-ch YouTube Music (26558) for a live clock. When the track changes, chat shows a styled `VOIDMARK | NOW PLAYING` line with the title and artist. Open Minecraft chat (`T`) to click **previous / play-pause / next** on the HUD. You can also type `.np` `.play` `.pause` `.skip` `.prev` in chat (those stay client-side) or `/vm music`. On Windows it reads the system now-playing session (including SMTC album art), Spotify / YouTube Music window titles, and local companion APIs (YouTube Music Desktop on 9863, th-ch YouTube Music on 26558). Linux uses `playerctl` metadata and `mpris:artUrl`.
 - **ESP** (ESP tab) highlights every loaded entity of the types you pick, including other players. Scroll the full vanilla list (or type in the list search) and click rows to select them; click a selected row again to drop it. Matching entities get a **silhouette outline** with a shader gradient that fades outward from the model — not boxes, and not Minecraft’s sobel glow. You are never outlined. **Block outline** (on by default) puts that same glow on the block you are looking at, around the vanilla selection wire. Color and opacity sit on the cog next to Block outline. **Nametags** sit on the same Glow card. Node boxes, tracers, opacity, and color sit on the cog next to Node ESP. Reset restores only this tab.
-- **Mining** (Mining tab) shows a compact HUD with commission progress from the tab list and your pickaxe ability cooldown. Use a pickaxe ability and the HUD counts down (120s for Mining Speed Boost, 60s for Pickobulus) until chat says it is ready. **Ability alert** (cog next to Mining HUD, on by default) flashes a centered **READY** banner when chat contains `Pickobulus is now available!` or `Mining Speed Boost is now available!`. Drag the panel in the HUD editor.
+- **Mining** (Mining tab) shows a compact HUD with commission progress from the tab list and your pickaxe ability cooldown. Use a pickaxe ability and the HUD counts down (120s for Mining Speed Boost, 60s for Pickobulus) until chat says it is ready. **Ability alert** (cog next to Mining HUD, on by default) flashes a centered **READY** banner when chat contains `Pickobulus is now available!` or `Mining Speed Boost is now available!`. **Titanium ESP** turns on only while an unfinished tab commission contains `Titanium`: it marks polished diorite (Hypixel’s Titanium ore) through walls. **Efficient Miner** highlights the extra same-type blocks Mining Spread will break around the block under your crosshair — face-adjacent BFS, prismarine family grouped, no gemstone glass, and it skips blocks below your feet unless you look down. Spread is read from the tab Stats widget when present, otherwise the cog slider (default 300). Drag the panel in the HUD editor.
 
 - Right Shift is the default keybind (Controls → Voidmark). Press it again to close (the menu eases out).
 - `/voidmark toggle` flips node markers without opening the menu.
@@ -49,7 +49,7 @@ Markers only run in Skyblock by default. Enable **Force enable** on the Nodes co
 
 ### Skyblock → Mining
 
-Commission lines come from the Skyblock tab list (`Commissions:` widget) in the Dwarven Mines, Crystal Hollows, Glacite, and the other mining islands. Turn on Player List Info in SkyBlock Menu → Settings → Personal → User Interface if the widget is missing. The compact HUD lists each job and the pickaxe ability timer. Ability ready uses the Hypixel chat lines `Pickobulus is now available!` and `Mining Speed Boost is now available!`.
+Commission lines come from the Skyblock tab list (`Commissions:` widget) in the Dwarven Mines, Crystal Hollows, Glacite, and the other mining islands. Turn on Player List Info in SkyBlock Menu → Settings → Personal → User Interface if the widget is missing. The compact HUD lists each job and the pickaxe ability timer. Ability ready uses the Hypixel chat lines `Pickobulus is now available!` and `Mining Speed Boost is now available!`. Titanium ESP uses that same widget: if a job name contains Titanium and is not Done, polished diorite in range is outlined. Efficient Miner uses Mining Spread (Efficient Miner perk + gear). Values over 100 mean guaranteed extras (`303` → 3 extras + 3% chance of a fourth, drawn dimmer). Enable the Stats tab widget if you want spread auto-filled.
 
 ## Settings
 
@@ -60,7 +60,7 @@ Commission lines come from the Skyblock tab list (`Commissions:` widget) in the 
 | Overlay | Watermark / music / raw mats / inventory HUDs |
 | Bars | Custom vanilla HUD: hotbar, bars, scoreboard, boss, effects, held item |
 | Nodes | Ender node markers, node HUD, and live Hypixel/Skyblock status |
-| Mining | Compact commission HUD and pickaxe cooldown |
+| Mining | Compact commission HUD, pickaxe cooldown, Titanium ESP, Efficient Miner |
 
 Config is saved to `.minecraft/config/voidmark.json`, including click-GUI position and the last tab you had open.
 

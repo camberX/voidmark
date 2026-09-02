@@ -8,6 +8,10 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.88", new String[]{
+			"Titanium ESP while a Titanium commission is active.",
+			"Efficient Miner overlay on the extra blocks Mining Spread will break."
+		}),
 		new Entry("1.1.87", new String[]{
 			"3D preview head stays locked to the body.",
 			"Nametag pills fit the text. Compact Dev badge.",
