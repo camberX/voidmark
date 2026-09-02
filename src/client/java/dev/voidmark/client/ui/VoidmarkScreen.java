@@ -969,7 +969,7 @@ public class VoidmarkScreen extends Screen {
 	private void drawSettings(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		settingsX = contentX() + contentW() - PANEL_W;
 		settingsY = windowY + TOOLBAR_H + 2;
-		GuiDraw.panel(graphics, settingsX, settingsY, PANEL_W, SETTINGS_H * Math.max(0.2f, settingsT), 8, Anim.fade(Theme.PANEL, settingsT), Theme.ACCENT);
+		GuiDraw.sheet(graphics, settingsX, settingsY, PANEL_W, SETTINGS_H * Math.max(0.2f, settingsT), 8, Anim.fade(Theme.WINDOW, settingsT), Anim.fade(Theme.ACCENT, settingsT));
 		if (settingsT < 0.85f) {
 			return;
 		}
@@ -1012,7 +1012,7 @@ public class VoidmarkScreen extends Screen {
 		bellX = contentX() + contentW() - PANEL_W;
 		bellY = windowY + TOOLBAR_H + 2;
 		float h = 256;
-		GuiDraw.panel(graphics, bellX, bellY, PANEL_W, h * Math.max(0.2f, bellT), 8, Anim.fade(Theme.PANEL, bellT), Theme.ACCENT);
+		GuiDraw.sheet(graphics, bellX, bellY, PANEL_W, h * Math.max(0.2f, bellT), 8, Anim.fade(Theme.WINDOW, bellT), Anim.fade(Theme.ACCENT, bellT));
 		if (bellT < 0.85f) {
 			return;
 		}
@@ -1217,7 +1217,7 @@ public class VoidmarkScreen extends Screen {
 		featureY = windowY + TOOLBAR_H + 2;
 		hits.add(new Hit(featureX, featureY, FEATURE_W, h, () -> {
 		}));
-		GuiDraw.panel(graphics, featureX, featureY, FEATURE_W, h * Math.max(0.2f, featureT), 8, Anim.fade(Theme.PANEL, featureT), Theme.ACCENT);
+		GuiDraw.sheet(graphics, featureX, featureY, FEATURE_W, h * Math.max(0.2f, featureT), 8, Anim.fade(Theme.WINDOW, featureT), Anim.fade(Theme.ACCENT, featureT));
 		if (featureT < 0.85f) {
 			return;
 		}
@@ -1409,7 +1409,7 @@ public class VoidmarkScreen extends Screen {
 		float y = pickerY;
 		float w = PICKER_W;
 		float h = PICKER_H;
-		GuiDraw.panel(graphics, x, y, w, h, 8, Anim.fade(Theme.PANEL, pickerT), Theme.ACCENT);
+		GuiDraw.sheet(graphics, x, y, w, h, 8, Anim.fade(Theme.WINDOW, pickerT), Anim.fade(Theme.ACCENT, pickerT));
 		if (pickerT < 0.7f) {
 			return;
 		}
@@ -1507,7 +1507,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.83");
+			.orElse("1.1.84");
 	}
 
 	@Override

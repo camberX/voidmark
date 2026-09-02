@@ -212,6 +212,16 @@ public final class GuiDraw {
 	}
 
 	/**
+	 * Settings / subsetting popover: pane fill with a hairline outline and no
+	 * accent rail. Stroke is half the usual {@link #panel} border.
+	 */
+	public static void sheet(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int fill, int outline) {
+		float stroke = 0.5f;
+		rounded(graphics, x, y, w, h, radius, outline);
+		rounded(graphics, x + stroke, y + stroke, w - stroke * 2f, h - stroke * 2f, Math.max(0.5f, radius - stroke), fill);
+	}
+
+	/**
 	 * Vertical left rail of the panel's full height. The outer edge follows the
 	 * rounded silhouette; nothing is drawn along the top or bottom edges.
 	 */
