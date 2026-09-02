@@ -11,6 +11,7 @@
 		"BossHealthOverlayAccessor",
 		"ChatComponentMixin",
 		"ChatScreenMixin",
+		"ConnectScreenInvoker",
 		"ConnectScreenMixin",
 		"ConnectionMixin",
 		"EditBoxMixin",

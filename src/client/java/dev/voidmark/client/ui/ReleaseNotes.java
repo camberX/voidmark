@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.123", new String[]{
+			"Fake ban Retry never opens a real connection. Vanilla Connecting then Joining world are faked, then the kick."
+		}),
 		new Entry("1.1.122", new String[]{
 			"Fake ban reconnects reach Joining world, sit there for half a second, then kick. Retry actually connects again."
 		}),
