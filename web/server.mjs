@@ -18,6 +18,7 @@ await mkdir(CAPES, { recursive: true });
 
 const store = {
 	whitelist: await loadJson(join(DATA, "whitelist.json"), []),
+	names: await loadJson(join(DATA, "names.json"), {}),
 	config: await loadJson(join(DATA, "config.json"), {
 		paypal: "your-paypal@email.com",
 		price: "$1",
@@ -161,7 +162,7 @@ async function handleWhitelist(req, res) {
 		return;
 	}
 	if (req.method === "POST" && !body.uuid) {
-		json(res, 200, { uuids: store.whitelist });
+		json(res, 200, { uuids: store.whitelist, players: await playersFor(store.whitelist) });
 		return;
 	}
 	const uuid = normalizeUuid(body.uuid);
@@ -171,11 +172,54 @@ async function handleWhitelist(req, res) {
 	}
 	if (req.method === "DELETE") {
 		store.whitelist = store.whitelist.filter((id) => id !== uuid);
+		delete store.names[uuid];
+		const file = capePath(uuid);
+		if (existsSync(file)) {
+			const { unlink } = await import("node:fs/promises");
+			await unlink(file);
+		}
 	} else if (!store.whitelist.includes(uuid)) {
 		store.whitelist.push(uuid);
 	}
 	await saveJson(join(DATA, "whitelist.json"), store.whitelist);
-	json(res, 200, { ok: true, uuids: store.whitelist });
+	await saveJson(join(DATA, "names.json"), store.names);
+	json(res, 200, { ok: true, uuids: store.whitelist, players: await playersFor(store.whitelist) });
+}
+
+async function playersFor(uuids) {
+	return Promise.all(uuids.map(async (uuid) => {
+		const file = capePath(uuid);
+		const has = existsSync(file);
+		return {
+			uuid,
+			name: await mojangName(uuid),
+			cape: has,
+			hash: has ? hashFile(file) : ""
+		};
+	}));
+}
+
+async function mojangName(uuid) {
+	if (store.names[uuid]) {
+		return store.names[uuid];
+	}
+	try {
+		const response = await fetch("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid.replaceAll("-", ""), {
+			signal: AbortSignal.timeout(5000)
+		});
+		if (!response.ok) {
+			return "";
+		}
+		const data = await response.json();
+		if (data.name) {
+			store.names[uuid] = data.name;
+			await saveJson(join(DATA, "names.json"), store.names);
+			return data.name;
+		}
+	} catch {
+		return "";
+	}
+	return "";
 }
 
 function whitelisted(uuid) {
@@ -235,7 +279,7 @@ function cors() {
 	return {
 		"Access-Control-Allow-Origin": "*",
 		"Access-Control-Allow-Methods": "GET,PUT,POST,DELETE,OPTIONS",
-		"Access-Control-Allow-Headers": "Content-Type, X-UUID, X-Key, X-Code, X-Token"
+		"Access-Control-Allow-Headers": "Content-Type, X-UUID, X-Key, X-Code, X-Token, X-Admin"
 	};
 }
 

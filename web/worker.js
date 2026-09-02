@@ -67,10 +67,16 @@ async function route(request, env) {
 		return handleWhitelist(request, env);
 	}
 	if (request.method === "GET" && env.ASSETS) {
-		return env.ASSETS.fetch(request);
+		const asset = await env.ASSETS.fetch(request);
+		if (asset.status !== 404) {
+			return asset;
+		}
+	}
+	if (request.method === "GET" && path === "/manage.html") {
+		return page(MANAGE_HTML);
 	}
 	if (request.method === "GET" && (path === "/" || path === "/index.html" || path === "/admin.html")) {
-		return page(PAGE_HTML);
+		return page(LOGIN_HTML);
 	}
 	return json(404, { error: "Not found" });
 }
@@ -125,7 +131,9 @@ async function handleWhitelist(request, env) {
 	}
 	const state = await loadState(env);
 	if (request.method === "POST" && !body.uuid) {
-		return json(200, { uuids: state.whitelist });
+		const players = await playersFor(env, state);
+		await saveState(env, state);
+		return json(200, { uuids: state.whitelist, players });
 	}
 	const uuid = normalizeUuid(body.uuid);
 	if (!uuid) {
@@ -133,25 +141,65 @@ async function handleWhitelist(request, env) {
 	}
 	if (request.method === "DELETE") {
 		state.whitelist = state.whitelist.filter((id) => id !== uuid);
+		if (state.names) {
+			delete state.names[uuid];
+		}
+		await env.CAPES.delete(capeKey(uuid));
 	} else if (!state.whitelist.includes(uuid)) {
 		state.whitelist.push(uuid);
 	}
 	await saveState(env, state);
-	return json(200, { ok: true, uuids: state.whitelist });
+	return json(200, { ok: true, uuids: state.whitelist, players: await playersFor(env, state) });
+}
+
+async function playersFor(env, state) {
+	return Promise.all(state.whitelist.map(async (uuid) => {
+		const head = await env.CAPES.head(capeKey(uuid));
+		return {
+			uuid,
+			name: await mojangName(uuid, state),
+			cape: Boolean(head),
+			hash: head?.customMetadata?.hash || ""
+		};
+	}));
+}
+
+async function mojangName(uuid, state) {
+	state.names = state.names && typeof state.names === "object" ? state.names : {};
+	if (state.names[uuid]) {
+		return state.names[uuid];
+	}
+	try {
+		const response = await fetch("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid.replaceAll("-", ""), {
+			signal: AbortSignal.timeout(5000)
+		});
+		if (!response.ok) {
+			return "";
+		}
+		const data = await response.json();
+		if (data.name) {
+			state.names[uuid] = data.name;
+			return data.name;
+		}
+	} catch {
+		return "";
+	}
+	return "";
 }
 
 async function loadState(env) {
 	const object = await env.CAPES.get("state.json");
 	if (!object) {
-		return { whitelist: [] };
+		return { whitelist: [], names: {} };
 	}
 	try {
 		const parsed = JSON.parse(await object.text());
 		return {
-			whitelist: Array.isArray(parsed.whitelist) ? parsed.whitelist : []
+			whitelist: Array.isArray(parsed.whitelist) ? parsed.whitelist : [],
+			names: parsed.names && typeof parsed.names === "object" ? parsed.names : {}
 		};
 	} catch {
-		return { whitelist: [] };
+		return { whitelist: [], names: {} };
 	}
 }
 
@@ -196,7 +244,7 @@ function cors() {
 	return {
 		"Access-Control-Allow-Origin": "*",
 		"Access-Control-Allow-Methods": "GET,PUT,POST,DELETE,OPTIONS",
-		"Access-Control-Allow-Headers": "Content-Type, X-UUID, X-Key, X-Code, X-Token"
+		"Access-Control-Allow-Headers": "Content-Type, X-UUID, X-Key, X-Code, X-Token, X-Admin"
 	};
 }
 
@@ -206,7 +254,77 @@ function page(html) {
 	});
 }
 
-const PAGE_HTML = `<!DOCTYPE html>
+const LOGIN_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>VOIDMARK Capes</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+	<style>
+		:root { --bg:#05070d; --pane:#0b0e14; --card:#12151c; --line:#1c2230; --text:#e8edf5; --muted:#8b95a8; --accent:#2fb5ff; --warn:#e8b86d; }
+		* { box-sizing: border-box; }
+		body { margin: 0; min-height: 100vh; font-family: "Nunito Sans", sans-serif; background: radial-gradient(1200px 600px at 50% -10%, #12324a 0%, var(--bg) 55%); color: var(--text); }
+		main { width: min(420px, calc(100% - 32px)); margin: 80px auto; background: color-mix(in srgb, var(--pane) 92%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 28px 26px 24px; box-shadow: 0 24px 80px #0008; }
+		h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: 0.18em; }
+		.rule { width: 18px; height: 2px; background: var(--accent); border-radius: 2px; margin: 10px 0 18px; }
+		p, label { color: var(--muted); font-size: 14px; line-height: 1.5; }
+		label { display: block; margin: 0 0 6px; font-weight: 700; color: var(--text); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+		input { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px 12px; font: inherit; }
+		button { margin-top: 16px; width: 100%; border: 0; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 800; padding: 12px; cursor: pointer; }
+		button:disabled { opacity: 0.5; }
+		.status { min-height: 20px; margin-top: 14px; font-size: 13px; }
+		.status.err { color: var(--warn); }
+	</style>
+</head>
+<body>
+	<main>
+		<h1>VOIDMARK</h1>
+		<div class="rule"></div>
+		<p>Admin key, then the cape list.</p>
+		<label for="admin">Admin key</label>
+		<input id="admin" type="password" autocomplete="current-password" placeholder="Worker secret">
+		<button type="button" id="go">Open list</button>
+		<div class="status" id="status"></div>
+	</main>
+	<script>
+		const admin = document.getElementById("admin");
+		const status = document.getElementById("status");
+		const go = document.getElementById("go");
+		admin.value = sessionStorage.getItem("voidmark-admin") || "";
+		async function enter() {
+			const key = admin.value.trim();
+			status.textContent = "Checking…";
+			status.className = "status";
+			go.disabled = true;
+			try {
+				const response = await fetch("/api/whitelist", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ admin: key })
+				});
+				const data = await response.json();
+				if (!response.ok) throw new Error(data.error || "Bad admin key");
+				sessionStorage.setItem("voidmark-admin", key);
+				location.href = "/manage.html";
+			} catch (error) {
+				sessionStorage.removeItem("voidmark-admin");
+				status.className = "status err";
+				status.textContent = error.message;
+			} finally {
+				go.disabled = false;
+			}
+		}
+		go.onclick = enter;
+		admin.addEventListener("keydown", (event) => { if (event.key === "Enter") enter(); });
+		if (admin.value) enter();
+	</script>
+</body>
+</html>
+`;
+
+const MANAGE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="utf-8">
@@ -217,96 +335,185 @@ const PAGE_HTML = `<!DOCTYPE html>
 	<style>
 		:root { --bg:#05070d; --pane:#0b0e14; --card:#12151c; --line:#1c2230; --text:#e8edf5; --muted:#8b95a8; --accent:#2fb5ff; --warn:#e8b86d; }
 		* { box-sizing: border-box; }
-		body { margin: 0; min-height: 100vh; font-family: "Nunito Sans", sans-serif; background: radial-gradient(1200px 600px at 50% -10%, #12324a 0%, var(--bg) 55%); color: var(--text); }
-		main { width: min(520px, calc(100% - 32px)); margin: 48px auto; background: color-mix(in srgb, var(--pane) 92%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 28px 26px 24px; box-shadow: 0 24px 80px #0008; }
+		body { margin: 0; min-height: 100vh; font-family: "Nunito Sans", sans-serif; background: radial-gradient(1400px 700px at 50% -10%, #12324a 0%, var(--bg) 50%); color: var(--text); }
+		main { width: min(760px, calc(100% - 24px)); margin: 28px auto 48px; }
+		header { background: color-mix(in srgb, var(--pane) 92%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 22px 22px 18px; box-shadow: 0 24px 80px #0008; }
 		h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: 0.18em; }
-		.rule { width: 18px; height: 2px; background: var(--accent); border-radius: 2px; margin: 10px 0 16px; }
+		.rule { width: 18px; height: 2px; background: var(--accent); border-radius: 2px; margin: 10px 0 14px; }
 		p, label { color: var(--muted); font-size: 14px; line-height: 1.5; }
-		label { display: block; margin: 14px 0 6px; font-weight: 700; color: var(--text); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
-		input { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px 12px; font: inherit; }
-		.row { display: flex; gap: 8px; }
-		.row input { flex: 1; }
+		label { display: block; margin: 0 0 6px; font-weight: 700; color: var(--text); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+		.add { display: flex; gap: 8px; flex-wrap: wrap; }
+		.add input { flex: 1; min-width: 180px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px 12px; font: inherit; }
 		button { border: 0; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 800; padding: 10px 14px; cursor: pointer; }
 		button.ghost { background: var(--card); color: var(--text); border: 1px solid var(--line); }
-		.status { min-height: 20px; margin-top: 14px; font-size: 13px; }
+		button.warn { background: #3a2a1a; color: var(--warn); border: 1px solid #5a4430; }
+		button:disabled { opacity: 0.5; }
+		.top { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 8px; }
+		.status { min-height: 18px; margin-top: 12px; font-size: 13px; }
 		.status.ok { color: var(--accent); }
 		.status.err { color: var(--warn); }
-		ul { list-style: none; padding: 0; margin: 16px 0 0; }
-		li { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 8px; font-size: 13px; word-break: break-all; }
-		.empty { color: var(--muted); font-size: 13px; margin-top: 16px; }
+		.empty { color: var(--muted); margin: 18px 4px; }
+		.list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+		.player { display: grid; grid-template-columns: 52px minmax(0, 1fr) 56px auto; gap: 12px; align-items: center; background: color-mix(in srgb, var(--pane) 92%, transparent); border: 1px solid var(--line); border-radius: 14px; padding: 12px; box-shadow: 0 12px 40px #0005; }
+		.head, .cape { width: 52px; height: 52px; border-radius: 8px; background: #000; object-fit: contain; image-rendering: pixelated; }
+		.cape { height: 72px; width: 46px; justify-self: center; }
+		.meta { min-width: 0; }
+		.name { font-weight: 800; font-size: 16px; }
+		.uuid { color: var(--muted); font-size: 12px; word-break: break-all; margin-top: 4px; }
+		.nocape { color: var(--muted); font-size: 12px; text-align: center; }
+		.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+		@media (max-width: 700px) {
+			.player { grid-template-columns: 52px minmax(0, 1fr) 46px; }
+			.actions { grid-column: 1 / -1; justify-content: stretch; }
+			.actions button { flex: 1; }
+		}
 	</style>
 </head>
 <body>
 	<main>
-		<h1>VOIDMARK</h1>
-		<div class="rule"></div>
-		<p>After someone pays, paste their Minecraft UUID. They set the cape in Voidmark. Everyone else running the mod sees it.</p>
-		<label for="admin">Admin key</label>
-		<input id="admin" type="password" autocomplete="current-password" placeholder="Worker secret">
-		<label for="uuid">Minecraft UUID</label>
-		<div class="row">
-			<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="f1b21931-667f-4be2-91bb-a06074978e0e">
-			<button type="button" id="add">Add</button>
-		</div>
-		<button type="button" class="ghost" id="load" style="margin-top:12px;width:100%">Load list</button>
-		<div class="status" id="status"></div>
-		<ul id="list"></ul>
+		<header>
+			<div class="top">
+				<h1>VOIDMARK</h1>
+				<button type="button" class="ghost" id="out">Log out</button>
+			</div>
+			<div class="rule"></div>
+			<p>Whitelisted players. They set a cape in Voidmark, or you can set it here.</p>
+			<label for="uuid">Add UUID</label>
+			<div class="add">
+				<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="f1b21931-667f-4be2-91bb-a06074978e0e">
+				<button type="button" id="add">Add</button>
+			</div>
+			<div class="status" id="status"></div>
+		</header>
 		<p class="empty" id="empty">No UUIDs yet.</p>
+		<div class="list" id="list"></div>
 	</main>
 	<script>
-		const admin = document.getElementById("admin");
-		const uuid = document.getElementById("uuid");
+		const key = sessionStorage.getItem("voidmark-admin") || "";
+		if (!key) location.replace("/");
 		const status = document.getElementById("status");
 		const list = document.getElementById("list");
 		const empty = document.getElementById("empty");
-		admin.value = sessionStorage.getItem("voidmark-admin") || "";
+		const uuid = document.getElementById("uuid");
 
 		function setStatus(ok, text) {
 			status.className = "status " + (ok ? "ok" : "err");
 			status.textContent = text;
 		}
 
-		function draw(uuids) {
+		async function api(method, id) {
+			const response = await fetch("/api/whitelist", {
+				method,
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ admin: key, uuid: id || undefined })
+			});
+			const data = await response.json();
+			if (response.status === 403) {
+				sessionStorage.removeItem("voidmark-admin");
+				location.replace("/");
+				throw new Error("Bad admin key");
+			}
+			if (!response.ok) throw new Error(data.error || "Failed");
+			return data;
+		}
+
+		function draw(players) {
 			list.innerHTML = "";
-			empty.style.display = uuids.length ? "none" : "block";
-			for (const id of uuids) {
-				const item = document.createElement("li");
-				const label = document.createElement("span");
-				label.textContent = id;
+			empty.style.display = players.length ? "none" : "block";
+			for (const player of players) {
+				const row = document.createElement("article");
+				row.className = "player";
+				const head = document.createElement("img");
+				head.className = "head";
+				head.width = 52;
+				head.height = 52;
+				head.alt = player.name || "Head";
+				head.src = "https://crafthead.net/helm/" + player.uuid + "/64";
+				const meta = document.createElement("div");
+				meta.className = "meta";
+				const name = document.createElement("div");
+				name.className = "name";
+				name.textContent = player.name || "Unknown";
+				const id = document.createElement("div");
+				id.className = "uuid";
+				id.textContent = player.uuid;
+				meta.append(name, id);
+				let capeBox;
+				if (player.cape) {
+					capeBox = document.createElement("img");
+					capeBox.className = "cape";
+					capeBox.alt = "Cape";
+					capeBox.src = "/capes/" + player.uuid + ".png?h=" + encodeURIComponent(player.hash || Date.now());
+				} else {
+					capeBox = document.createElement("div");
+					capeBox.className = "nocape";
+					capeBox.textContent = "No cape";
+				}
+				const actions = document.createElement("div");
+				actions.className = "actions";
+				const file = document.createElement("input");
+				file.type = "file";
+				file.accept = "image/png,.png";
+				file.hidden = true;
+				const change = document.createElement("button");
+				change.type = "button";
+				change.className = "ghost";
+				change.textContent = "Change cape";
+				change.onclick = () => file.click();
+				file.onchange = () => {
+					if (file.files[0]) uploadCape(player.uuid, file.files[0]);
+				};
 				const remove = document.createElement("button");
 				remove.type = "button";
-				remove.className = "ghost";
-				remove.textContent = "Remove";
-				remove.onclick = () => send("DELETE", id);
-				item.append(label, remove);
-				list.append(item);
+				remove.className = "warn";
+				remove.textContent = "Dewhitelist";
+				remove.onclick = () => send("DELETE", player.uuid);
+				actions.append(file, change, remove);
+				row.append(head, meta, capeBox, actions);
+				list.append(row);
 			}
 		}
 
 		async function send(method, id) {
-			const key = admin.value.trim();
-			sessionStorage.setItem("voidmark-admin", key);
 			try {
-				const response = await fetch("/api/whitelist", {
-					method,
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ admin: key, uuid: id || undefined })
-				});
-				const data = await response.json();
-				if (!response.ok) throw new Error(data.error || "Failed");
-				draw(data.uuids || []);
-				setStatus(true, method === "DELETE" ? "Removed." : (id ? "Whitelisted. They can set a cape in Voidmark." : "Loaded."));
+				const data = await api(method, id);
+				draw(data.players || []);
+				setStatus(true, method === "DELETE" ? "Removed from the list." : (id ? "Whitelisted. They can set a cape in Voidmark." : "Loaded."));
 				if (id && method !== "DELETE") uuid.value = "";
 			} catch (error) {
 				setStatus(false, error.message);
 			}
 		}
 
-		document.getElementById("load").onclick = () => send("POST");
+		async function uploadCape(id, file) {
+			setStatus(true, "Uploading cape…");
+			try {
+				const response = await fetch("/api/cape", {
+					method: "PUT",
+					headers: { "X-UUID": id, "X-Admin": key },
+					body: file
+				});
+				const data = await response.json().catch(() => ({}));
+				if (!response.ok) throw new Error(data.error || "Upload failed");
+				await send("POST");
+				setStatus(true, "Cape updated. Voidmark users will see it in a couple of seconds.");
+			} catch (error) {
+				setStatus(false, error.message);
+			}
+		}
+
 		document.getElementById("add").onclick = () => {
 			if (!uuid.value.trim()) { setStatus(false, "Paste a UUID"); return; }
 			send("PUT", uuid.value.trim());
 		};
+		uuid.addEventListener("keydown", (event) => {
+			if (event.key === "Enter") document.getElementById("add").click();
+		});
+		document.getElementById("out").onclick = () => {
+			sessionStorage.removeItem("voidmark-admin");
+			location.replace("/");
+		};
+		send("POST");
 	</script>
 </body>
 </html>

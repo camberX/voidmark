@@ -3,102 +3,66 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>VOIDMARK Cape list</title>
+	<title>VOIDMARK Capes</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 	<style>
 		:root { --bg:#05070d; --pane:#0b0e14; --card:#12151c; --line:#1c2230; --text:#e8edf5; --muted:#8b95a8; --accent:#2fb5ff; --warn:#e8b86d; }
 		* { box-sizing: border-box; }
 		body { margin: 0; min-height: 100vh; font-family: "Nunito Sans", sans-serif; background: radial-gradient(1200px 600px at 50% -10%, #12324a 0%, var(--bg) 55%); color: var(--text); }
-		main { width: min(520px, calc(100% - 32px)); margin: 48px auto; background: color-mix(in srgb, var(--pane) 92%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 28px 26px 24px; box-shadow: 0 24px 80px #0008; }
+		main { width: min(420px, calc(100% - 32px)); margin: 80px auto; background: color-mix(in srgb, var(--pane) 92%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 28px 26px 24px; box-shadow: 0 24px 80px #0008; }
 		h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: 0.18em; }
-		.rule { width: 18px; height: 2px; background: var(--accent); border-radius: 2px; margin: 10px 0 16px; }
+		.rule { width: 18px; height: 2px; background: var(--accent); border-radius: 2px; margin: 10px 0 18px; }
 		p, label { color: var(--muted); font-size: 14px; line-height: 1.5; }
-		label { display: block; margin: 14px 0 6px; font-weight: 700; color: var(--text); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+		label { display: block; margin: 0 0 6px; font-weight: 700; color: var(--text); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
 		input { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px 12px; font: inherit; }
-		.row { display: flex; gap: 8px; }
-		.row input { flex: 1; }
-		button { border: 0; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 800; padding: 10px 14px; cursor: pointer; }
-		button.ghost { background: var(--card); color: var(--text); border: 1px solid var(--line); }
+		button { margin-top: 16px; width: 100%; border: 0; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 800; padding: 12px; cursor: pointer; }
+		button:disabled { opacity: 0.5; }
 		.status { min-height: 20px; margin-top: 14px; font-size: 13px; }
-		.status.ok { color: var(--accent); }
 		.status.err { color: var(--warn); }
-		ul { list-style: none; padding: 0; margin: 16px 0 0; }
-		li { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 8px; font-size: 13px; word-break: break-all; }
-		.empty { color: var(--muted); font-size: 13px; margin-top: 16px; }
 	</style>
 </head>
 <body>
 	<main>
 		<h1>VOIDMARK</h1>
 		<div class="rule"></div>
-		<p>After someone pays, paste their Minecraft UUID. They set the cape in Voidmark. Everyone else running the mod sees it.</p>
+		<p>Admin key, then the cape list.</p>
 		<label for="admin">Admin key</label>
 		<input id="admin" type="password" autocomplete="current-password" placeholder="Worker secret">
-		<label for="uuid">Minecraft UUID</label>
-		<div class="row">
-			<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="f1b21931-667f-4be2-91bb-a06074978e0e">
-			<button type="button" id="add">Add</button>
-		</div>
-		<button type="button" class="ghost" id="load" style="margin-top:12px;width:100%">Load list</button>
+		<button type="button" id="go">Open list</button>
 		<div class="status" id="status"></div>
-		<ul id="list"></ul>
-		<p class="empty" id="empty">No UUIDs yet.</p>
 	</main>
 	<script>
 		const admin = document.getElementById("admin");
-		const uuid = document.getElementById("uuid");
 		const status = document.getElementById("status");
-		const list = document.getElementById("list");
-		const empty = document.getElementById("empty");
+		const go = document.getElementById("go");
 		admin.value = sessionStorage.getItem("voidmark-admin") || "";
-
-		function setStatus(ok, text) {
-			status.className = "status " + (ok ? "ok" : "err");
-			status.textContent = text;
-		}
-
-		function draw(uuids) {
-			list.innerHTML = "";
-			empty.style.display = uuids.length ? "none" : "block";
-			for (const id of uuids) {
-				const item = document.createElement("li");
-				const label = document.createElement("span");
-				label.textContent = id;
-				const remove = document.createElement("button");
-				remove.type = "button";
-				remove.className = "ghost";
-				remove.textContent = "Remove";
-				remove.onclick = () => send("DELETE", id);
-				item.append(label, remove);
-				list.append(item);
-			}
-		}
-
-		async function send(method, id) {
+		async function enter() {
 			const key = admin.value.trim();
-			sessionStorage.setItem("voidmark-admin", key);
+			status.textContent = "Checking…";
+			status.className = "status";
+			go.disabled = true;
 			try {
 				const response = await fetch("/api/whitelist", {
-					method,
+					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ admin: key, uuid: id || undefined })
+					body: JSON.stringify({ admin: key })
 				});
 				const data = await response.json();
-				if (!response.ok) throw new Error(data.error || "Failed");
-				draw(data.uuids || []);
-				setStatus(true, method === "DELETE" ? "Removed." : (id ? "Whitelisted. They can set a cape in Voidmark." : "Loaded."));
-				if (id && method !== "DELETE") uuid.value = "";
+				if (!response.ok) throw new Error(data.error || "Bad admin key");
+				sessionStorage.setItem("voidmark-admin", key);
+				location.href = "/manage.html";
 			} catch (error) {
-				setStatus(false, error.message);
+				sessionStorage.removeItem("voidmark-admin");
+				status.className = "status err";
+				status.textContent = error.message;
+			} finally {
+				go.disabled = false;
 			}
 		}
-
-		document.getElementById("load").onclick = () => send("POST");
-		document.getElementById("add").onclick = () => {
-			if (!uuid.value.trim()) { setStatus(false, "Paste a UUID"); return; }
-			send("PUT", uuid.value.trim());
-		};
+		go.onclick = enter;
+		admin.addEventListener("keydown", (event) => { if (event.key === "Enter") enter(); });
+		if (admin.value) enter();
 	</script>
 </body>
 </html>

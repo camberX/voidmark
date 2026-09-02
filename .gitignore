@@ -24,7 +24,7 @@ agent-tools/
 libs/
 *.jar
 web/data/whitelist.json
-web/data/tokens.json
+web/data/names.json
 web/data/capes/*.png
 !web/data/capes/.gitkeep
 web/node_modules/
