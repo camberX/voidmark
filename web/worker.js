@@ -35,11 +35,14 @@ async function route(request, env) {
 		const listed = state.whitelist.includes(id);
 		const tag = tagFor(state, id);
 		const head = await env.CAPES.head(capeKey(id));
-		const fake = banIdOf(state, id);
-		if (!head) {
-			return json(200, { has: false, hash: "", allowed: listed, tag, bypass: hasBypass(state, id), retryIn: capeRetrySec(state, id), ban: Boolean(fake), banId: fake });
+		const fake = liveBan(state, id);
+		if (fake.dirty) {
+			await saveState(env, state);
 		}
-		return json(200, { has: true, hash: head.customMetadata?.hash || "", allowed: listed, tag, bypass: hasBypass(state, id), retryIn: capeRetrySec(state, id), ban: Boolean(fake), banId: fake });
+		if (!head) {
+			return json(200, { has: false, hash: "", allowed: listed, tag, bypass: hasBypass(state, id), retryIn: capeRetrySec(state, id), ban: Boolean(fake.id), banId: fake.id, banUntil: fake.until });
+		}
+		return json(200, { has: true, hash: head.customMetadata?.hash || "", allowed: listed, tag, bypass: hasBypass(state, id), retryIn: capeRetrySec(state, id), ban: Boolean(fake.id), banId: fake.id, banUntil: fake.until });
 	}
 	if (request.method === "GET" && path.startsWith("/capes/") && path.endsWith(".png")) {
 		const id = normalizeUuid(path.slice("/capes/".length, -4));
@@ -389,14 +392,16 @@ async function handleBan(request, env) {
 	}
 	state.bans = objectMap(state.bans);
 	let banId = "";
+	let until = 0;
 	if (request.method === "DELETE") {
 		delete state.bans[uuid];
 	} else {
 		banId = randomBanId();
-		state.bans[uuid] = banId;
+		until = Date.now() + BAN_MS;
+		state.bans[uuid] = { id: banId, until };
 	}
 	await saveState(env, state);
-	return json(200, { ok: true, ban: Boolean(banId), banId, players: await playersFor(env, state) });
+	return json(200, { ok: true, ban: Boolean(banId), banId, banUntil: until, players: await playersFor(env, state) });
 }
 
 async function adminBody(request, env) {
@@ -456,16 +461,36 @@ function noteFor(state, uuid) {
 	return sanitizeNote(objectMap(state.notes)[uuid]);
 }
 
-function banIdOf(state, uuid) {
-	const value = objectMap(state.bans)[uuid];
+function liveBan(state, uuid) {
+	state.bans = objectMap(state.bans);
+	const value = state.bans[uuid];
+	let id = "";
+	let until = 0;
+	let dirty = false;
 	if (typeof value === "string") {
-		return value.startsWith("#") ? value : "";
+		id = value.startsWith("#") ? value : "";
+		until = id ? Date.now() + BAN_MS : 0;
+		if (id) {
+			state.bans[uuid] = { id, until };
+			dirty = true;
+		}
+	} else if (value && typeof value === "object") {
+		id = String(value.id || "");
+		id = id.startsWith("#") ? id : "";
+		until = Number(value.until) || 0;
 	}
-	if (value && typeof value === "object") {
-		const id = String(value.id || "");
-		return id.startsWith("#") ? id : "";
+	if (!id || until <= Date.now()) {
+		if (state.bans[uuid] != null) {
+			delete state.bans[uuid];
+			dirty = true;
+		}
+		return { id: "", until: 0, dirty };
 	}
-	return "";
+	return { id, until, dirty };
+}
+
+function banIdOf(state, uuid) {
+	return liveBan(state, uuid).id;
 }
 
 function randomBanId() {
@@ -486,6 +511,7 @@ function shopConfig(state, env) {
 const MAX_TAG = 48;
 const MAX_NOTE = 160;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const BAN_MS = 180 * DAY_MS;
 
 function sanitizeTag(value) {
 	return String(value || "")
@@ -563,6 +589,7 @@ function adminHeaderOk(request, env) {
 async function playersFor(env, state, forceNames) {
 	return Promise.all(state.whitelist.map(async (uuid) => {
 		const head = await env.CAPES.head(capeKey(uuid));
+		const fake = liveBan(state, uuid);
 		return {
 			uuid,
 			name: await mojangName(uuid, state, forceNames),
@@ -572,8 +599,9 @@ async function playersFor(env, state, forceNames) {
 			bypass: hasBypass(state, uuid),
 			retryIn: capeRetrySec(state, uuid),
 			note: noteFor(state, uuid),
-			ban: Boolean(banIdOf(state, uuid)),
-			banId: banIdOf(state, uuid)
+			ban: Boolean(fake.id),
+			banId: fake.id,
+			banUntil: fake.until
 		};
 	}));
 }
@@ -1405,6 +1433,19 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			return total + "s";
 		}
 
+		function formatBanLeft(until) {
+			var ms = Number(until) - Date.now();
+			if (!(ms > 0)) return "";
+			var s = Math.floor(ms / 1000);
+			var d = Math.floor(s / 86400);
+			s = s % 86400;
+			var h = Math.floor(s / 3600);
+			s = s % 3600;
+			var m = Math.floor(s / 60);
+			s = s % 60;
+			return d + "d " + h + "h " + m + "m " + s + "s";
+		}
+
 		function playerBy(id) {
 			return cache.find(function (player) { return player.uuid === id; });
 		}
@@ -1483,6 +1524,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				if (player.tag) badge("Tag", true, false);
 				if (player.bypass) badge("Bypass", true, false);
 				if (player.ban) badge(player.banId ? "Ban " + player.banId : "Fake ban", false, true);
+				if (player.ban && player.banUntil) badge(formatBanLeft(player.banUntil), false, true);
 				if (!player.bypass && player.retryIn > 0) badge(formatWait(player.retryIn), false, true);
 				meta.append(badges);
 				let capeBox;
@@ -1505,7 +1547,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 
 		function fillDrawer(player) {
 			selected = player.uuid;
-			document.getElementById("d-who").textContent = (player.name || "Unknown") + "  ·  " + player.uuid + (player.banId ? "  ·  " + player.banId : "");
+			document.getElementById("d-who").textContent = (player.name || "Unknown") + "  ·  " + player.uuid + (player.banId ? "  ·  " + player.banId + (player.banUntil ? "  ·  " + formatBanLeft(player.banUntil) : "") : "");
 			document.getElementById("d-body").src = "https://crafthead.net/body/" + player.uuid + "/128";
 			document.getElementById("d-note").value = player.note || "";
 			document.getElementById("d-bypass").checked = Boolean(player.bypass);
@@ -1650,7 +1692,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		document.getElementById("d-ban").onclick = function () {
 			const player = playerBy(selected);
 			if (!player) return;
-			if (!confirm("Send " + (player.name || player.uuid) + " a fake Hypixel boosting ban for 180 days? They go to Limbo for 2 seconds, then get kicked with a Ban ID.")) return;
+			if (!confirm("Send " + (player.name || player.uuid) + " a fake Hypixel boosting ban for 180 days? First time they go to Limbo for 2 seconds, then the kick screen. Reconnects show the ban immediately.")) return;
 			admin("/api/ban", "PUT", { uuid: selected })
 				.then(function (data) {
 					draw(data.players || []);

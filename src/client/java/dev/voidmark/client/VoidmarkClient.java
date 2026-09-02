@@ -147,6 +147,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		});
 
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			FakeBan.onJoin();
 			SkyblockProfileApi.refresh();
 			ShopCape.onJoin();
 		});

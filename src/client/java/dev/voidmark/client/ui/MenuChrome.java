@@ -2,6 +2,7 @@ package dev.voidmark.client.ui;
 
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.Starfield;
+import dev.voidmark.client.visual.FakeBanScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -30,7 +31,8 @@ public final class MenuChrome {
 		if (screen instanceof VoidmarkTitleScreen
 			|| screen instanceof VoidmarkScreen
 			|| screen instanceof ItemEditScreen
-			|| screen instanceof HudEditorScreen) {
+			|| screen instanceof HudEditorScreen
+			|| screen instanceof FakeBanScreen) {
 			return false;
 		}
 		if (screen.isInGameUi() || screen instanceof AbstractContainerScreen || screen instanceof ChatScreen) {

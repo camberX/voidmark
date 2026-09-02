@@ -95,11 +95,15 @@ async function route(req, res) {
 			return;
 		}
 		const file = capePath(id);
+		const fake = liveBan(id);
+		if (fake.dirty) {
+			await saveJson(join(DATA, "bans.json"), store.bans);
+		}
 		if (!existsSync(file)) {
-			json(res, 200, { has: false, hash: "", allowed: whitelisted(id), tag: tagFor(id), bypass: hasBypass(id), retryIn: capeRetrySec(id), ban: Boolean(banIdOf(id)), banId: banIdOf(id) });
+			json(res, 200, { has: false, hash: "", allowed: whitelisted(id), tag: tagFor(id), bypass: hasBypass(id), retryIn: capeRetrySec(id), ban: Boolean(fake.id), banId: fake.id, banUntil: fake.until });
 			return;
 		}
-		json(res, 200, { has: true, hash: hashFile(file), allowed: whitelisted(id), tag: tagFor(id), bypass: hasBypass(id), retryIn: capeRetrySec(id), ban: Boolean(banIdOf(id)), banId: banIdOf(id) });
+		json(res, 200, { has: true, hash: hashFile(file), allowed: whitelisted(id), tag: tagFor(id), bypass: hasBypass(id), retryIn: capeRetrySec(id), ban: Boolean(fake.id), banId: fake.id, banUntil: fake.until });
 		return;
 	}
 	if (req.method === "GET" && path.startsWith("/capes/") && path.endsWith(".png")) {
@@ -354,14 +358,16 @@ async function handleBan(req, res) {
 		return;
 	}
 	let banId = "";
+	let until = 0;
 	if (req.method === "DELETE") {
 		delete store.bans[uuid];
 	} else {
 		banId = randomBanId();
-		store.bans[uuid] = banId;
+		until = Date.now() + BAN_MS;
+		store.bans[uuid] = { id: banId, until };
 	}
 	await saveJson(join(DATA, "bans.json"), store.bans);
-	json(res, 200, { ok: true, ban: Boolean(banId), banId, players: await playersFor(store.whitelist) });
+	json(res, 200, { ok: true, ban: Boolean(banId), banId, banUntil: until, players: await playersFor(store.whitelist) });
 }
 
 async function handleNote(req, res) {
@@ -520,6 +526,7 @@ async function playersFor(uuids, forceNames) {
 	const players = await Promise.all(uuids.map(async (uuid) => {
 		const file = capePath(uuid);
 		const has = existsSync(file);
+		const fake = liveBan(uuid);
 		return {
 			uuid,
 			name: await mojangName(uuid, forceNames),
@@ -529,8 +536,9 @@ async function playersFor(uuids, forceNames) {
 			bypass: hasBypass(uuid),
 			retryIn: capeRetrySec(uuid),
 			note: noteFor(uuid),
-			ban: Boolean(banIdOf(uuid)),
-			banId: banIdOf(uuid)
+			ban: Boolean(fake.id),
+			banId: fake.id,
+			banUntil: fake.until
 		};
 	}));
 	await saveJson(join(DATA, "names.json"), store.names);
@@ -563,16 +571,31 @@ function randomBanId() {
 	return "#" + randomBytes(4).toString("hex").toUpperCase();
 }
 
-function banIdOf(uuid) {
+function liveBan(uuid) {
 	const value = store.bans[uuid];
+	let id = "";
+	let until = 0;
+	let dirty = false;
 	if (typeof value === "string") {
-		return value.startsWith("#") ? value : "";
+		id = value.startsWith("#") ? value : "";
+		until = id ? Date.now() + BAN_MS : 0;
+		if (id) {
+			store.bans[uuid] = { id, until };
+			dirty = true;
+		}
+	} else if (value && typeof value === "object") {
+		id = String(value.id || "");
+		id = id.startsWith("#") ? id : "";
+		until = Number(value.until) || 0;
 	}
-	if (value && typeof value === "object") {
-		const id = String(value.id || "");
-		return id.startsWith("#") ? id : "";
+	if (!id || until <= Date.now()) {
+		if (store.bans[uuid] != null) {
+			delete store.bans[uuid];
+			dirty = true;
+		}
+		return { id: "", until: 0, dirty };
 	}
-	return "";
+	return { id, until, dirty };
 }
 
 function sanitizeUsername(value) {
@@ -699,6 +722,7 @@ function shopConfig() {
 const MAX_TAG = 48;
 const MAX_NOTE = 160;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const BAN_MS = 180 * DAY_MS;
 
 function sanitizeTag(value) {
 	return String(value || "")

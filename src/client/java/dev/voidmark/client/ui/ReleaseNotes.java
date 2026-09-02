@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.118", new String[]{
+			"Fake boosting bans match Hypixel: 180d countdown, Boosting detected on one or multiple SkyBlock profiles, and reconnects skip Limbo."
+		}),
 		new Entry("1.1.117", new String[]{
 			"Admin Fake ban sends you to Limbo for 2 seconds, then a 180-day Hypixel Boosting kick with a random Ban ID."
 		}),
