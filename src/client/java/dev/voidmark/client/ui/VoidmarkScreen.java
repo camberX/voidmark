@@ -48,7 +48,6 @@ public class VoidmarkScreen extends Screen {
 	private static final float CARD_PAD = 8;
 	private static final float CARD_HEAD = 20;
 	private static final float ACTION_W = 54;
-	private static final float RESET_W = 44;
 	private static final float ICON_SLOT = 14;
 	private static final float PICKER_W = 132;
 	private static final float PICKER_H = 122;
@@ -806,14 +805,8 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.menu(graphics, font, "HUD", x + (ACTION_W - GuiDraw.menuWidth(font, "HUD")) / 2f, labelY, Theme.TEXT);
 		hits.add(new Hit(x, y, ACTION_W, 14, () -> minecraft.setScreen(new HudEditorScreen())));
 
-		float resetX = x + ACTION_W + 4;
-		boolean resetHover = GuiDraw.hovered(mouseX, mouseY, resetX, y, RESET_W, 14);
-		GuiDraw.panel(graphics, resetX, y, RESET_W, 14, 5, resetHover ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
-		GuiDraw.menu(graphics, font, "Reset", resetX + (RESET_W - GuiDraw.menuWidth(font, "Reset")) / 2f, labelY, Theme.TEXT);
-		hits.add(new Hit(resetX, y, RESET_W, 14, this::resetCurrentPage));
-
-		float titleX = resetX + RESET_W + 8;
-		float searchMax = w - ACTION_W - RESET_W - 8 - ICON_SLOT * 3 - 8;
+		float titleX = x + ACTION_W + 8;
+		float searchMax = w - ACTION_W - 8 - ICON_SLOT * 3 - 8;
 		searchFieldX = titleX;
 		searchFieldW = Mth.lerp(searchT, 72, Math.max(72, searchMax));
 
@@ -876,125 +869,6 @@ public class VoidmarkScreen extends Screen {
 			trimmed = trimmed.substring(0, trimmed.length() - 1);
 		}
 		return trimmed + "..";
-	}
-
-	private void resetCurrentPage() {
-		VoidmarkConfig config = VoidmarkConfig.get();
-		UnloadState.markDirty();
-		switch (tab) {
-			case WORLD -> {
-				config.worldTintEnabled = false;
-				config.worldTintRgb = 0x2FB5FF;
-				config.worldTintStrength = 0.70f;
-				config.worldTintMode = "shader";
-				config.skyTintEnabled = false;
-				config.skyTintRgb = 0x1B4F8A;
-				config.skyTintStrength = 0.70f;
-				config.matchSkyToWorld = true;
-				config.aspectEnabled = false;
-				config.aspectRatio = 1.0f;
-				config.fogEnabled = false;
-				config.fogRgb = 0x8EC8FF;
-				config.fogStart = 0.12f;
-				config.fogEnd = 0.72f;
-				config.fogDensity = 1.0f;
-				config.matchFogToWorld = false;
-			}
-			case ESP -> {
-				config.mobGlowEnabled = false;
-				config.mobGlowThroughWalls = true;
-				config.blockOutlineGlow = true;
-				config.blockOutlineRgb = 0x2FB5FF;
-				config.blockOutlineOpacity = 0.58f;
-				config.mobGlowId = "";
-				config.mobGlowIds = new ArrayList<>();
-				config.mobGlowSize = 0.48f;
-				config.mobGlowOpacity = 0.58f;
-				config.mobGlowRgb = 0x2FB5FF;
-				config.boxFill = true;
-				config.boxOutline = true;
-				config.tracersEnabled = true;
-				config.throughWalls = true;
-				config.fillOpacity = 0.32f;
-				config.colorRgb = 0x2FB5FF;
-				config.nametagsEnabled = true;
-				config.nametagThroughWalls = false;
-				config.nametagDistance = true;
-				config.nametagRange = 128;
-				config.nametagScale = 1.0f;
-				config.nametagOpacity = 1.0f;
-				mobQuery = "";
-				mobScroll = 0f;
-			}
-			case OVERLAY -> {
-				config.watermarkEnabled = true;
-				config.hudWatermarkX = -1f;
-				config.hudWatermarkY = -1f;
-				config.hudWatermarkScale = 1.0f;
-				config.musicHudEnabled = true;
-				config.musicHideIdle = false;
-				config.hudMusicX = -1f;
-				config.hudMusicY = -1f;
-				config.hudMusicScale = 1.0f;
-				config.rawmatsHudEnabled = true;
-				config.rawmatsEnchanted = false;
-				config.hudRawmatsX = -1f;
-				config.hudRawmatsY = -1f;
-				config.hudRawmatsScale = 1.0f;
-				config.inventoryHudEnabled = true;
-				config.inventoryHudHotbar = true;
-				config.inventoryHudArmor = true;
-				config.inventoryHudCount = true;
-				config.inventoryHudAnchor = "bottom_right";
-				config.inventoryHudScale = 1.0f;
-				config.hudInventoryX = -1f;
-				config.hudInventoryY = -1f;
-			}
-			case BARS -> {
-				config.hudHotbar = true;
-				config.hudHealth = true;
-				config.hudHunger = true;
-				config.hudArmor = true;
-				config.hudAir = true;
-				config.hudExperience = true;
-				config.hudScoreboard = true;
-				config.hudBossBar = true;
-				config.hudEffects = true;
-				config.hudHeldItem = true;
-				config.hudMountHealth = true;
-				config.resetHudSlots();
-			}
-			case NODES -> {
-				config.markersEnabled = true;
-				config.onlyInTheEnd = true;
-				config.forceEnable = false;
-				config.blockScan = true;
-				config.particleDetection = true;
-				config.scanRadius = 48;
-				config.hudEnabled = true;
-				config.hudNodesX = -1f;
-				config.hudNodesY = -1f;
-				config.hudNodesScale = 1.0f;
-			}
-			case MINING -> {
-				config.miningHudEnabled = true;
-				config.miningAbilityAlert = true;
-				config.titaniumEsp = true;
-				config.titaniumEspThroughWalls = true;
-				config.titaniumEspRange = 48;
-				config.titaniumEspRgb = 0xE8ECF2;
-				config.hudMiningX = -1f;
-				config.hudMiningY = -1f;
-				config.hudMiningScale = 1.0f;
-			}
-			case PLAYER -> {
-				config.nickEnabled = false;
-				config.nick = "";
-				capeUrlDraft = "";
-				CustomCape.clear();
-			}
-		}
-		WorldTint.syncChunkMeshes(minecraft);
 	}
 
 	private void drawSearchResults(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
@@ -1621,7 +1495,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.98");
+			.orElse("1.1.99");
 	}
 
 	@Override

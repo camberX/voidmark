@@ -8,6 +8,10 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.99", new String[]{
+			"Removed the toolbar Reset button.",
+			"Adjacent Titanium ESP ores merge into one outline."
+		}),
 		new Entry("1.1.98", new String[]{
 			"Player preview is larger, still inside the You card."
 		}),
