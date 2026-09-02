@@ -111,6 +111,7 @@ public final class VoidmarkConfig {
 	public float menuY = -1f;
 	public boolean menuPlaced = false;
 	public String menuTab = "WORLD";
+	public String changelogSeen = "";
 	public float themePaneOpacity = 0.90f;
 	public String capeUrl = "";
 	public String capePath = "";
@@ -223,6 +224,9 @@ public final class VoidmarkConfig {
 				}
 				if (loaded.nick == null) {
 					loaded.nick = "";
+				}
+				if (loaded.changelogSeen == null) {
+					loaded.changelogSeen = "";
 				}
 				loaded.nametagRange = clamp(loaded.nametagRange <= 0 ? 128 : loaded.nametagRange, 64, 256);
 				loaded.nametagScale = clampHudScale(loaded.nametagScale);

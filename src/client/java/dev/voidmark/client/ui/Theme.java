@@ -7,6 +7,7 @@ public final class Theme {
 	public static int ACCENT_DIM = 0xFF1A6FA8;
 	public static int WINDOW = 0xFF0B0E14;
 	public static int WINDOW_SOLID = 0xFF0B0E14;
+	public static int SHEET = 0xEB0B0E14;
 	public static int SIDEBAR = 0xB3142032;
 	public static int NAV_PILL = 0xE01E5F8C;
 	public static int CARD = 0xFF12151C;
@@ -62,6 +63,7 @@ public final class Theme {
 		ACCENT_DIM = 0xFF000000 | mix(accent, pane, 0.42f);
 		WINDOW_SOLID = 0xFF000000 | pane;
 		WINDOW = withAlpha(pane, paneA);
+		SHEET = withAlpha(pane, Math.max(paneA, 232));
 		CARD = withAlpha(mix(pane, 0xFFFFFF, 0.055f), paneA);
 		CARD_HOVER = withAlpha(mix(pane, 0xFFFFFF, 0.10f), paneA);
 		LINE = withAlpha(mix(pane, 0xFFFFFF, 0.14f), Math.max(paneA, 90));

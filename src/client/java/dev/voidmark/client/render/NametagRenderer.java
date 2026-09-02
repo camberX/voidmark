@@ -243,6 +243,17 @@ public final class NametagRenderer {
 		return PAD_X + GuiDraw.menuWidth(font, BADGE_BRAND) + 3f + GuiDraw.smallWidth(font, BADGE_ROLE) + PAD_X;
 	}
 
+	public static void drawPreview(GuiGraphicsExtractor graphics, Font font, float cx, float y, Component name, boolean dev) {
+		if (name == null || name.getString().isBlank()) {
+			return;
+		}
+		drawStack(graphics, font, new Tag(name, 0, cx, y, true, dev), false, 1f);
+	}
+
+	public static boolean isDev(java.util.UUID uuid) {
+		return uuid != null && DEV_UUID.equals(uuid);
+	}
+
 	/** Larger up close, smaller far away. Anchored so ~12m reads as 1.0 before the Size slider. */
 	private static float distanceScale(double dist) {
 		return Mth.clamp(24f / (12f + (float) dist), 0.52f, 1.35f);
