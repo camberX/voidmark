@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class TitaniumTracker {
 	private static final TitaniumTracker INSTANCE = new TitaniumTracker();
 	private final Map<Long, BlockPos> blocks = new ConcurrentHashMap<>();
+	private List<BlockPos> view = List.of();
 	private int tick;
 
 	private TitaniumTracker() {
@@ -36,6 +37,7 @@ public final class TitaniumTracker {
 		if (!active() || client.player == null || client.level == null) {
 			if (!blocks.isEmpty()) {
 				blocks.clear();
+				view = List.of();
 			}
 			return;
 		}
@@ -57,16 +59,16 @@ public final class TitaniumTracker {
 			}
 			return !isTitanium(level.getBlockState(pos));
 		});
+		rebuildView();
 	}
 
 	public void clear() {
 		blocks.clear();
+		view = List.of();
 	}
 
 	public List<BlockPos> snapshot() {
-		ArrayList<BlockPos> copy = new ArrayList<>(blocks.values());
-		copy.sort(Comparator.comparingLong(BlockPos::asLong));
-		return List.copyOf(copy);
+		return view;
 	}
 
 	public int count() {
@@ -77,6 +79,12 @@ public final class TitaniumTracker {
 		return VoidmarkConfig.get().titaniumEsp
 			&& MiningTracker.hasTitaniumCommission()
 			&& MiningTracker.inMiningIsland();
+	}
+
+	private void rebuildView() {
+		ArrayList<BlockPos> copy = new ArrayList<>(blocks.values());
+		copy.sort(Comparator.comparingLong(BlockPos::asLong));
+		view = List.copyOf(copy);
 	}
 
 	public static boolean isTitanium(BlockState state) {
@@ -144,7 +152,10 @@ public final class TitaniumTracker {
 						if (z < minZ || z > maxZ) {
 							continue;
 						}
-						if (origin.distSqr(new BlockPos(x, y, z)) > radiusSq) {
+						long dx = x - origin.getX();
+						long dy = y - origin.getY();
+						long dz = z - origin.getZ();
+						if (dx * dx + dy * dy + dz * dz > radiusSq) {
 							continue;
 						}
 						if (isTitanium(section.getBlockState(lx, ly, lz))) {

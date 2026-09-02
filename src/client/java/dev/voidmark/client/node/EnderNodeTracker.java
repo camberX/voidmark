@@ -26,6 +26,8 @@ public final class EnderNodeTracker {
 	private static final long STALE_AFTER_MS = 8_000L;
 
 	private final Map<Long, TrackedNode> nodes = new ConcurrentHashMap<>();
+	private List<TrackedNode> view = List.of();
+	private boolean viewDirty = true;
 	private int tick;
 
 	private EnderNodeTracker() {
@@ -39,6 +41,8 @@ public final class EnderNodeTracker {
 		if (!SkyblockLocation.shouldMarkNodes() || client.player == null || client.level == null) {
 			if (!nodes.isEmpty() && !VoidmarkConfig.get().forceEnable) {
 				nodes.clear();
+				view = List.of();
+				viewDirty = false;
 			}
 			return;
 		}
@@ -67,6 +71,7 @@ public final class EnderNodeTracker {
 			}
 			return false;
 		});
+		viewDirty = true;
 	}
 
 	public void onParticle(double x, double y, double z, ParticleType<?> type) {
@@ -100,12 +105,19 @@ public final class EnderNodeTracker {
 
 	public void clear() {
 		nodes.clear();
+		view = List.of();
+		viewDirty = false;
 	}
 
 	public List<TrackedNode> snapshot() {
+		if (!viewDirty) {
+			return view;
+		}
 		ArrayList<TrackedNode> copy = new ArrayList<>(nodes.values());
 		copy.sort(Comparator.comparingLong(TrackedNode::packed));
-		return List.copyOf(copy);
+		view = List.copyOf(copy);
+		viewDirty = false;
+		return view;
 	}
 
 	public int count() {
@@ -187,7 +199,10 @@ public final class EnderNodeTracker {
 						if (z < minZ || z > maxZ) {
 							continue;
 						}
-						if (origin.distSqr(new BlockPos(x, y, z)) > radiusSq) {
+						long dx = x - origin.getX();
+						long dy = y - origin.getY();
+						long dz = z - origin.getZ();
+						if (dx * dx + dy * dy + dz * dz > radiusSq) {
 							continue;
 						}
 						BlockState state = section.getBlockState(lx, ly, lz);
@@ -203,6 +218,7 @@ public final class EnderNodeTracker {
 	private void remember(BlockPos pos, long now) {
 		long packed = pos.asLong();
 		nodes.put(packed, new TrackedNode(pos, packed, now));
+		viewDirty = true;
 	}
 
 	public static boolean isNodeBlock(BlockState state) {

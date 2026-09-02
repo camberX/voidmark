@@ -64,10 +64,6 @@ public final class VoidmarkConfig {
 	public boolean titaniumEspThroughWalls = true;
 	public int titaniumEspRange = 48;
 	public int titaniumEspRgb = 0xE8ECF2;
-	public boolean efficientMinerEsp = true;
-	public boolean efficientMinerThroughWalls = true;
-	public int miningSpread = 300;
-	public int efficientMinerRgb = 0x6CFF9A;
 	public boolean rawmatsEnchanted = false;
 	public String rawmatsItemId = "";
 	public boolean inventoryHudEnabled = true;
@@ -265,11 +261,6 @@ public final class VoidmarkConfig {
 				loaded.titaniumEspRgb = loaded.titaniumEspRgb & 0xFFFFFF;
 				if (loaded.titaniumEspRgb == 0) {
 					loaded.titaniumEspRgb = 0xE8ECF2;
-				}
-				loaded.miningSpread = clamp(loaded.miningSpread <= 0 ? 300 : loaded.miningSpread, 0, 2500);
-				loaded.efficientMinerRgb = loaded.efficientMinerRgb & 0xFFFFFF;
-				if (loaded.efficientMinerRgb == 0) {
-					loaded.efficientMinerRgb = 0x6CFF9A;
 				}
 				if (loaded.itemSkins == null) {
 					loaded.itemSkins = new java.util.ArrayList<>();

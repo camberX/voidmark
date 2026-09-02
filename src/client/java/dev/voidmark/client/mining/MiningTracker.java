@@ -23,10 +23,6 @@ public final class MiningTracker {
 	);
 	private static final Pattern PERCENT = Pattern.compile("^(\\d+(?:\\.\\d+)?)\\s*%$");
 	private static final Pattern RATIO = Pattern.compile("^(\\d+)\\s*/\\s*(\\d+)$");
-	private static final Pattern SPREAD = Pattern.compile(
-		"mining\\s*spread\\s*[:\\-–]?\\s*(\\d{1,4})",
-		Pattern.CASE_INSENSITIVE
-	);
 	private static final Pattern WIDGET = Pattern.compile(
 		"^(players?\\b|info|area\\b|server\\b|gems\\b|profile\\b|sb level|bank\\b|skills\\b|stats\\b|event\\b|pet\\b|powders?\\b|crystals?\\b|pickaxe ability|unclaimed|forges?\\b|timers\\b|party\\b|slayer\\b|active effects|bestiary|essence|collection|fire sales|election|north stars|guests\\b|coop\\b|island\\b|minions?\\b|account info|dungeon stats|player stats|puzzles\\b|opened rooms).*",
 		Pattern.CASE_INSENSITIVE
@@ -45,7 +41,6 @@ public final class MiningTracker {
 
 	private static final Object LOCK = new Object();
 	private static List<Commission> commissions = List.of();
-	private static int tabSpread;
 	private static String ability = "Pickaxe";
 	private static boolean abilityReady = true;
 	private static long cooldownUntil;
@@ -60,16 +55,13 @@ public final class MiningTracker {
 		if (client.player == null || client.level == null) {
 			synchronized (LOCK) {
 				commissions = List.of();
-				tabSpread = 0;
 			}
 			return;
 		}
 		List<String> lines = tabLines(client);
 		List<Commission> parsed = parseCommissions(lines);
-		int spread = parseSpread(lines);
 		synchronized (LOCK) {
 			commissions = parsed;
-			tabSpread = spread;
 			if (!abilityReady && System.currentTimeMillis() >= cooldownUntil) {
 				abilityReady = true;
 			}
@@ -98,7 +90,6 @@ public final class MiningTracker {
 	public static void reset() {
 		synchronized (LOCK) {
 			commissions = List.of();
-			tabSpread = 0;
 			ability = "Pickaxe";
 			abilityReady = true;
 			cooldownUntil = 0L;
@@ -220,31 +211,6 @@ public final class MiningTracker {
 			}
 		}
 		return false;
-	}
-
-	public static int tabSpread() {
-		synchronized (LOCK) {
-			return tabSpread;
-		}
-	}
-
-	public static int effectiveSpread() {
-		int parsed = tabSpread();
-		if (parsed > 0) {
-			return parsed;
-		}
-		return VoidmarkConfig.clamp(VoidmarkConfig.get().miningSpread, 0, 10_000);
-	}
-
-	private static int parseSpread(List<String> lines) {
-		int best = 0;
-		for (String raw : lines) {
-			Matcher matcher = SPREAD.matcher(cleanName(raw));
-			if (matcher.find()) {
-				best = Math.max(best, Integer.parseInt(matcher.group(1)));
-			}
-		}
-		return VoidmarkConfig.clamp(best, 0, 10_000);
 	}
 
 	private static List<Commission> parseCommissions(List<String> lines) {

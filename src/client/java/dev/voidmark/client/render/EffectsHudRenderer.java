@@ -23,6 +23,9 @@ public final class EffectsHudRenderer {
 	private static final float MIN_W = 72;
 	private static final int MAX = 8;
 
+	private static int cacheTick = Integer.MIN_VALUE;
+	private static List<MobEffectInstance> cache = List.of();
+
 	private EffectsHudRenderer() {
 	}
 
@@ -70,10 +73,17 @@ public final class EffectsHudRenderer {
 	}
 
 	private static List<MobEffectInstance> visible() {
-		LocalPlayer player = Minecraft.getInstance().player;
+		Minecraft client = Minecraft.getInstance();
+		int tick = client.player != null ? client.player.tickCount : -1;
+		if (tick == cacheTick) {
+			return cache;
+		}
+		LocalPlayer player = client.player;
 		List<MobEffectInstance> out = new ArrayList<>();
 		if (player == null) {
-			return out;
+			cacheTick = tick;
+			cache = List.of();
+			return cache;
 		}
 		for (MobEffectInstance instance : player.getActiveEffects()) {
 			if (instance.showIcon()) {
@@ -83,6 +93,8 @@ public final class EffectsHudRenderer {
 				break;
 			}
 		}
+		cacheTick = tick;
+		cache = out;
 		return out;
 	}
 

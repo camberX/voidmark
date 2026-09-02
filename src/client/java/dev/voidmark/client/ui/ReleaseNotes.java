@@ -8,6 +8,10 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.91", new String[]{
+			"Removed Efficient Miner prediction.",
+			"HUD stars and GUI fills cost less while looking the same."
+		}),
 		new Entry("1.1.90", new String[]{
 			"Mining Spread extras include face, edge, and corner diagonals."
 		}),

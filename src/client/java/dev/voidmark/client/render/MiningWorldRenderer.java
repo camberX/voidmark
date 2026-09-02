@@ -1,7 +1,6 @@
 package dev.voidmark.client.render;
 
 import dev.voidmark.client.config.VoidmarkConfig;
-import dev.voidmark.client.mining.EfficientMiner;
 import dev.voidmark.client.mining.TitaniumTracker;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
@@ -25,9 +24,7 @@ public final class MiningWorldRenderer {
 		if (client.player == null) {
 			return;
 		}
-		VoidmarkConfig config = VoidmarkConfig.get();
-		drawTitanium(config);
-		drawEfficientMiner(client, config);
+		drawTitanium(VoidmarkConfig.get());
 	}
 
 	private static void drawTitanium(VoidmarkConfig config) {
@@ -42,26 +39,6 @@ public final class MiningWorldRenderer {
 		GizmoStyle style = style(config.titaniumEspRgb, 0.38f, 2.2f);
 		for (BlockPos pos : blocks) {
 			box(pos, style, through);
-		}
-	}
-
-	private static void drawEfficientMiner(Minecraft client, VoidmarkConfig config) {
-		List<EfficientMiner.Target> extras = EfficientMiner.extras(client);
-		if (extras.isEmpty()) {
-			return;
-		}
-		boolean through = config.efficientMinerThroughWalls;
-		int rgb = config.efficientMinerRgb;
-		GizmoStyle sure = style(rgb, 0.42f, 2.6f);
-		GizmoStyle maybe = style(rgb, 0.22f, 1.8f);
-		GizmoStyle pool = style(rgb, 0.10f, 1.2f);
-		for (EfficientMiner.Target target : extras) {
-			GizmoStyle box = switch (target.kind()) {
-				case SURE -> sure;
-				case CHANCE -> maybe;
-				case POOL -> pool;
-			};
-			box(target.pos(), box, through);
 		}
 	}
 

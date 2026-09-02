@@ -18,6 +18,9 @@ import java.util.Set;
  */
 public final class MobGlowRenderer {
 	private static final double MAX_RANGE = 96.0;
+	private static final double MAX_RANGE_SQ = MAX_RANGE * MAX_RANGE;
+	private static List<String> cachedIds;
+	private static Set<EntityType<?>> cachedTypes = Set.of();
 
 	private MobGlowRenderer() {
 	}
@@ -57,7 +60,7 @@ public final class MobGlowRenderer {
 			return 0;
 		}
 		Vec3 camera = client.gameRenderer.getMainCamera().position();
-		if (entity.distanceToSqr(camera) > MAX_RANGE * MAX_RANGE) {
+		if (entity.distanceToSqr(camera) > MAX_RANGE_SQ) {
 			return 0;
 		}
 		if (!config.mobGlowThroughWalls && occluded(client, camera, entity.getEyePosition())) {
@@ -70,16 +73,20 @@ public final class MobGlowRenderer {
 
 	private static Set<EntityType<?>> selectedTypes() {
 		List<String> ids = VoidmarkConfig.get().mobGlowIds;
-		Set<EntityType<?>> types = new HashSet<>();
-		if (ids == null) {
-			return types;
+		if (ids == cachedIds) {
+			return cachedTypes;
 		}
-		for (String id : ids) {
-			EntityType<?> type = MobCatalog.type(id);
-			if (type != null) {
-				types.add(type);
+		cachedIds = ids;
+		Set<EntityType<?>> types = new HashSet<>();
+		if (ids != null) {
+			for (String id : ids) {
+				EntityType<?> type = MobCatalog.type(id);
+				if (type != null) {
+					types.add(type);
+				}
 			}
 		}
+		cachedTypes = types;
 		return types;
 	}
 

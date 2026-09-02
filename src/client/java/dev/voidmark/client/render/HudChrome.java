@@ -19,7 +19,7 @@ public final class HudChrome {
 		int accent
 	) {
 		GuiDraw.panel(graphics, x, y, w, h, radius, fill, outline, accent);
-		if (VoidmarkConfig.get().hudStarfield) {
+		if (VoidmarkConfig.get().hudStarfield && w >= 12f && h >= 12f) {
 			Starfield.drawHud(graphics, x, y, w, h, radius);
 		}
 	}

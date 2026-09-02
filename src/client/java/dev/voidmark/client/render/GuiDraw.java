@@ -36,22 +36,37 @@ public final class GuiDraw {
 	}
 
 	public static void fill(GuiGraphicsExtractor graphics, float x, float y, float w, float h, int color) {
-		if (w <= 0 || h <= 0) {
+		if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
 			return;
 		}
-		graphics.pose().pushMatrix();
-		graphics.pose().translate(x, y);
-		graphics.pose().scale(w, h);
-		graphics.fill(0, 0, 1, 1, color);
-		graphics.pose().popMatrix();
+		int x0 = Math.round(x);
+		int y0 = Math.round(y);
+		int x1 = Math.round(x + w);
+		int y1 = Math.round(y + h);
+		if (x1 <= x0) {
+			x1 = x0 + 1;
+		}
+		if (y1 <= y0) {
+			y1 = y0 + 1;
+		}
+		graphics.fill(x0, y0, x1, y1, color);
 	}
 
 	public static void fillGradient(GuiGraphicsExtractor graphics, float x, float y, float w, float h, int top, int bottom) {
-		graphics.pose().pushMatrix();
-		graphics.pose().translate(x, y);
-		graphics.pose().scale(w, h);
-		graphics.fillGradient(0, 0, 1, 1, top, bottom);
-		graphics.pose().popMatrix();
+		if (w <= 0 || h <= 0) {
+			return;
+		}
+		int x0 = Math.round(x);
+		int y0 = Math.round(y);
+		int x1 = Math.round(x + w);
+		int y1 = Math.round(y + h);
+		if (x1 <= x0) {
+			x1 = x0 + 1;
+		}
+		if (y1 <= y0) {
+			y1 = y0 + 1;
+		}
+		graphics.fillGradient(x0, y0, x1, y1, top, bottom);
 	}
 
 	/** Smooth HSV saturation/value square: 1px columns, vertical value gradient per column. */
@@ -84,7 +99,11 @@ public final class GuiDraw {
 	}
 
 	public static void circle(GuiGraphicsExtractor graphics, float cx, float cy, float radius, int color) {
-		if (radius <= 0) {
+		if (radius <= 0 || (color >>> 24) < 2) {
+			return;
+		}
+		if (radius <= 1.05f) {
+			fill(graphics, cx - radius, cy - radius, radius * 2f, radius * 2f, color);
 			return;
 		}
 		float d = radius * 2f;
@@ -169,6 +188,9 @@ public final class GuiDraw {
 	}
 
 	public static void rounded(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
+		if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
+			return;
+		}
 		float r = Math.min(radius, Math.min(w, h) / 2f);
 		if (r < 0.75f) {
 			fill(graphics, x, y, w, h, color);
