@@ -19,7 +19,7 @@ Origin has no Download ZIP. Do not type your Google password into Git.
    - `PAYPAL` → your Friends and Family email (plain text).
    - `PRICE` → `$1` (plain text).
 6. Deploy again if it asks.
-7. Open the Worker URL (`https://voidmark.cloud` or the `workers.dev` URL). The public shop is `/`. Admin login is `/admin.html`. That opens the cape desk: players, bulk add, shop copy, notes, cooldown reset, and cape upload.
+7. Open the Worker URL (`https://voidmark.cloud` or the `workers.dev` URL). The public shop is `/`. Admin login is `/admin.html`. That opens the cape desk: players, bulk add, notes, cooldown reset, and cape upload.
 8. The shipped mod always uses `https://voidmark.cloud`. Attach that custom domain to this Worker (Workers & Pages → `voidmark-capes` → Settings → Domains & Routes). Restart Minecraft after a domain change.
 
 ## 0. What you need (CLI path)

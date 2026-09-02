@@ -18,9 +18,6 @@
 		.sub { color: var(--muted); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; margin: 8px 0 22px; }
 		nav { display: grid; gap: 6px; }
 		nav button, .ghost, .warn, .danger, .primary { border: 0; border-radius: 10px; cursor: pointer; font: inherit; font-weight: 800; }
-		nav button { text-align: left; background: transparent; color: var(--muted); padding: 10px 12px; letter-spacing: 0.08em; text-transform: uppercase; font-size: 12px; }
-		nav button.on, nav button:hover { background: #101822; color: var(--text); }
-		nav button.on { box-shadow: inset 2px 0 0 var(--accent); color: var(--accent); }
 		.out { width: 100%; margin-top: 18px; background: #101822; color: var(--text); border: 1px solid var(--line); padding: 10px; }
 		.content { padding: 22px 22px 48px; }
 		.top { display: flex; justify-content: space-between; gap: 12px; align-items: end; flex-wrap: wrap; }
@@ -46,7 +43,7 @@
 		.status.ok { color: var(--ok); }
 		.status.err { color: var(--warn); }
 		.list { display: grid; gap: 10px; margin-top: 14px; }
-		.player { display: grid; grid-template-columns: 56px minmax(0, 1fr) 54px; gap: 12px; align-items: center; background: color-mix(in srgb, var(--pane) 88%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 12px; cursor: pointer; }
+		.player { display: grid; grid-template-columns: 56px minmax(0, 1fr) 54px; gap: 12px; align-items: center; background: #0e1420; border: 1px solid var(--line); border-radius: 16px; padding: 12px; cursor: pointer; }
 		.player:hover { border-color: #2a3a55; box-shadow: 0 0 0 1px rgba(47,181,255,0.15); }
 		.head { width: 56px; height: 56px; border-radius: 10px; background: #000; image-rendering: pixelated; }
 		.name { font-weight: 800; }
@@ -58,8 +55,7 @@
 		.cape { width: 42px; height: 66px; object-fit: contain; image-rendering: pixelated; justify-self: center; }
 		.nocape { color: var(--muted); font-size: 11px; text-align: center; }
 		.empty { color: var(--muted); padding: 28px 8px; }
-		.panel { display: none; }
-		.panel.on { display: block; }
+		.panel { display: block; }
 		.card { background: color-mix(in srgb, var(--pane) 88%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-top: 16px; }
 		label { display: block; margin: 0 0 6px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 800; }
 		textarea { width: 100%; min-height: 140px; resize: vertical; }
@@ -93,11 +89,6 @@
 		<aside class="rail">
 			<div class="brand">VOID<span>MARK</span></div>
 			<div class="sub">Cape desk</div>
-			<nav>
-				<button type="button" class="on" data-view="players">Players</button>
-				<button type="button" data-view="bulk">Bulk add</button>
-				<button type="button" data-view="shop">Shop</button>
-			</nav>
 			<button type="button" class="out ghost" id="out">Log out</button>
 		</aside>
 		<main class="content">
@@ -139,42 +130,14 @@
 					<button type="button" class="chip" data-filter="bypass">Bypass</button>
 					<button type="button" class="chip" data-filter="lock">On cooldown</button>
 				</div>
-				</div>
 				<p class="empty" id="empty">No players yet.</p>
 				<div class="list" id="list"></div>
-			</section>
-			<section class="panel" id="view-bulk">
-				<h1>BULK ADD</h1>
-				<p class="hint">One username or UUID per line. Up to 25 at a time.</p>
 				<div class="card">
-					<label for="bulktext">Names</label>
-					<textarea id="bulktext" placeholder="catOpsec&#10;Notch"></textarea>
+					<label for="bulktext">Bulk add</label>
+					<textarea id="bulktext" placeholder="One username or UUID per line" style="min-height:88px"></textarea>
 					<div class="row" style="margin-top:12px">
 						<button type="button" class="primary" id="bulkadd">Add all</button>
 					</div>
-				</div>
-			</section>
-			<section class="panel" id="view-shop">
-				<h1>SHOP</h1>
-				<p class="hint">This is what visitors see on voidmark.cloud.</p>
-				<div class="card">
-					<div class="field">
-						<label for="shop-title">Title</label>
-						<input id="shop-title" maxlength="48">
-					</div>
-					<div class="field">
-						<label for="shop-price">Price</label>
-						<input id="shop-price" maxlength="24">
-					</div>
-					<div class="field">
-						<label for="shop-paypal">PayPal email</label>
-						<input id="shop-paypal" maxlength="80">
-					</div>
-					<div class="field">
-						<label for="shop-blurb">Storefront blurb</label>
-						<textarea id="shop-blurb" maxlength="280" style="min-height:90px"></textarea>
-					</div>
-					<button type="button" class="primary" id="shopsave">Save shop</button>
 				</div>
 			</section>
 		</main>
@@ -554,12 +517,6 @@
 			else setStatus(true, "Loaded " + cache.length + " players.");
 		}
 
-		document.querySelectorAll("nav button").forEach(function (btn) {
-			btn.onclick = function () {
-				document.querySelectorAll("nav button").forEach(function (el) { el.classList.toggle("on", el === btn); });
-				document.querySelectorAll(".panel").forEach(function (el) { el.classList.toggle("on", el.id === "view-" + btn.dataset.view); });
-			};
-		});
 		document.querySelectorAll("#filters .chip").forEach(function (btn) {
 			btn.onclick = function () {
 				filter = btn.dataset.filter;
@@ -591,18 +548,10 @@
 		document.getElementById("bulkadd").onclick = function () {
 			admin("/api/bulk", "PUT", { text: document.getElementById("bulktext").value }).then(function (data) {
 				draw(data.players || []);
-				document.querySelector("nav button[data-view='players']").click();
+				document.getElementById("bulktext").value = "";
 				const fail = (data.failed || []).join(", ");
 				setStatus(true, "Added " + data.added + ". Skipped " + data.skipped + "." + (fail ? " Unknown: " + fail : ""));
 			}).catch(function (error) { setStatus(false, error.message); });
-		};
-		document.getElementById("shopsave").onclick = function () {
-			admin("/api/config", "PUT", {
-				title: document.getElementById("shop-title").value,
-				price: document.getElementById("shop-price").value,
-				paypal: document.getElementById("shop-paypal").value,
-				blurb: document.getElementById("shop-blurb").value
-			}).then(function () { setStatus(true, "Shop page updated."); }).catch(function (error) { setStatus(false, error.message); });
 		};
 		document.getElementById("out").onclick = function () {
 			sessionStorage.removeItem("voidmark-admin");
@@ -696,12 +645,6 @@
 		document.getElementById("tagclear").onclick = function () { saveTag(true); };
 		document.getElementById("tagcancel").onclick = closeTag;
 		tagbox.addEventListener("click", function (event) { if (event.target === tagbox) closeTag(); });
-		fetch("/api/config").then(function (response) { return response.json(); }).then(function (data) {
-			document.getElementById("shop-title").value = data.title || "";
-			document.getElementById("shop-price").value = data.price || "";
-			document.getElementById("shop-paypal").value = data.paypal || "";
-			document.getElementById("shop-blurb").value = data.blurb || "";
-		}).catch(function () {});
 		loadPlayers(false).catch(function (error) { setStatus(false, error.message); });
 	</script>
 </body>
