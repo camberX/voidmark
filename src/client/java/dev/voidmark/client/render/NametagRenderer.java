@@ -204,69 +204,27 @@ public final class NametagRenderer {
 		if (tag.plates) {
 			boolean showDist = showDistance && !tag.self;
 			Component name = tag.name;
-			float w = pillWidth(font.width(name), showDist ? distWidth(font, tag.dist) : 0f);
+			float nameW = pillWidth(font.width(name), showDist ? distWidth(font, tag.dist) : 0f);
+			float badgeW = tag.dev ? badgeWidth(font) : 0f;
+			float w = Math.max(nameW, badgeW);
+			float h = TAG_H + (tag.dev ? BADGE_H : 0f);
 			float x = -w * 0.5f;
-			float y = -2f - TAG_H;
-			GuiDraw.panel(graphics, x, y, w, TAG_H, 5, pane, line);
-			drawNameText(graphics, font, name, tag, x, y, w, showDist, alpha);
+			float y = -2f - h;
+			GuiDraw.panel(graphics, x, y, w, h, 5, pane, line);
 			if (tag.dev) {
-				drawBadge(graphics, font, x, y, w, true, pane, line, alpha);
+				drawBadgeText(graphics, font, x, y, w, alpha);
+				drawNameText(graphics, font, name, tag, x, y + BADGE_H, w, showDist, true, alpha);
+			} else {
+				drawNameText(graphics, font, name, tag, x, y, w, showDist, false, alpha);
 			}
 		} else if (tag.dev) {
-			float nameW = font.width(tag.name) + 2f;
-			drawBadge(graphics, font, -nameW * 0.5f, -11f, nameW, false, pane, line, alpha);
+			float badgeW = badgeWidth(font);
+			float bx = -badgeW * 0.5f;
+			float by = -14f - BADGE_H;
+			GuiDraw.panel(graphics, bx, by, badgeW, BADGE_H, 5, pane, line);
+			drawBadgeText(graphics, font, bx, by, badgeW, alpha);
 		}
 		graphics.pose().popMatrix();
-	}
-
-	private static void drawBadge(
-		GuiGraphicsExtractor graphics,
-		Font font,
-		float nx,
-		float ny,
-		float nameW,
-		boolean joinName,
-		int pane,
-		int line,
-		float alpha
-	) {
-		float badgeW = badgeWidth(font);
-		float bx = -badgeW * 0.5f;
-		float by = ny - BADGE_H;
-		GuiDraw.panel(graphics, bx, by, badgeW, BADGE_H, 5, pane, line);
-		if (joinName) {
-			stitch(graphics, bx, by, badgeW, nx, ny, nameW, pane, line);
-		} else {
-			GuiDraw.fill(graphics, bx + 1f, by + BADGE_H - 5f, badgeW - 2f, 5f, pane);
-			GuiDraw.fill(graphics, bx, by + BADGE_H - 1f, 1f, 2f, line);
-			GuiDraw.fill(graphics, bx + badgeW - 1f, by + BADGE_H - 1f, 1f, 2f, line);
-		}
-		drawBadgeText(graphics, font, bx, by, badgeW, alpha);
-	}
-
-	/**
-	 * Square the shared edge so the Dev pill sits on the name plate instead of
-	 * floating a gap above it.
-	 */
-	private static void stitch(
-		GuiGraphicsExtractor graphics,
-		float bx,
-		float by,
-		float badgeW,
-		float nx,
-		float ny,
-		float nameW,
-		int pane,
-		int line
-	) {
-		GuiDraw.fill(graphics, bx + 1f, by + BADGE_H - 5f, badgeW - 2f, 5f, pane);
-		float overlapL = Math.max(bx, nx);
-		float overlapR = Math.min(bx + badgeW, nx + nameW);
-		if (overlapR > overlapL + 2f) {
-			GuiDraw.fill(graphics, overlapL + 1f, ny, overlapR - overlapL - 2f, 2f, pane);
-		}
-		GuiDraw.fill(graphics, bx, by + BADGE_H - 1f, 1f, 2f, line);
-		GuiDraw.fill(graphics, bx + badgeW - 1f, by + BADGE_H - 1f, 1f, 2f, line);
 	}
 
 	private static void drawNameText(
@@ -278,13 +236,24 @@ public final class NametagRenderer {
 		float y,
 		float w,
 		boolean showDist,
+		boolean center,
 		float alpha
 	) {
-		GuiDraw.text(graphics, font, name, x + PAD_X, GuiDraw.middle(y, TAG_H), Anim.fade(0xFFFFFFFF, alpha), false);
+		float nameW = font.width(name);
+		float distW = showDist ? distWidth(font, tag.dist) : 0f;
+		float inner = nameW + (distW > 0f ? 5f + distW : 0f);
+		float tx = center ? x + (w - inner) * 0.5f : x + PAD_X;
+		GuiDraw.text(graphics, font, name, tx, GuiDraw.middle(y, TAG_H), Anim.fade(0xFFFFFFFF, alpha), false);
 		if (showDist) {
-			String dist = GuiDraw.meters(tag.dist);
-			float distX = x + w - PAD_X - font.width(dist);
-			GuiDraw.text(graphics, font, dist, distX, GuiDraw.middle(y, TAG_H), Anim.fade(Theme.MUTED, alpha), false);
+			GuiDraw.text(
+				graphics,
+				font,
+				GuiDraw.meters(tag.dist),
+				tx + nameW + 5f,
+				GuiDraw.middle(y, TAG_H),
+				Anim.fade(Theme.MUTED, alpha),
+				false
+			);
 		}
 	}
 
@@ -307,7 +276,7 @@ public final class NametagRenderer {
 	}
 
 	private static float badgeWidth(Font font) {
-		return 5f + GuiDraw.menuWidth(font, BADGE_BRAND) + 3f + GuiDraw.menuWidth(font, BADGE_ROLE) + 5f;
+		return PAD_X + GuiDraw.menuWidth(font, BADGE_BRAND) + 3f + GuiDraw.menuWidth(font, BADGE_ROLE) + PAD_X;
 	}
 
 	/** Vanilla nametag: default font, option background, white text, centered. */

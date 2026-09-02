@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.102", new String[]{
+			"VOIDMARK Dev and the name share one plate."
+		}),
 		new Entry("1.1.101", new String[]{
 			"VOIDMARK Dev still shows when custom nametags are off."
 		}),
