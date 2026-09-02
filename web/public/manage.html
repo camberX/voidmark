@@ -68,14 +68,14 @@
 			</div>
 			<div class="rule"></div>
 			<p>Whitelisted players. They can change their own cape once per 24 hours unless Upload bypass is checked. Head tag is the line above their nametag.</p>
-			<label for="uuid">Add UUID</label>
+			<label for="uuid">Add player</label>
 			<div class="add">
-				<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="f1b21931-667f-4be2-91bb-a06074978e0e">
+				<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="Username or UUID">
 				<button type="button" id="add">Add</button>
 			</div>
 			<div class="status" id="status"></div>
 		</header>
-		<p class="empty" id="empty">No UUIDs yet.</p>
+		<p class="empty" id="empty">No players yet.</p>
 		<div class="list" id="list"></div>
 	</main>
 	<div class="overlay" id="tagbox" hidden>
@@ -226,9 +226,11 @@
 
 		async function lookupName(id) {
 			const dashed = String(id || "");
+			const undashed = dashed.replace(/-/g, "");
 			const urls = [
-				["https://api.ashcon.app/mojang/v2/user/" + dashed, function (data) { return data.username || data.name; }],
-				["https://playerdb.co/api/player/minecraft/" + dashed, function (data) { return data && data.data && data.data.player ? data.data.player.username : ""; }]
+				["https://crafthead.net/profile/" + undashed, function (data) { return data.name; }],
+				["https://playerdb.co/api/player/minecraft/" + dashed, function (data) { return data && data.data && data.data.player ? data.data.player.username : ""; }],
+				["https://api.ashcon.app/mojang/v2/user/" + dashed, function (data) { return data.username || data.name; }]
 			];
 			for (const pair of urls) {
 				try {
@@ -243,13 +245,10 @@
 		}
 
 		function fillName(el, player) {
-			if (player.name) {
-				el.textContent = player.name;
-				return;
-			}
-			el.textContent = "Looking up…";
+			el.textContent = player.name || "Looking up…";
 			lookupName(player.uuid).then((name) => {
-				el.textContent = name || "Unknown";
+				if (name) el.textContent = name;
+				else if (!player.name) el.textContent = "Unknown";
 			});
 		}
 
@@ -458,7 +457,7 @@
 		}
 
 		document.getElementById("add").onclick = () => {
-			if (!uuid.value.trim()) { setStatus(false, "Paste a UUID"); return; }
+			if (!uuid.value.trim()) { setStatus(false, "Enter a username or UUID"); return; }
 			send("PUT", uuid.value.trim());
 		};
 		uuid.addEventListener("keydown", (event) => {

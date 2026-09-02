@@ -19,6 +19,7 @@ await mkdir(CAPES, { recursive: true });
 const store = {
 	whitelist: await loadJson(join(DATA, "whitelist.json"), []),
 	names: await loadJson(join(DATA, "names.json"), {}),
+	namesAt: await loadJson(join(DATA, "namesAt.json"), {}),
 	tags: await loadJson(join(DATA, "tags.json"), {}),
 	bypass: await loadJson(join(DATA, "bypass.json"), {}),
 	capeAt: await loadJson(join(DATA, "capeAt.json"), {}),
@@ -36,6 +37,9 @@ if (!store.bypass || typeof store.bypass !== "object" || Array.isArray(store.byp
 }
 if (!store.capeAt || typeof store.capeAt !== "object" || Array.isArray(store.capeAt)) {
 	store.capeAt = {};
+}
+if (!store.namesAt || typeof store.namesAt !== "object" || Array.isArray(store.namesAt)) {
+	store.namesAt = {};
 }
 
 const MIME = {
@@ -199,21 +203,28 @@ async function handleWhitelist(req, res) {
 		json(res, 403, { error: "Bad admin key" });
 		return;
 	}
-	if (req.method === "POST" && !body.uuid) {
-		json(res, 200, { uuids: store.whitelist, players: await playersFor(store.whitelist) });
+	if (req.method === "POST" && !body.uuid && !body.name) {
+		json(res, 200, { uuids: store.whitelist, players: await playersFor(store.whitelist, true) });
 		return;
 	}
-	const uuid = normalizeUuid(body.uuid);
-	if (!uuid) {
-		json(res, 400, { error: "Need a valid UUID" });
+	const resolved = await resolvePlayer(body.uuid || body.name);
+	if (!resolved.uuid) {
+		const raw = String(body.uuid || body.name || "").trim();
+		if (!raw) {
+			json(res, 400, { error: "Need a username or UUID" });
+			return;
+		}
+		if (sanitizeUsername(raw)) {
+			json(res, 404, { error: "Unknown player" });
+			return;
+		}
+		json(res, 400, { error: "Need a username or UUID" });
 		return;
 	}
+	const uuid = resolved.uuid;
 	if (req.method === "DELETE") {
 		store.whitelist = store.whitelist.filter((id) => id !== uuid);
-		delete store.names[uuid];
-		delete store.tags[uuid];
-		delete store.bypass[uuid];
-		delete store.capeAt[uuid];
+		forgetPlayer(uuid);
 		const file = capePath(uuid);
 		if (existsSync(file)) {
 			const { unlink } = await import("node:fs/promises");
@@ -222,12 +233,15 @@ async function handleWhitelist(req, res) {
 	} else if (!store.whitelist.includes(uuid)) {
 		store.whitelist.push(uuid);
 	}
-	await saveJson(join(DATA, "whitelist.json"), store.whitelist);
-	await saveJson(join(DATA, "names.json"), store.names);
-	await saveJson(join(DATA, "tags.json"), store.tags);
-	await saveJson(join(DATA, "bypass.json"), store.bypass);
-	await saveJson(join(DATA, "capeAt.json"), store.capeAt);
-	json(res, 200, { ok: true, uuids: store.whitelist, players: await playersFor(store.whitelist) });
+	if (req.method !== "DELETE" && resolved.name) {
+		rememberName(uuid, resolved.name);
+	}
+	const players = await playersFor(store.whitelist, req.method !== "DELETE" && !resolved.name);
+	if (req.method !== "DELETE" && resolved.name) {
+		rememberName(uuid, resolved.name);
+	}
+	await persistStore();
+	json(res, 200, { ok: true, uuids: store.whitelist, players });
 }
 
 async function handleTag(req, res) {
@@ -289,13 +303,22 @@ async function handleBypass(req, res) {
 	json(res, 200, { ok: true, bypass: Boolean(store.bypass[uuid]), players: await playersFor(store.whitelist) });
 }
 
-async function playersFor(uuids) {
-	return Promise.all(uuids.map(async (uuid) => {
+async function persistStore() {
+	await saveJson(join(DATA, "whitelist.json"), store.whitelist);
+	await saveJson(join(DATA, "names.json"), store.names);
+	await saveJson(join(DATA, "namesAt.json"), store.namesAt);
+	await saveJson(join(DATA, "tags.json"), store.tags);
+	await saveJson(join(DATA, "bypass.json"), store.bypass);
+	await saveJson(join(DATA, "capeAt.json"), store.capeAt);
+}
+
+async function playersFor(uuids, forceNames) {
+	const players = await Promise.all(uuids.map(async (uuid) => {
 		const file = capePath(uuid);
 		const has = existsSync(file);
 		return {
 			uuid,
-			name: await mojangName(uuid),
+			name: await mojangName(uuid, forceNames),
 			cape: has,
 			hash: has ? hashFile(file) : "",
 			tag: tagFor(uuid),
@@ -303,18 +326,60 @@ async function playersFor(uuids) {
 			retryIn: capeRetrySec(uuid)
 		};
 	}));
+	await saveJson(join(DATA, "names.json"), store.names);
+	await saveJson(join(DATA, "namesAt.json"), store.namesAt);
+	return players;
 }
 
-async function mojangName(uuid) {
-	if (typeof store.names[uuid] === "string" && store.names[uuid]) {
-		return store.names[uuid];
+const NAME_TTL_MS = 10 * 60 * 1000;
+
+function rememberName(uuid, name) {
+	const clean = String(name || "").trim();
+	if (!uuid || !clean) {
+		return;
+	}
+	store.names[uuid] = clean;
+	store.namesAt[uuid] = Date.now();
+}
+
+function forgetPlayer(uuid) {
+	delete store.names[uuid];
+	delete store.namesAt[uuid];
+	delete store.tags[uuid];
+	delete store.bypass[uuid];
+	delete store.capeAt[uuid];
+}
+
+function sanitizeUsername(value) {
+	const name = String(value || "").trim();
+	return /^[A-Za-z0-9_]{1,16}$/.test(name) ? name : "";
+}
+
+async function resolvePlayer(raw) {
+	const uuid = normalizeUuid(raw);
+	if (uuid) {
+		return { uuid, name: "" };
+	}
+	const name = sanitizeUsername(raw);
+	if (!name) {
+		return { uuid: "", name: "" };
+	}
+	const found = await lookupUuid(name);
+	return { uuid: found, name: found ? name : "" };
+}
+
+async function mojangName(uuid, force) {
+	const cached = typeof store.names[uuid] === "string" ? store.names[uuid] : "";
+	const at = Number(store.namesAt[uuid]) || 0;
+	if (!force && cached && Date.now() - at < NAME_TTL_MS) {
+		return cached;
 	}
 	const name = await lookupName(uuid);
 	if (name) {
-		store.names[uuid] = name;
-		await saveJson(join(DATA, "names.json"), store.names);
+		rememberName(uuid, name);
+		return name;
 	}
-	return name;
+	return cached;
 }
 
 async function lookupName(uuid) {
@@ -324,28 +389,64 @@ async function lookupName(uuid) {
 	}
 	const dashed = `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
 	const attempts = [
-		["https://api.ashcon.app/mojang/v2/user/" + dashed, (data) => data.username || data.name],
+		["https://sessionserver.mojang.com/session/minecraft/profile/" + id, (data) => data.name],
+		["https://crafthead.net/profile/" + id, (data) => data.name],
+		["https://mowojang.matdoes.dev/" + dashed, (data) => data.name],
 		["https://playerdb.co/api/player/minecraft/" + dashed, (data) => data?.data?.player?.username],
-		["https://sessionserver.mojang.com/session/minecraft/profile/" + id, (data) => data.name]
+		["https://api.ashcon.app/mojang/v2/user/" + dashed, (data) => data.username || data.name]
+	];
+	return firstString(attempts);
+}
+
+async function lookupUuid(name) {
+	const encoded = encodeURIComponent(name);
+	const attempts = [
+		["https://api.mojang.com/users/profiles/minecraft/" + encoded, (data) => data.id],
+		["https://mowojang.matdoes.dev/" + encoded, (data) => data.id],
+		["https://crafthead.net/profile/" + encoded, (data) => data.id],
+		["https://playerdb.co/api/player/minecraft/" + encoded, (data) => data?.data?.player?.id || data?.data?.player?.raw_id],
+		["https://api.ashcon.app/mojang/v2/user/" + encoded, (data) => data.uuid]
 	];
 	for (const pair of attempts) {
-		try {
-			const response = await fetch(pair[0], {
-				headers: { "User-Agent": "Voidmark" },
-				signal: AbortSignal.timeout(5000)
-			});
-			if (!response.ok) {
-				continue;
-			}
-			const data = await response.json();
-			const name = String(pair[1](data) || "").trim();
-			if (name) {
-				return name;
-			}
-		} catch {
+		const data = await fetchJson(pair[0]);
+		if (!data) {
+			continue;
+		}
+		const uuid = normalizeUuid(pair[1](data));
+		if (uuid) {
+			return uuid;
 		}
 	}
 	return "";
+}
+
+async function firstString(attempts) {
+	for (const pair of attempts) {
+		const data = await fetchJson(pair[0]);
+		if (!data) {
+			continue;
+		}
+		const value = String(pair[1](data) || "").trim();
+		if (value) {
+			return value;
+		}
+	}
+	return "";
+}
+
+async function fetchJson(url) {
+	try {
+		const response = await fetch(url, {
+			headers: { "User-Agent": "Voidmark" },
+			signal: AbortSignal.timeout(5000)
+		});
+		if (!response.ok) {
+			return null;
+		}
+		return await response.json();
+	} catch {
+		return null;
+	}
 }
 
 function whitelisted(uuid) {

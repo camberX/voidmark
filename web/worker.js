@@ -156,35 +156,40 @@ async function handleWhitelist(request, env) {
 		return json(403, { error: "Bad admin key" });
 	}
 	const state = await loadState(env);
-	if (request.method === "POST" && !body.uuid) {
-		const players = await playersFor(env, state);
+	if (request.method === "POST" && !body.uuid && !body.name) {
+		const players = await playersFor(env, state, true);
 		await saveState(env, state);
 		return json(200, { uuids: state.whitelist, players });
 	}
-	const uuid = normalizeUuid(body.uuid);
-	if (!uuid) {
-		return json(400, { error: "Need a valid UUID" });
+	const resolved = await resolvePlayer(body.uuid || body.name);
+	if (!resolved.uuid) {
+		const raw = String(body.uuid || body.name || "").trim();
+		if (!raw) {
+			return json(400, { error: "Need a username or UUID" });
+		}
+		if (sanitizeUsername(raw)) {
+			return json(404, { error: "Unknown player" });
+		}
+		return json(400, { error: "Need a username or UUID" });
 	}
+	const uuid = resolved.uuid;
 	if (request.method === "DELETE") {
 		state.whitelist = state.whitelist.filter((id) => id !== uuid);
-		if (state.names) {
-			delete state.names[uuid];
-		}
-		if (state.tags) {
-			delete state.tags[uuid];
-		}
-		if (state.bypass) {
-			delete state.bypass[uuid];
-		}
-		if (state.capeAt) {
-			delete state.capeAt[uuid];
-		}
+		forgetPlayer(state, uuid);
 		await env.CAPES.delete(capeKey(uuid));
 	} else if (!state.whitelist.includes(uuid)) {
 		state.whitelist.push(uuid);
 	}
+	if (request.method !== "DELETE" && resolved.name) {
+		rememberName(state, uuid, resolved.name);
+	}
 	await saveState(env, state);
-	return json(200, { ok: true, uuids: state.whitelist, players: await playersFor(env, state) });
+	const players = await playersFor(env, state, request.method !== "DELETE" && !resolved.name);
+	if (request.method !== "DELETE" && resolved.name) {
+		rememberName(state, uuid, resolved.name);
+		await saveState(env, state);
+	}
+	return json(200, { ok: true, uuids: state.whitelist, players });
 }
 
 async function handleTag(request, env) {
@@ -300,12 +305,12 @@ function adminHeaderOk(request, env) {
 	return Boolean(admin) && (request.headers.get("x-admin") || "") === admin;
 }
 
-async function playersFor(env, state) {
+async function playersFor(env, state, forceNames) {
 	return Promise.all(state.whitelist.map(async (uuid) => {
 		const head = await env.CAPES.head(capeKey(uuid));
 		return {
 			uuid,
-			name: await mojangName(uuid, state),
+			name: await mojangName(uuid, state, forceNames),
 			cape: Boolean(head),
 			hash: head?.customMetadata?.hash || "",
 			tag: tagFor(state, uuid),
@@ -315,16 +320,69 @@ async function playersFor(env, state) {
 	}));
 }
 
-async function mojangName(uuid, state) {
-	state.names = state.names && typeof state.names === "object" && !Array.isArray(state.names) ? state.names : {};
-	if (typeof state.names[uuid] === "string" && state.names[uuid]) {
-		return state.names[uuid];
+const NAME_TTL_MS = 10 * 60 * 1000;
+
+function rememberName(state, uuid, name) {
+	const clean = String(name || "").trim();
+	if (!uuid || !clean) {
+		return;
+	}
+	state.names = objectMap(state.names);
+	state.namesAt = objectMap(state.namesAt);
+	state.names[uuid] = clean;
+	state.namesAt[uuid] = Date.now();
+}
+
+function forgetPlayer(state, uuid) {
+	if (state.names) {
+		delete state.names[uuid];
+	}
+	if (state.namesAt) {
+		delete state.namesAt[uuid];
+	}
+	if (state.tags) {
+		delete state.tags[uuid];
+	}
+	if (state.bypass) {
+		delete state.bypass[uuid];
+	}
+	if (state.capeAt) {
+		delete state.capeAt[uuid];
+	}
+}
+
+function sanitizeUsername(value) {
+	const name = String(value || "").trim();
+	return /^[A-Za-z0-9_]{1,16}$/.test(name) ? name : "";
+}
+
+async function resolvePlayer(raw) {
+	const uuid = normalizeUuid(raw);
+	if (uuid) {
+		return { uuid, name: "" };
+	}
+	const name = sanitizeUsername(raw);
+	if (!name) {
+		return { uuid: "", name: "" };
+	}
+	const found = await lookupUuid(name);
+	return { uuid: found, name: found ? name : "" };
+}
+
+async function mojangName(uuid, state, force) {
+	state.names = objectMap(state.names);
+	state.namesAt = objectMap(state.namesAt);
+	const cached = typeof state.names[uuid] === "string" ? state.names[uuid] : "";
+	const at = Number(state.namesAt[uuid]) || 0;
+	if (!force && cached && Date.now() - at < NAME_TTL_MS) {
+		return cached;
 	}
 	const name = await lookupName(uuid);
 	if (name) {
-		state.names[uuid] = name;
+		rememberName(state, uuid, name);
+		return name;
 	}
-	return name;
+	return cached;
 }
 
 async function lookupName(uuid) {
@@ -334,46 +392,84 @@ async function lookupName(uuid) {
 	}
 	const dashed = `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
 	const attempts = [
-		["https://api.ashcon.app/mojang/v2/user/" + dashed, (data) => data.username || data.name],
+		["https://sessionserver.mojang.com/session/minecraft/profile/" + id, (data) => data.name],
+		["https://crafthead.net/profile/" + id, (data) => data.name],
+		["https://mowojang.matdoes.dev/" + dashed, (data) => data.name],
 		["https://playerdb.co/api/player/minecraft/" + dashed, (data) => data?.data?.player?.username],
-		["https://sessionserver.mojang.com/session/minecraft/profile/" + id, (data) => data.name]
+		["https://api.ashcon.app/mojang/v2/user/" + dashed, (data) => data.username || data.name]
+	];
+	return firstString(attempts);
+}
+
+async function lookupUuid(name) {
+	const encoded = encodeURIComponent(name);
+	const attempts = [
+		["https://api.mojang.com/users/profiles/minecraft/" + encoded, (data) => data.id],
+		["https://mowojang.matdoes.dev/" + encoded, (data) => data.id],
+		["https://crafthead.net/profile/" + encoded, (data) => data.id],
+		["https://playerdb.co/api/player/minecraft/" + encoded, (data) => data?.data?.player?.id || data?.data?.player?.raw_id],
+		["https://api.ashcon.app/mojang/v2/user/" + encoded, (data) => data.uuid]
 	];
 	for (const pair of attempts) {
-		try {
-			const response = await fetch(pair[0], {
-				headers: { "User-Agent": "Voidmark" },
-				signal: AbortSignal.timeout(5000)
-			});
-			if (!response.ok) {
-				continue;
-			}
-			const data = await response.json();
-			const name = String(pair[1](data) || "").trim();
-			if (name) {
-				return name;
-			}
-		} catch {
+		const data = await fetchJson(pair[0]);
+		if (!data) {
+			continue;
+		}
+		const uuid = normalizeUuid(pair[1](data));
+		if (uuid) {
+			return uuid;
 		}
 	}
 	return "";
 }
 
+async function firstString(attempts) {
+	for (const pair of attempts) {
+		const data = await fetchJson(pair[0]);
+		if (!data) {
+			continue;
+		}
+		const value = String(pair[1](data) || "").trim();
+		if (value) {
+			return value;
+		}
+	}
+	return "";
+}
+
+async function fetchJson(url) {
+	try {
+		const response = await fetch(url, {
+			headers: { "User-Agent": "Voidmark" },
+			signal: AbortSignal.timeout(5000)
+		});
+		if (!response.ok) {
+			return null;
+		}
+		return await response.json();
+	} catch {
+		return null;
+	}
+}
+
 async function loadState(env) {
+	const empty = { whitelist: [], names: {}, namesAt: {}, tags: {}, bypass: {}, capeAt: {} };
 	const object = await env.CAPES.get("state.json");
 	if (!object) {
-		return { whitelist: [], names: {}, tags: {}, bypass: {}, capeAt: {} };
+		return empty;
 	}
 	try {
 		const parsed = JSON.parse(await object.text());
 		return {
 			whitelist: Array.isArray(parsed.whitelist) ? parsed.whitelist : [],
 			names: objectMap(parsed.names),
+			namesAt: objectMap(parsed.namesAt),
 			tags: objectMap(parsed.tags),
 			bypass: objectMap(parsed.bypass),
 			capeAt: objectMap(parsed.capeAt)
 		};
 	} catch {
-		return { whitelist: [], names: {}, tags: {}, bypass: {}, capeAt: {} };
+		return empty;
 	}
 }
 
@@ -568,14 +664,14 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			</div>
 			<div class="rule"></div>
 			<p>Whitelisted players. They can change their own cape once per 24 hours unless Upload bypass is checked. Head tag is the line above their nametag.</p>
-			<label for="uuid">Add UUID</label>
+			<label for="uuid">Add player</label>
 			<div class="add">
-				<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="f1b21931-667f-4be2-91bb-a06074978e0e">
+				<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="Username or UUID">
 				<button type="button" id="add">Add</button>
 			</div>
 			<div class="status" id="status"></div>
 		</header>
-		<p class="empty" id="empty">No UUIDs yet.</p>
+		<p class="empty" id="empty">No players yet.</p>
 		<div class="list" id="list"></div>
 	</main>
 	<div class="overlay" id="tagbox" hidden>
@@ -726,9 +822,11 @@ const MANAGE_HTML = `<!DOCTYPE html>
 
 		async function lookupName(id) {
 			const dashed = String(id || "");
+			const undashed = dashed.replace(/-/g, "");
 			const urls = [
-				["https://api.ashcon.app/mojang/v2/user/" + dashed, function (data) { return data.username || data.name; }],
-				["https://playerdb.co/api/player/minecraft/" + dashed, function (data) { return data && data.data && data.data.player ? data.data.player.username : ""; }]
+				["https://crafthead.net/profile/" + undashed, function (data) { return data.name; }],
+				["https://playerdb.co/api/player/minecraft/" + dashed, function (data) { return data && data.data && data.data.player ? data.data.player.username : ""; }],
+				["https://api.ashcon.app/mojang/v2/user/" + dashed, function (data) { return data.username || data.name; }]
 			];
 			for (const pair of urls) {
 				try {
@@ -743,13 +841,10 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		}
 
 		function fillName(el, player) {
-			if (player.name) {
-				el.textContent = player.name;
-				return;
-			}
-			el.textContent = "Looking up…";
+			el.textContent = player.name || "Looking up…";
 			lookupName(player.uuid).then((name) => {
-				el.textContent = name || "Unknown";
+				if (name) el.textContent = name;
+				else if (!player.name) el.textContent = "Unknown";
 			});
 		}
 
@@ -958,7 +1053,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		}
 
 		document.getElementById("add").onclick = () => {
-			if (!uuid.value.trim()) { setStatus(false, "Paste a UUID"); return; }
+			if (!uuid.value.trim()) { setStatus(false, "Enter a username or UUID"); return; }
 			send("PUT", uuid.value.trim());
 		};
 		uuid.addEventListener("keydown", (event) => {

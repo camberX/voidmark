@@ -25,6 +25,7 @@ libs/
 *.jar
 web/data/whitelist.json
 web/data/names.json
+web/data/namesAt.json
 web/data/tags.json
 web/data/bypass.json
 web/data/capeAt.json

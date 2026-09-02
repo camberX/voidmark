@@ -38,7 +38,9 @@ public final class ShopCape {
 	private static volatile Boolean allowed;
 	private static volatile boolean pendingJoin;
 	private static volatile boolean refreshing;
+	private static volatile long lastRefreshAt;
 	private static int publishGen;
+	private static final long REFRESH_MS = 5L * 60L * 1000L;
 
 	private ShopCape() {
 	}
@@ -52,10 +54,14 @@ public final class ShopCape {
 			publishStatus = "No cape server";
 			return;
 		}
-		refreshing = true;
-		publishStatus = "Refreshing capes and tags…";
-		for (Slot slot : SLOTS.values()) {
-			slot.fetched = false;
+		if (refreshing) {
+			publishStatus = "Already refreshing…";
+			return;
+		}
+		String wait = refreshWait();
+		if (!wait.isEmpty()) {
+			publishStatus = "Wait " + wait + " before refreshing again.";
+			return;
 		}
 		Set<UUID> ids = new HashSet<>(SLOTS.keySet());
 		UUID self = selfUuid();
@@ -69,13 +75,48 @@ public final class ShopCape {
 			}
 		}
 		if (ids.isEmpty()) {
-			refreshing = false;
 			publishStatus = "Join a world to refresh nearby players.";
 			return;
+		}
+		refreshing = true;
+		lastRefreshAt = System.currentTimeMillis();
+		publishStatus = "Refreshing capes and tags…";
+		for (Slot slot : SLOTS.values()) {
+			slot.fetched = false;
 		}
 		for (UUID id : ids) {
 			ensure(id, true);
 		}
+	}
+
+	public static String refreshLabel() {
+		if (refreshing) {
+			return "Refreshing...";
+		}
+		String wait = refreshWait();
+		if (!wait.isEmpty()) {
+			return "Refresh in " + wait;
+		}
+		return "Refresh capes";
+	}
+
+	public static boolean refreshReady() {
+		return !refreshing && refreshWait().isEmpty();
+	}
+
+	private static String refreshWait() {
+		if (lastRefreshAt <= 0) {
+			return "";
+		}
+		long left = lastRefreshAt + REFRESH_MS - System.currentTimeMillis();
+		if (left <= 0) {
+			return "";
+		}
+		long sec = Math.max(1L, (left + 999L) / 1000L);
+		if (sec >= 60L) {
+			return ((sec + 59L) / 60L) + "m";
+		}
+		return sec + "s";
 	}
 
 	public static void tick() {

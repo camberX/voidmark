@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.114", new String[]{
+			"Refresh capes can only run once every 5 minutes so the shop cannot be rate-limited from the button."
+		}),
 		new Entry("1.1.113", new String[]{
 			"Refresh capes on the Cape card pulls the latest shop capes and head tags."
 		}),

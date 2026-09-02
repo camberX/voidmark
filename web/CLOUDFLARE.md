@@ -19,7 +19,7 @@ Origin has no Download ZIP. Do not type your Google password into Git.
    - `PAYPAL` → your Friends and Family email (plain text).
    - `PRICE` → `$1` (plain text).
 6. Deploy again if it asks.
-7. Open the Worker URL (`https://voidmark-capes.…workers.dev`). Enter the admin key. That opens the list: names, heads, capes, head tags, change cape, and dewhitelist.
+7. Open the Worker URL (`https://voidmark-capes.…workers.dev`). Enter the admin key. That opens the list: add by username or UUID, names, heads, capes, head tags, change cape, and dewhitelist.
 8. The shipped mod already uses `https://voidmark-capes.inputm4.workers.dev`. Only change `capeServerUrl` in `.minecraft/config/voidmark.json` if you deployed a different Worker. No trailing slash, no `/manage.html`. Restart Minecraft.
 
 ## 0. What you need (CLI path)
@@ -112,10 +112,9 @@ If you ship a jar to other people, they all need this same public URL. Localhost
 ## 8. After someone pays
 
 1. They send $1 Friends and Family with their Minecraft name.
-2. Look up their UUID (NameMC, etc.).
-3. Open `https://voidmark-capes.YOURNAME.workers.dev`, enter the admin key, and you land on the list.
-4. Paste their UUID and click **Add**. You should see their name, head, and cape.
-5. **Dewhitelist** drops them. **Change cape** uploads a PNG for them.
+2. Open `https://voidmark-capes.YOURNAME.workers.dev`, enter the admin key, and you land on the list.
+3. Type their username or UUID and click **Add**. You should see their current name, head, and cape.
+4. **Dewhitelist** drops them. **Change cape** uploads a PNG for them.
 
 Friends and Family has no PayPal purchase protection. Capes only show for Voidmark users.
 
