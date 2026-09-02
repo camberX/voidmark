@@ -74,9 +74,9 @@ public final class BlockOutlineGlow {
 
 	public static int color() {
 		VoidmarkConfig config = VoidmarkConfig.get();
-		float opacity = VoidmarkConfig.clamp(config.mobGlowOpacity, 0.15f, 0.90f);
+		float opacity = VoidmarkConfig.clamp(config.blockOutlineOpacity, 0.15f, 0.90f);
 		int alpha = Math.round(opacity * 255f);
-		return (alpha << 24) | (config.mobGlowRgb & 0xFFFFFF);
+		return (alpha << 24) | (config.blockOutlineRgb & 0xFFFFFF);
 	}
 
 	private static void emitBox(

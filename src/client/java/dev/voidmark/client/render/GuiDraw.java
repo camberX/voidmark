@@ -212,13 +212,54 @@ public final class GuiDraw {
 	}
 
 	/**
-	 * Settings / subsetting popover: pane fill with a hairline outline and no
-	 * accent rail. Stroke is half the usual {@link #panel} border.
+	 * Settings / subsetting popover: pane fill first, then a hairline stroke.
+	 * Fill-first matters because the pane color is translucent — drawing the
+	 * accent as a full underlay would tint the whole sheet.
 	 */
 	public static void sheet(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int fill, int outline) {
-		float stroke = 0.5f;
-		rounded(graphics, x, y, w, h, radius, outline);
-		rounded(graphics, x + stroke, y + stroke, w - stroke * 2f, h - stroke * 2f, Math.max(0.5f, radius - stroke), fill);
+		rounded(graphics, x, y, w, h, radius, fill);
+		roundedOutline(graphics, x, y, w, h, radius, outline, 0.5f);
+	}
+
+	public static void roundedOutline(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color, float thickness) {
+		if ((color & 0xFF000000) == 0 || w <= 0 || h <= 0) {
+			return;
+		}
+		float t = Math.max(0.5f, thickness);
+		float r = Math.min(radius, Math.min(w, h) / 2f);
+		if (r < 0.75f) {
+			border(graphics, x, y, w, h, color, t);
+			return;
+		}
+		fill(graphics, x + r, y, w - 2f * r, t, color);
+		fill(graphics, x + r, y + h - t, w - 2f * r, t, color);
+		fill(graphics, x, y + r, t, h - 2f * r, color);
+		fill(graphics, x + w - t, y + r, t, h - 2f * r, color);
+		cornerArc(graphics, x + r, y + r, r, t, Math.PI, Math.PI * 1.5, color);
+		cornerArc(graphics, x + w - r, y + r, r, t, Math.PI * 1.5, Math.PI * 2.0, color);
+		cornerArc(graphics, x + w - r, y + h - r, r, t, 0.0, Math.PI * 0.5, color);
+		cornerArc(graphics, x + r, y + h - r, r, t, Math.PI * 0.5, Math.PI, color);
+	}
+
+	private static void cornerArc(
+		GuiGraphicsExtractor graphics,
+		float cx,
+		float cy,
+		float radius,
+		float thickness,
+		double a0,
+		double a1,
+		int color
+	) {
+		int steps = Math.max(10, Math.round(radius * 4f));
+		float mid = radius - thickness * 0.5f;
+		float size = thickness;
+		for (int i = 0; i <= steps; i++) {
+			double a = a0 + (a1 - a0) * (i / (double) steps);
+			float px = cx + (float) Math.cos(a) * mid;
+			float py = cy + (float) Math.sin(a) * mid;
+			fill(graphics, px - size * 0.5f, py - size * 0.5f, size, size, color);
+		}
 	}
 
 	/**

@@ -90,6 +90,7 @@ public class VoidmarkScreen extends Screen {
 		FOG("Fog", 5),
 		VIEW("Aspect", 3),
 		MOB("Mob glow", 4),
+		BLOCK("Block outline", 2),
 		NODE_ESP("Node ESP", 5),
 		WATERMARK("Watermark", 4),
 		MUSIC("Music", 1),
@@ -113,7 +114,7 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private enum PickerTarget {
-		WORLD, SKY, FOG, NODE, THEME, PANE, MOB
+		WORLD, SKY, FOG, NODE, THEME, PANE, MOB, BLOCK
 	}
 
 	private record SearchEntry(String label, Tab tab, String hint) {
@@ -128,6 +129,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Custom fog", Tab.WORLD, "World"),
 		new SearchEntry("Mob glow", Tab.ESP, "ESP"),
 		new SearchEntry("Block outline", Tab.ESP, "ESP"),
+		new SearchEntry("Block outline color", Tab.ESP, "ESP"),
 		new SearchEntry("Mobs", Tab.ESP, "ESP"),
 		new SearchEntry("Node ESP", Tab.ESP, "ESP"),
 		new SearchEntry("Markers", Tab.NODES, "Nodes"),
@@ -454,7 +456,7 @@ public class VoidmarkScreen extends Screen {
 
 		float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Glow");
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mob glow", config.mobGlowEnabled, v -> config.mobGlowEnabled = v, Feature.MOB);
-		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Block outline", config.blockOutlineGlow, v -> config.blockOutlineGlow = v);
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Block outline", config.blockOutlineGlow, v -> config.blockOutlineGlow = v, Feature.BLOCK);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node ESP", config.boxFill, v -> config.boxFill = v, Feature.NODE_ESP);
 
 		List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
@@ -837,6 +839,8 @@ public class VoidmarkScreen extends Screen {
 				config.mobGlowEnabled = false;
 				config.mobGlowThroughWalls = true;
 				config.blockOutlineGlow = true;
+				config.blockOutlineRgb = 0x2FB5FF;
+				config.blockOutlineOpacity = 0.58f;
 				config.mobGlowId = "";
 				config.mobGlowIds = new ArrayList<>();
 				config.mobGlowSize = 0.48f;
@@ -870,10 +874,6 @@ public class VoidmarkScreen extends Screen {
 				config.hudRawmatsX = -1f;
 				config.hudRawmatsY = -1f;
 				config.hudRawmatsScale = 1.0f;
-				config.miningHudEnabled = true;
-				config.hudMiningX = -1f;
-				config.hudMiningY = -1f;
-				config.hudMiningScale = 1.0f;
 				config.inventoryHudEnabled = true;
 				config.inventoryHudHotbar = true;
 				config.inventoryHudArmor = true;
@@ -1070,15 +1070,12 @@ public class VoidmarkScreen extends Screen {
 			}
 			case ESP -> drawMobsTab(graphics, font, mouseX, mouseY);
 			case OVERLAY -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "HUD");
+				float y = featureCard(graphics, font, left, top, col, cardHeight(5), "HUD");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v, Feature.WATERMARK);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Music", config.musicHudEnabled, v -> config.musicHudEnabled = v, Feature.MUSIC);
-				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Raw mats", config.rawmatsHudEnabled, v -> config.rawmatsHudEnabled = v, Feature.RAWMATS);
-
-				y = featureCard(graphics, font, right, top, col, cardHeight(2), "More");
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Mining HUD", config.miningHudEnabled, v -> config.miningHudEnabled = v, Feature.MINING);
-				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Inventory HUD", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v, Feature.INVENTORY);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Raw mats", config.rawmatsHudEnabled, v -> config.rawmatsHudEnabled = v, Feature.RAWMATS);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Inventory HUD", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v, Feature.INVENTORY);
 			}
 			case BARS -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(7), "Bars");
@@ -1262,6 +1259,10 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, ix, y, iw, "Size", String.format(Locale.ROOT, "%.0f", config.mobGlowSize * 100), (config.mobGlowSize - 0.12f) / 1.08f, v -> config.mobGlowSize = VoidmarkConfig.clamp(0.12f + v * 1.08f, 0.12f, 1.20f));
 				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.mobGlowOpacity * 100) + "%", (config.mobGlowOpacity - 0.15f) / 0.75f, v -> config.mobGlowOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
+			}
+			case BLOCK -> {
+				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.blockOutlineOpacity * 100) + "%", (config.blockOutlineOpacity - 0.15f) / 0.75f, v -> config.blockOutlineOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.blockOutlineRgb, PickerTarget.BLOCK);
 			}
 			case NODE_ESP -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v);
@@ -1472,6 +1473,7 @@ public class VoidmarkScreen extends Screen {
 			case FOG -> config.fogRgb = packed;
 			case NODE -> config.colorRgb = packed;
 			case MOB -> config.mobGlowRgb = packed;
+			case BLOCK -> config.blockOutlineRgb = packed;
 			case THEME -> Theme.applyCustom(packed);
 			case PANE -> Theme.applyPane(packed);
 		}
@@ -1507,7 +1509,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.84");
+			.orElse("1.1.85");
 	}
 
 	@Override

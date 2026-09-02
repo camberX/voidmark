@@ -124,6 +124,8 @@ public final class VoidmarkConfig {
 	public boolean mobGlowEnabled = false;
 	public boolean mobGlowThroughWalls = true;
 	public boolean blockOutlineGlow = true;
+	public float blockOutlineOpacity = 0.58f;
+	public int blockOutlineRgb = 0x2FB5FF;
 	public String mobGlowId = "";
 	public java.util.List<String> mobGlowIds = new java.util.ArrayList<>();
 	public float mobGlowSize = 0.48f;
@@ -236,6 +238,11 @@ public final class VoidmarkConfig {
 				loaded.mobGlowRgb = loaded.mobGlowRgb & 0xFFFFFF;
 				if (loaded.mobGlowRgb == 0) {
 					loaded.mobGlowRgb = 0x2FB5FF;
+				}
+				loaded.blockOutlineOpacity = clamp(loaded.blockOutlineOpacity <= 0f ? 0.58f : loaded.blockOutlineOpacity, 0.15f, 0.90f);
+				loaded.blockOutlineRgb = loaded.blockOutlineRgb & 0xFFFFFF;
+				if (loaded.blockOutlineRgb == 0) {
+					loaded.blockOutlineRgb = 0x2FB5FF;
 				}
 				if (loaded.itemSkins == null) {
 					loaded.itemSkins = new java.util.ArrayList<>();
