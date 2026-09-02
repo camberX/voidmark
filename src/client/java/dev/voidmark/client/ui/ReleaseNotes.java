@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.101", new String[]{
+			"VOIDMARK Dev still shows when custom nametags are off."
+		}),
 		new Entry("1.1.100", new String[]{
 			"VOIDMARK Dev uses the menu font and sits on the nametag.",
 			"Nametags no longer fade in or out."

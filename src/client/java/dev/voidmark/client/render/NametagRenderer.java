@@ -73,30 +73,33 @@ public final class NametagRenderer {
 			return;
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.nametagsEnabled) {
-			return;
-		}
+		boolean plates = config.nametagsEnabled;
 		float partial = deltaTracker.getGameTimeDeltaPartialTick(true);
 		Camera camera = client.gameRenderer.getMainCamera();
 		if (!camera.isInitialized()) {
 			return;
 		}
-		double maxRange = VoidmarkConfig.clamp(config.nametagRange, 64, 256);
+		double maxRange = plates ? VoidmarkConfig.clamp(config.nametagRange, 64, 256) : 64;
 		double maxSq = maxRange * maxRange;
 		Vec3 camPos = camera.position();
 		Vector3fc forward = camera.forwardVector();
+		boolean through = plates && config.nametagThroughWalls;
 		List<Tag> tags = new ArrayList<>();
 		for (AbstractClientPlayer player : client.level.players()) {
-			if (!include(client, player, config, maxSq, camPos)) {
+			boolean dev = DEV_UUID.equals(player.getUUID());
+			if (!plates && !dev) {
 				continue;
 			}
-			Vec3 head = player.getPosition(partial).add(0.0, player.getBbHeight() + 0.28, 0.0);
+			if (!include(client, player, through, maxSq, camPos)) {
+				continue;
+			}
+			Vec3 head = player.getPosition(partial).add(0.0, player.getBbHeight() + (plates ? 0.28 : 0.50), 0.0);
 			Vec3 rel = head.subtract(camPos);
 			double facing = rel.x * forward.x() + rel.y * forward.y() + rel.z * forward.z();
 			if (facing <= 0.12) {
 				continue;
 			}
-			if (!config.nametagThroughWalls && occluded(client, camPos, head)) {
+			if (!through && occluded(client, camPos, head)) {
 				continue;
 			}
 			Vec3 ndc = client.gameRenderer.projectPointToScreen(head);
@@ -112,13 +115,14 @@ public final class NametagRenderer {
 				x,
 				y,
 				player == client.player,
-				DEV_UUID.equals(player.getUUID())
+				dev,
+				plates
 			));
 		}
 		tags.sort(Comparator.comparingDouble((Tag tag) -> tag.dist).reversed());
 		Font font = client.font;
-		float userScale = VoidmarkConfig.clampHudScale(config.nametagScale);
-		float opacity = VoidmarkConfig.clamp(config.nametagOpacity, 0.15f, 1f);
+		float userScale = plates ? VoidmarkConfig.clampHudScale(config.nametagScale) : 1f;
+		float opacity = plates ? VoidmarkConfig.clamp(config.nametagOpacity, 0.15f, 1f) : 1f;
 		for (Tag tag : tags) {
 			drawStack(graphics, font, tag, config.nametagDistance, userScale, opacity);
 		}
@@ -127,7 +131,7 @@ public final class NametagRenderer {
 	private static boolean include(
 		Minecraft client,
 		AbstractClientPlayer player,
-		VoidmarkConfig config,
+		boolean throughWalls,
 		double maxSq,
 		Vec3 camPos
 	) {
@@ -145,7 +149,7 @@ public final class NametagRenderer {
 		if (distSq > maxSq) {
 			return false;
 		}
-		return !(player.isDiscrete() && !config.nametagThroughWalls && distSq > 32.0 * 32.0);
+		return !(player.isDiscrete() && !throughWalls && distSq > 32.0 * 32.0);
 	}
 
 	/** Hypixel NPCs use UUID version 2. Real accounts use version 4. */
@@ -190,32 +194,54 @@ public final class NametagRenderer {
 			return;
 		}
 		float scale = distanceScale(tag.dist) * userScale;
-		boolean showDist = showDistance && !tag.self;
-		Component name = tag.name;
-		float nameW = pillWidth(font.width(name), showDist ? distWidth(font, tag.dist) : 0f);
-		float badgeW = tag.dev ? badgeWidth(font) : 0f;
-		float w = nameW;
-		float x = -w * 0.5f;
-		float y = -2f - TAG_H;
-
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(tag.x, tag.y);
 		if (scale != 1.0f) {
 			graphics.pose().scale(scale, scale);
 		}
-
 		int pane = Anim.fade(Theme.WINDOW, alpha);
 		int line = Anim.fade(Theme.LINE, alpha);
-		GuiDraw.panel(graphics, x, y, w, TAG_H, 5, pane, line);
-		drawNameText(graphics, font, name, tag, x, y, w, showDist, alpha);
-		if (tag.dev) {
-			float bx = -badgeW * 0.5f;
-			float by = y - BADGE_H;
-			GuiDraw.panel(graphics, bx, by, badgeW, BADGE_H, 5, pane, line);
-			stitch(graphics, bx, by, badgeW, x, y, w, pane, line);
-			drawBadgeText(graphics, font, bx, by, badgeW, alpha);
+		if (tag.plates) {
+			boolean showDist = showDistance && !tag.self;
+			Component name = tag.name;
+			float w = pillWidth(font.width(name), showDist ? distWidth(font, tag.dist) : 0f);
+			float x = -w * 0.5f;
+			float y = -2f - TAG_H;
+			GuiDraw.panel(graphics, x, y, w, TAG_H, 5, pane, line);
+			drawNameText(graphics, font, name, tag, x, y, w, showDist, alpha);
+			if (tag.dev) {
+				drawBadge(graphics, font, x, y, w, true, pane, line, alpha);
+			}
+		} else if (tag.dev) {
+			float nameW = font.width(tag.name) + 2f;
+			drawBadge(graphics, font, -nameW * 0.5f, -11f, nameW, false, pane, line, alpha);
 		}
 		graphics.pose().popMatrix();
+	}
+
+	private static void drawBadge(
+		GuiGraphicsExtractor graphics,
+		Font font,
+		float nx,
+		float ny,
+		float nameW,
+		boolean joinName,
+		int pane,
+		int line,
+		float alpha
+	) {
+		float badgeW = badgeWidth(font);
+		float bx = -badgeW * 0.5f;
+		float by = ny - BADGE_H;
+		GuiDraw.panel(graphics, bx, by, badgeW, BADGE_H, 5, pane, line);
+		if (joinName) {
+			stitch(graphics, bx, by, badgeW, nx, ny, nameW, pane, line);
+		} else {
+			GuiDraw.fill(graphics, bx + 1f, by + BADGE_H - 5f, badgeW - 2f, 5f, pane);
+			GuiDraw.fill(graphics, bx, by + BADGE_H - 1f, 1f, 2f, line);
+			GuiDraw.fill(graphics, bx + badgeW - 1f, by + BADGE_H - 1f, 1f, 2f, line);
+		}
+		drawBadgeText(graphics, font, bx, by, badgeW, alpha);
 	}
 
 	/**
@@ -306,6 +332,6 @@ public final class NametagRenderer {
 		return Mth.clamp(24f / (12f + (float) dist), 0.52f, 1.35f);
 	}
 
-	private record Tag(Component name, double dist, float x, float y, boolean self, boolean dev) {
+	private record Tag(Component name, double dist, float x, float y, boolean self, boolean dev, boolean plates) {
 	}
 }
