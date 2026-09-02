@@ -16,6 +16,7 @@ public final class VoidmarkConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("voidmark.json");
 	private static VoidmarkConfig instance = new VoidmarkConfig();
+	public static final String DEFAULT_CAPE_SERVER_URL = "https://voidmark-capes.inputm4.workers.dev";
 
 	public boolean markersEnabled = true;
 	public boolean hudEnabled = true;
@@ -120,7 +121,7 @@ public final class VoidmarkConfig {
 	public float hudOpacity = 0.90f;
 	public String capeUrl = "";
 	public String capePath = "";
-	public String capeServerUrl = "http://127.0.0.1:43150";
+	public String capeServerUrl = DEFAULT_CAPE_SERVER_URL;
 	public String capeShopKey = "";
 	public boolean nickEnabled = false;
 	public String nick = "";
@@ -230,9 +231,9 @@ public final class VoidmarkConfig {
 				if (loaded.capeUrl == null) {
 					loaded.capeUrl = "";
 				}
-				if (loaded.capeServerUrl == null) {
-					loaded.capeServerUrl = "http://127.0.0.1:43150";
-				}
+				String capeServer = normalizeCapeServerUrl(loaded.capeServerUrl);
+				boolean capeServerChanged = !capeServer.equals(loaded.capeServerUrl == null ? "" : loaded.capeServerUrl);
+				loaded.capeServerUrl = capeServer;
 				if (loaded.capeShopKey == null) {
 					loaded.capeShopKey = "";
 				}
@@ -301,6 +302,9 @@ public final class VoidmarkConfig {
 					? 0.90f
 					: clamp(loaded.hudOpacity, 0.20f, 1f);
 				instance = loaded;
+				if (capeServerChanged) {
+					instance.save();
+				}
 			}
 		} catch (Exception exception) {
 			Voidmark.LOGGER.warn("Could not read voidmark.json, using defaults", exception);
@@ -449,6 +453,21 @@ public final class VoidmarkConfig {
 
 	public static float clamp(float value, float min, float max) {
 		return Math.max(min, Math.min(max, value));
+	}
+
+	private static String normalizeCapeServerUrl(String url) {
+		String value = url == null ? "" : url.trim();
+		if (value.endsWith("/manage.html") || value.endsWith("/index.html") || value.endsWith("/admin.html")) {
+			value = value.substring(0, value.lastIndexOf('/'));
+		}
+		while (value.endsWith("/")) {
+			value = value.substring(0, value.length() - 1);
+		}
+		String host = value.toLowerCase();
+		if (value.isEmpty() || host.equals("http://127.0.0.1:43150") || host.equals("http://localhost:43150")) {
+			return DEFAULT_CAPE_SERVER_URL;
+		}
+		return value;
 	}
 
 	public static final class HudSlot {

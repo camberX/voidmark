@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.108", new String[]{
+			"Cape shop defaults to the live Cloudflare host. Localhost configs migrate on launch."
+		}),
 		new Entry("1.1.107", new String[]{
 			"Cape settings stay locked until your UUID is on the shop list.",
 			"The shop rejects everyone else with uuid not whitelisted."

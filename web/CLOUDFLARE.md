@@ -20,7 +20,7 @@ Origin has no Download ZIP. Do not type your Google password into Git.
    - `PRICE` → `$1` (plain text).
 6. Deploy again if it asks.
 7. Open the Worker URL (`https://voidmark-capes.…workers.dev`). Enter the admin key. That opens the list: names, heads, capes, change cape, and dewhitelist.
-8. In `.minecraft/config/voidmark.json` set `capeServerUrl` to that URL, no trailing slash. Restart Minecraft.
+8. The shipped mod already uses `https://voidmark-capes.inputm4.workers.dev`. Only change `capeServerUrl` in `.minecraft/config/voidmark.json` if you deployed a different Worker. No trailing slash, no `/manage.html`. Restart Minecraft.
 
 ## 0. What you need (CLI path)
 
