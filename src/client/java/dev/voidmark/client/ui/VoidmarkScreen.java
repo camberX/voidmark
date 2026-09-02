@@ -1374,7 +1374,7 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, ix, y, iw, "Spread", spreadLabel, VoidmarkConfig.clamp(config.miningSpread, 0, 2500) / 2500f, v -> config.miningSpread = VoidmarkConfig.clamp(Math.round(v * 2500f), 0, 2500));
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.efficientMinerThroughWalls, v -> config.efficientMinerThroughWalls = v);
 				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.efficientMinerRgb, PickerTarget.EFFICIENT);
-				hint(graphics, font, ix, y, iw, "floor(S/100) extra, 3×3×3");
+				hint(graphics, font, ix, y, iw, "3×3×3 incl. diagonals");
 			}
 			case INVENTORY -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hotbar", config.inventoryHudHotbar, v -> config.inventoryHudHotbar = v);
@@ -1610,7 +1610,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.89");
+			.orElse("1.1.90");
 	}
 
 	@Override

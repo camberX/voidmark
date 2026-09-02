@@ -53,9 +53,15 @@ public final class MiningWorldRenderer {
 		boolean through = config.efficientMinerThroughWalls;
 		int rgb = config.efficientMinerRgb;
 		GizmoStyle sure = style(rgb, 0.42f, 2.6f);
-		GizmoStyle maybe = style(rgb, 0.18f, 1.6f);
+		GizmoStyle maybe = style(rgb, 0.22f, 1.8f);
+		GizmoStyle pool = style(rgb, 0.10f, 1.2f);
 		for (EfficientMiner.Target target : extras) {
-			box(target.pos(), target.guaranteed() ? sure : maybe, through);
+			GizmoStyle box = switch (target.kind()) {
+				case SURE -> sure;
+				case CHANCE -> maybe;
+				case POOL -> pool;
+			};
+			box(target.pos(), box, through);
 		}
 	}
 

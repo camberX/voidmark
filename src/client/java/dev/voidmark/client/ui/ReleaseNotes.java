@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.90", new String[]{
+			"Mining Spread extras include face, edge, and corner diagonals."
+		}),
 		new Entry("1.1.89", new String[]{
 			"Efficient Miner uses Hypixel's spread math in a 3×3×3, not a vein fill."
 		}),
