@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.95", new String[]{
+			"Titanium ESP stays inside the named commission area instead of a huge radius around the emissary."
+		}),
 		new Entry("1.1.94", new String[]{
 			"Titanium ESP follows the commission area; Titanium Miner still marks every vein.",
 			"Commission HUD bars are back, colored with the percent.",
