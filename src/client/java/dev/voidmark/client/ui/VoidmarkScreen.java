@@ -5,7 +5,6 @@ import dev.voidmark.client.config.UnloadState;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
 import dev.voidmark.client.mining.MiningTracker;
-import dev.voidmark.client.node.EnderNodeTracker;
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.HudStats;
 import dev.voidmark.client.render.MobCatalog;
@@ -50,12 +49,15 @@ public class VoidmarkScreen extends Screen {
 	private static final float PICKER_W = 132;
 	private static final float PICKER_H = 122;
 	private static final float PANEL_W = 168;
+	private static final float FEATURE_W = 176;
 	private static final float SETTINGS_H = 176;
+	private static final float COG_W = 14;
 
 	private enum Group {
 		VISUALS("VISUALS"),
-		NODES("NODES"),
-		MISC("MISCELLANEOUS");
+		HUD("HUD"),
+		SKYBLOCK("SKYBLOCK"),
+		PLAYER("PLAYER");
 
 		final String label;
 
@@ -66,17 +68,12 @@ public class VoidmarkScreen extends Screen {
 
 	private enum Tab {
 		WORLD("World", Group.VISUALS),
-		VIEW("View", Group.VISUALS),
-		FOG("Fog", Group.VISUALS),
-		MOBS("Mobs", Group.VISUALS),
-		MARKERS("Markers", Group.NODES),
-		MINING("Mining", Group.NODES),
-		DISPLAY("Display", Group.NODES),
-		HUD("HUD", Group.NODES),
-		STATUS("Status", Group.MISC),
-		INVENTORY("Inventory", Group.MISC),
-		NICK("Nick", Group.MISC),
-		CAPE("Cape", Group.MISC);
+		ESP("ESP", Group.VISUALS),
+		OVERLAY("Overlay", Group.HUD),
+		BARS("Bars", Group.HUD),
+		NODES("Nodes", Group.SKYBLOCK),
+		MINING("Mining", Group.SKYBLOCK),
+		PLAYER("Player", Group.PLAYER);
 
 		final String label;
 		final Group group;
@@ -84,6 +81,34 @@ public class VoidmarkScreen extends Screen {
 		Tab(String label, Group group) {
 			this.label = label;
 			this.group = group;
+		}
+	}
+
+	private enum Feature {
+		WORLD("World tint", 4),
+		SKY("Skybox", 3),
+		FOG("Fog", 5),
+		VIEW("Aspect", 3),
+		MOB("Mob glow", 4),
+		NODE_ESP("Node ESP", 5),
+		WATERMARK("Watermark", 4),
+		MUSIC("Music", 1),
+		RAWMATS("Raw mats", 1),
+		MINING("Mining", 1),
+		INVENTORY("Inventory", 3),
+		NAMETAGS("Nametags", 4),
+		NODES("Nodes", 5);
+
+		final String title;
+		final int rows;
+
+		Feature(String title, int rows) {
+			this.title = title;
+			this.rows = rows;
+		}
+
+		float height() {
+			return 22 + rows * ROW + 10;
 		}
 	}
 
@@ -95,51 +120,50 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private static final SearchEntry[] SEARCH = {
-		new SearchEntry("World tint", Tab.WORLD, "Blocks"),
-		new SearchEntry("Lightmap", Tab.WORLD, "Mode"),
-		new SearchEntry("Shader", Tab.WORLD, "Mode"),
-		new SearchEntry("Skybox tint", Tab.WORLD, "Skybox"),
-		new SearchEntry("Aspect ratio", Tab.VIEW, "Camera"),
-		new SearchEntry("Custom fog", Tab.FOG, "Fog"),
-		new SearchEntry("Mob glow", Tab.MOBS, "ESP"),
-		new SearchEntry("Block outline", Tab.MOBS, "ESP"),
-		new SearchEntry("Mobs", Tab.MOBS, "ESP"),
-		new SearchEntry("Markers", Tab.MARKERS, "Nodes"),
+		new SearchEntry("World tint", Tab.WORLD, "World"),
+		new SearchEntry("Lightmap", Tab.WORLD, "World"),
+		new SearchEntry("Shader", Tab.WORLD, "World"),
+		new SearchEntry("Skybox tint", Tab.WORLD, "World"),
+		new SearchEntry("Aspect ratio", Tab.WORLD, "World"),
+		new SearchEntry("Custom fog", Tab.WORLD, "World"),
+		new SearchEntry("Mob glow", Tab.ESP, "ESP"),
+		new SearchEntry("Block outline", Tab.ESP, "ESP"),
+		new SearchEntry("Mobs", Tab.ESP, "ESP"),
+		new SearchEntry("Node ESP", Tab.ESP, "ESP"),
+		new SearchEntry("Markers", Tab.NODES, "Nodes"),
 		new SearchEntry("Mining HUD", Tab.MINING, "Mining"),
 		new SearchEntry("Commissions", Tab.MINING, "Mining"),
 		new SearchEntry("Pickaxe ability", Tab.MINING, "Mining"),
 		new SearchEntry("Ability alert", Tab.MINING, "Mining"),
-		new SearchEntry("Filled box", Tab.DISPLAY, "ESP"),
-		new SearchEntry("Watermark", Tab.DISPLAY, "HUD"),
-		new SearchEntry("Node HUD", Tab.DISPLAY, "HUD"),
-		new SearchEntry("Music HUD", Tab.DISPLAY, "HUD"),
-		new SearchEntry("Raw mats", Tab.DISPLAY, "HUD"),
-		new SearchEntry("Enchanted materials", Tab.DISPLAY, "HUD"),
-		new SearchEntry("Spotify", Tab.DISPLAY, "Music"),
-		new SearchEntry("YouTube Music", Tab.DISPLAY, "Music"),
-		new SearchEntry("Hotbar", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Health", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Hunger", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Armor bar", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Air", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Experience", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Scoreboard", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Boss bar", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Effects", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Held item", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Mount health", Tab.HUD, "Vanilla HUD"),
-		new SearchEntry("Inventory HUD", Tab.INVENTORY, "Inventory"),
-		new SearchEntry("Hotbar", Tab.INVENTORY, "Inventory"),
-		new SearchEntry("Armor", Tab.INVENTORY, "Inventory"),
-		new SearchEntry("Item count", Tab.INVENTORY, "Inventory"),
-		new SearchEntry("Pane opacity", Tab.DISPLAY, "Theme"),
-		new SearchEntry("FPS", Tab.STATUS, "Stats"),
-		new SearchEntry("Ping", Tab.STATUS, "Stats"),
-		new SearchEntry("Hypixel", Tab.STATUS, "Server"),
-		new SearchEntry("Nick hider", Tab.NICK, "Name"),
-		new SearchEntry("Nametags", Tab.NICK, "Players"),
-		new SearchEntry("Nametag size", Tab.NICK, "Players"),
-		new SearchEntry("Cape", Tab.CAPE, "Texture")
+		new SearchEntry("Filled box", Tab.ESP, "ESP"),
+		new SearchEntry("Watermark", Tab.OVERLAY, "Overlay"),
+		new SearchEntry("Node HUD", Tab.OVERLAY, "Overlay"),
+		new SearchEntry("Music HUD", Tab.OVERLAY, "Overlay"),
+		new SearchEntry("Raw mats", Tab.OVERLAY, "Overlay"),
+		new SearchEntry("Enchanted materials", Tab.OVERLAY, "Overlay"),
+		new SearchEntry("Spotify", Tab.OVERLAY, "Music"),
+		new SearchEntry("YouTube Music", Tab.OVERLAY, "Music"),
+		new SearchEntry("Hotbar", Tab.BARS, "Bars"),
+		new SearchEntry("Health", Tab.BARS, "Bars"),
+		new SearchEntry("Hunger", Tab.BARS, "Bars"),
+		new SearchEntry("Armor bar", Tab.BARS, "Bars"),
+		new SearchEntry("Air", Tab.BARS, "Bars"),
+		new SearchEntry("Experience", Tab.BARS, "Bars"),
+		new SearchEntry("Scoreboard", Tab.BARS, "Bars"),
+		new SearchEntry("Boss bar", Tab.BARS, "Bars"),
+		new SearchEntry("Effects", Tab.BARS, "Bars"),
+		new SearchEntry("Held item", Tab.BARS, "Bars"),
+		new SearchEntry("Mount health", Tab.BARS, "Bars"),
+		new SearchEntry("Inventory HUD", Tab.OVERLAY, "Overlay"),
+		new SearchEntry("Item count", Tab.OVERLAY, "Overlay"),
+		new SearchEntry("Pane opacity", Tab.OVERLAY, "Theme"),
+		new SearchEntry("FPS", Tab.NODES, "Status"),
+		new SearchEntry("Ping", Tab.NODES, "Status"),
+		new SearchEntry("Hypixel", Tab.NODES, "Status"),
+		new SearchEntry("Nick hider", Tab.PLAYER, "Player"),
+		new SearchEntry("Nametags", Tab.PLAYER, "Player"),
+		new SearchEntry("Nametag size", Tab.PLAYER, "Player"),
+		new SearchEntry("Cape", Tab.PLAYER, "Player")
 	};
 
 	private final List<Hit> hits = new ArrayList<>();
@@ -155,6 +179,8 @@ public class VoidmarkScreen extends Screen {
 	private boolean settingsOpen;
 	private boolean bellOpen;
 	private boolean searchOpen;
+	private boolean featureOpen;
+	private Feature featureId;
 	private boolean capeFocused;
 	private boolean nickFocused;
 	private String searchQuery = "";
@@ -174,10 +200,13 @@ public class VoidmarkScreen extends Screen {
 	private float bellT;
 	private float searchT;
 	private float pickerT;
+	private float featureT;
 	private float settingsX;
 	private float settingsY;
 	private float bellX;
 	private float bellY;
+	private float featureX;
+	private float featureY;
 	private float searchFieldX;
 	private float searchFieldW;
 	private float capeFieldX;
@@ -265,6 +294,9 @@ public class VoidmarkScreen extends Screen {
 		if (searchT > 0.02f && !searchQuery.isBlank()) {
 			drawSearchResults(graphics, font, mouseX, mouseY);
 		}
+		if (featureT > 0.02f && featureId != null) {
+			drawFeaturePanel(graphics, font, mouseX, mouseY);
+		}
 		if (settingsT > 0.02f) {
 			drawSettings(graphics, font, mouseX, mouseY);
 		}
@@ -289,6 +321,7 @@ public class VoidmarkScreen extends Screen {
 		bellT = Anim.exp(bellT, bellOpen ? 1f : 0f, 18f, dt);
 		searchT = Anim.exp(searchT, searchOpen ? 1f : 0f, 18f, dt);
 		pickerT = Anim.exp(pickerT, pickerTarget != null ? 1f : 0f, 18f, dt);
+		featureT = Anim.exp(featureT, featureOpen && featureId != null ? 1f : 0f, 18f, dt);
 	}
 
 	private float anim(String key, float target) {
@@ -334,14 +367,15 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.rounded(graphics, windowX + 10, windowY + 20, 16, 2, 1, Theme.ACCENT);
 		hits.add(new Hit(windowX, windowY, SIDEBAR_W, 26, mx -> startDrag(mx, lastClickY), true));
 
-		float y = windowY + 30;
+		float y = windowY + 28;
 		Group last = null;
 		float activeY = y;
+		float footY = windowY + windowH - 22;
 		for (Tab value : Tab.values()) {
 			if (value.group != last) {
-				y += 5;
+				y += 4;
 				GuiDraw.small(graphics, font, value.group.label, windowX + 10, y, Theme.HEADER);
-				y += 10;
+				y += 9;
 				last = value.group;
 			}
 			if (tab == value) {
@@ -356,7 +390,7 @@ public class VoidmarkScreen extends Screen {
 			GuiDraw.icon(graphics, font, tabGlyph(value), windowX + 11, labelY, Theme.ACCENT);
 			GuiDraw.menu(graphics, font, value.label, windowX + 24, labelY, Theme.MUTED);
 			hits.add(new Hit(windowX + 6, y, SIDEBAR_W - 12, 16, () -> selectTab(value)));
-			y += 17;
+			y += 16;
 		}
 		if (navY < 0f) {
 			navY = activeY;
@@ -368,7 +402,7 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.icon(graphics, font, tabGlyph(tab), windowX + 11, labelY, Theme.TEXT);
 		GuiDraw.menu(graphics, font, tab.label, windowX + 24, labelY, Theme.TEXT);
 
-		float footY = windowY + windowH - 20;
+		GuiDraw.fill(graphics, windowX + 8, footY - 5, SIDEBAR_W - 16, 1, Theme.withAlpha(Theme.LINE, 160));
 		int face = 14;
 		int faceX = Math.round(windowX + 10);
 		int faceY = Math.round(footY);
@@ -386,10 +420,11 @@ public class VoidmarkScreen extends Screen {
 		tab = value;
 		pickerTarget = null;
 		searchOpen = false;
-		capeFocused = tab == Tab.CAPE;
-		nickFocused = tab == Tab.NICK;
+		featureOpen = false;
+		capeFocused = tab == Tab.PLAYER;
+		nickFocused = tab == Tab.PLAYER;
 		mobSearchFocused = false;
-		if (value == Tab.MOBS) {
+		if (value == Tab.ESP) {
 			ensureMobVisible = true;
 		}
 		commitCapeUrl();
@@ -417,15 +452,10 @@ public class VoidmarkScreen extends Screen {
 		VoidmarkConfig config = VoidmarkConfig.get();
 		config.normalizeMobGlowIds();
 
-		float y = featureCard(graphics, font, left, top, col, cardHeight(7), "Glow");
-		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.mobGlowEnabled, v -> config.mobGlowEnabled = v);
-		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.mobGlowThroughWalls, v -> config.mobGlowThroughWalls = v);
+		float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Glow");
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mob glow", config.mobGlowEnabled, v -> config.mobGlowEnabled = v, Feature.MOB);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Block outline", config.blockOutlineGlow, v -> config.blockOutlineGlow = v);
-		y = slider(graphics, font, ix, y, iw, "Size", String.format(Locale.ROOT, "%.0f", config.mobGlowSize * 100), (config.mobGlowSize - 0.12f) / 1.08f, v -> config.mobGlowSize = VoidmarkConfig.clamp(0.12f + v * 1.08f, 0.12f, 1.20f));
-		y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.mobGlowOpacity * 100) + "%", (config.mobGlowOpacity - 0.15f) / 0.75f, v -> config.mobGlowOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
-		y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
-		String selected = clip(font, MobCatalog.displayNames(config.mobGlowIds), (int) iw - 4);
-		GuiDraw.menu(graphics, font, selected, ix + 1, GuiDraw.middle(y, ROW), Theme.ACCENT);
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node ESP", config.boxFill, v -> config.boxFill = v, Feature.NODE_ESP);
 
 		List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
 		float listH = windowY + windowH - PAD - top;
@@ -506,19 +536,60 @@ public class VoidmarkScreen extends Screen {
 		}
 
 		int nearby = config.mobGlowEnabled ? MobGlowRenderer.nearbyCount() : 0;
-		GuiDraw.small(graphics, font, nearby == 0 ? "None nearby" : nearby + " nearby", ix + 1, top + cardHeight(7) + 6, Theme.MUTED);
-		GuiDraw.small(graphics, font, "Click a type to add it, again to drop it.", ix + 1, top + cardHeight(7) + 16, Theme.MUTED);
+		GuiDraw.small(graphics, font, nearby == 0 ? "None nearby" : nearby + " nearby", ix + 1, top + cardHeight(3) + 6, Theme.MUTED);
+		GuiDraw.small(graphics, font, "Click a type to add it, again to drop it.", ix + 1, top + cardHeight(3) + 16, Theme.MUTED);
 	}
 
-	private void drawCapeTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
+	private void drawPlayerTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		float left = contentX();
 		float top = windowY + TOOLBAR_H + 6;
 		float col = colW();
 		float right = left + col + COL_GAP;
 		float ix = innerX(left);
+		float iw = innerW(col);
+		VoidmarkConfig config = VoidmarkConfig.get();
+
+		float y = featureCard(graphics, font, left, top, col, cardHeight(2) + 78, "Identity");
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Nametags", config.nametagsEnabled, v -> config.nametagsEnabled = v, Feature.NAMETAGS);
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Replace my name", config.nickEnabled, v -> config.nickEnabled = v);
+		GuiDraw.small(graphics, font, "Chat, tab, scoreboard. Use &6 &l.", ix, y + 1, Theme.MUTED);
+		y += 12;
+
+		nickFieldX = ix;
+		nickFieldY = y;
+		nickFieldW = iw;
+		boolean hoverNick = GuiDraw.hovered(mouseX, mouseY, ix, y, iw, 16);
+		GuiDraw.panel(graphics, ix, y, iw, 16, 5, nickFocused || hoverNick ? Theme.CARD_HOVER : Theme.CARD, nickFocused ? Theme.ACCENT : Theme.LINE);
+		NickHider.suppress();
+		String raw = config.nick == null ? "" : config.nick;
+		String shown = raw.isEmpty() && !nickFocused ? "Nick  (&6Name)" : raw + (nickFocused ? "|" : "");
+		GuiDraw.menu(graphics, font, clip(font, shown, (int) iw - 12), ix + 5, GuiDraw.middle(y, 16), raw.isEmpty() && !nickFocused ? Theme.MUTED : Theme.TEXT);
+		NickHider.resume();
+		hits.add(new Hit(ix, y, iw, 16, () -> {
+			nickFocused = true;
+			capeFocused = false;
+			searchOpen = false;
+		}));
+		y += 22;
+		GuiDraw.rounded(graphics, ix, y, iw, 26, 5, Theme.PANEL);
+		NickHider.suppress();
+		Component preview = config.nickEnabled ? NickHider.formattedNick() : Component.literal(playerName());
+		if (preview.getString().isEmpty()) {
+			GuiDraw.menu(graphics, font, "Name hidden", ix + 6, GuiDraw.middle(y, 26), Theme.MUTED);
+		} else {
+			graphics.pose().pushMatrix();
+			graphics.pose().translate(ix + 6, GuiDraw.middle(y, 26));
+			graphics.text(font, preview, 0, 0, 0xFFFFFFFF, false);
+			graphics.pose().popMatrix();
+		}
+		NickHider.resume();
+
+		drawCapeColumn(graphics, font, mouseX, mouseY, right, top, col);
+	}
+
+	private void drawCapeColumn(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY, float right, float top, float col) {
 		float rx = innerX(right);
 		float iw = innerW(col);
-
 		if (!capeFocused) {
 			VoidmarkConfig config = VoidmarkConfig.get();
 			if (config.capeUrl != null && !config.capeUrl.isBlank()) {
@@ -530,14 +601,13 @@ public class VoidmarkScreen extends Screen {
 			}
 		}
 
-		featureCard(graphics, font, left, top, col, CARD_HEAD + 128 + CARD_PAD, "Preview");
-		drawCapePreview(graphics, ix + 8, top + CARD_HEAD + 4, iw - 16, 102);
+		float y = featureCard(graphics, font, right, top, col, CARD_HEAD + 86 + cardHeight(4), "Cape");
+		drawCapePreview(graphics, rx + 8, y, iw - 16, 52);
 		String hint = CustomCape.layoutHint();
 		if (!hint.isBlank()) {
-			GuiDraw.small(graphics, font, clip(font, hint, (int) iw - 4), ix + 2, top + CARD_HEAD + 108, Theme.MUTED);
+			GuiDraw.small(graphics, font, clip(font, hint, (int) iw - 4), rx, y + 54, Theme.MUTED);
 		}
-
-		float y = featureCard(graphics, font, right, top, col, cardHeight(5), "Source");
+		y += 66;
 		GuiDraw.small(graphics, font, CustomCape.statusLabel(), rx, y + 2, CustomCape.status() == CustomCape.Status.ERROR ? Theme.WARN : Theme.MUTED);
 		y += ROW;
 
@@ -653,17 +723,12 @@ public class VoidmarkScreen extends Screen {
 	private static String tabGlyph(Tab value) {
 		return switch (value) {
 			case WORLD -> MenuFont.GLOBE;
-			case VIEW -> MenuFont.EYE;
-			case FOG -> MenuFont.CLOUD;
-			case MOBS -> MenuFont.MOB;
-			case MARKERS -> MenuFont.CUBE;
+			case ESP -> MenuFont.MOB;
+			case OVERLAY -> MenuFont.MONITOR;
+			case BARS -> MenuFont.HUD;
+			case NODES -> MenuFont.CUBE;
 			case MINING -> MenuFont.CUBE;
-			case DISPLAY -> MenuFont.MONITOR;
-			case HUD -> MenuFont.HUD;
-			case STATUS -> MenuFont.SIGNAL;
-			case INVENTORY -> MenuFont.BAG;
-			case NICK -> MenuFont.PERSON;
-			case CAPE -> MenuFont.FLAG;
+			case PLAYER -> MenuFont.PERSON;
 		};
 	}
 
@@ -706,16 +771,19 @@ public class VoidmarkScreen extends Screen {
 			settingsOpen = !settingsOpen;
 			bellOpen = false;
 			searchOpen = false;
+			featureOpen = false;
 		});
 		drawIconButton(graphics, font, mouseX, mouseY, iconX + ICON_SLOT, y, MenuFont.BELL, bellOpen, () -> {
 			bellOpen = !bellOpen;
 			settingsOpen = false;
 			searchOpen = false;
+			featureOpen = false;
 		});
 		drawIconButton(graphics, font, mouseX, mouseY, iconX + ICON_SLOT * 2, y, MenuFont.SEARCH, searchOpen, () -> {
 			searchOpen = !searchOpen;
 			settingsOpen = false;
 			bellOpen = false;
+			featureOpen = false;
 			if (!searchOpen) {
 				searchQuery = "";
 			}
@@ -756,12 +824,8 @@ public class VoidmarkScreen extends Screen {
 				config.skyTintRgb = 0x1B4F8A;
 				config.skyTintStrength = 0.70f;
 				config.matchSkyToWorld = true;
-			}
-			case VIEW -> {
 				config.aspectEnabled = false;
 				config.aspectRatio = 1.0f;
-			}
-			case FOG -> {
 				config.fogEnabled = false;
 				config.fogRgb = 0x8EC8FF;
 				config.fogStart = 0.12f;
@@ -769,7 +833,7 @@ public class VoidmarkScreen extends Screen {
 				config.fogDensity = 1.0f;
 				config.matchFogToWorld = false;
 			}
-			case MOBS -> {
+			case ESP -> {
 				config.mobGlowEnabled = false;
 				config.mobGlowThroughWalls = true;
 				config.blockOutlineGlow = true;
@@ -778,30 +842,16 @@ public class VoidmarkScreen extends Screen {
 				config.mobGlowSize = 0.48f;
 				config.mobGlowOpacity = 0.58f;
 				config.mobGlowRgb = 0x2FB5FF;
-				mobQuery = "";
-				mobScroll = 0f;
-			}
-			case MARKERS -> {
-				config.markersEnabled = true;
-				config.onlyInTheEnd = true;
-				config.forceEnable = false;
-				config.blockScan = true;
-				config.particleDetection = true;
-				config.scanRadius = 48;
-			}
-			case MINING -> {
-				config.miningHudEnabled = true;
-				config.miningAbilityAlert = true;
-				config.hudMiningX = -1f;
-				config.hudMiningY = -1f;
-				config.hudMiningScale = 1.0f;
-			}
-			case DISPLAY -> {
 				config.boxFill = true;
 				config.boxOutline = true;
 				config.tracersEnabled = true;
 				config.throughWalls = true;
 				config.fillOpacity = 0.32f;
+				config.colorRgb = 0x2FB5FF;
+				mobQuery = "";
+				mobScroll = 0f;
+			}
+			case OVERLAY -> {
 				config.hudEnabled = true;
 				config.watermarkEnabled = true;
 				config.hudWatermarkX = -1f;
@@ -824,9 +874,16 @@ public class VoidmarkScreen extends Screen {
 				config.hudMiningX = -1f;
 				config.hudMiningY = -1f;
 				config.hudMiningScale = 1.0f;
-				config.colorRgb = 0x2FB5FF;
+				config.inventoryHudEnabled = true;
+				config.inventoryHudHotbar = true;
+				config.inventoryHudArmor = true;
+				config.inventoryHudCount = true;
+				config.inventoryHudAnchor = "bottom_right";
+				config.inventoryHudScale = 1.0f;
+				config.hudInventoryX = -1f;
+				config.hudInventoryY = -1f;
 			}
-			case HUD -> {
+			case BARS -> {
 				config.hudHotbar = true;
 				config.hudHealth = true;
 				config.hudHunger = true;
@@ -840,19 +897,22 @@ public class VoidmarkScreen extends Screen {
 				config.hudMountHealth = true;
 				config.resetHudSlots();
 			}
-			case INVENTORY -> {
-				config.inventoryHudEnabled = true;
-				config.inventoryHudHotbar = true;
-				config.inventoryHudArmor = true;
-				config.inventoryHudCount = true;
-				config.inventoryHudAnchor = "bottom_right";
-				config.inventoryHudScale = 1.0f;
-				config.hudInventoryX = -1f;
-				config.hudInventoryY = -1f;
+			case NODES -> {
+				config.markersEnabled = true;
+				config.onlyInTheEnd = true;
+				config.forceEnable = false;
+				config.blockScan = true;
+				config.particleDetection = true;
+				config.scanRadius = 48;
 			}
-			case STATUS -> {
+			case MINING -> {
+				config.miningHudEnabled = true;
+				config.miningAbilityAlert = true;
+				config.hudMiningX = -1f;
+				config.hudMiningY = -1f;
+				config.hudMiningScale = 1.0f;
 			}
-			case NICK -> {
+			case PLAYER -> {
 				config.nickEnabled = false;
 				config.nick = "";
 				config.nametagsEnabled = true;
@@ -860,8 +920,6 @@ public class VoidmarkScreen extends Screen {
 				config.nametagDistance = true;
 				config.nametagRange = 128;
 				config.nametagScale = 1.0f;
-			}
-			case CAPE -> {
 				capeUrlDraft = "";
 				CustomCape.clear();
 			}
@@ -1002,94 +1060,27 @@ public class VoidmarkScreen extends Screen {
 
 		switch (tab) {
 			case WORLD -> {
-				boolean lightmap = config.worldTintUsesLightmap();
-				float y = featureCard(graphics, font, left, top, col, cardHeight(lightmap ? 5 : 4), "Blocks");
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "World tint", config.worldTintEnabled, v -> config.worldTintEnabled = v);
-				y = cycle(graphics, font, ix, y, iw, mouseX, mouseY, "Mode", config.worldTintModeLabel(), config::cycleWorldTintMode);
-				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.worldTintRgb, PickerTarget.WORLD);
-				y = slider(graphics, font, ix, y, iw, "Strength", String.format(Locale.ROOT, "%.0f", config.worldTintStrength * 100), config.worldTintStrength, v -> config.worldTintStrength = v);
-				if (lightmap) {
-					hint(graphics, font, ix, y, iw, "Turn fullbright off");
-				}
+				float y = featureCard(graphics, font, left, top, col, cardHeight(2), "World");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "World tint", config.worldTintEnabled, v -> config.worldTintEnabled = v, Feature.WORLD);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Skybox", config.skyTintEnabled, v -> config.skyTintEnabled = v, Feature.SKY);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(4), "Skybox");
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Skybox tint", config.skyTintEnabled, v -> config.skyTintEnabled = v);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Match world", config.matchSkyToWorld, v -> config.matchSkyToWorld = v);
-				int skyPreview = config.matchSkyToWorld ? config.worldTintRgb : config.skyTintRgb;
-				y = colorRow(graphics, font, rx, y, iw, mouseX, mouseY, "Color", skyPreview, PickerTarget.SKY);
-				slider(graphics, font, rx, y, iw, "Strength", String.format(Locale.ROOT, "%.0f", config.skyTintStrength * 100), config.skyTintStrength, v -> config.skyTintStrength = v);
+				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Camera");
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Fog", config.fogEnabled, v -> config.fogEnabled = v, Feature.FOG);
+				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v, Feature.VIEW);
 			}
-			case VIEW -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Camera");
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v);
-				y = slider(graphics, font, ix, y, iw, "Aspect", aspectLabel(config.aspectRatio), (config.aspectRatio - 0.50f) / 0.70f, v -> config.aspectRatio = VoidmarkConfig.clamp(0.50f + v * 0.70f, 0.50f, 1.20f));
-				chipRow(graphics, font, ix, y, iw, mouseX, mouseY, new String[]{"Native", "16:10", "4:3", "5:4"}, aspectChipIndex(config.aspectRatio), index -> {
-					float[] values = {1.00f, 0.90f, 0.75f, 0.70f};
-					config.aspectEnabled = true;
-					config.aspectRatio = values[index];
-				});
+			case ESP -> drawMobsTab(graphics, font, mouseX, mouseY);
+			case OVERLAY -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "HUD");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v, Feature.WATERMARK);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Music", config.musicHudEnabled, v -> config.musicHudEnabled = v, Feature.MUSIC);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Raw mats", config.rawmatsHudEnabled, v -> config.rawmatsHudEnabled = v, Feature.RAWMATS);
 
-				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 32 + CARD_PAD, "Info");
-				GuiDraw.menu(graphics, font, "Below Native stretches", rx, y + 2, Theme.MUTED);
-				GuiDraw.menu(graphics, font, "horizontally, like 4:3.", rx, y + 14, Theme.MUTED);
+				y = featureCard(graphics, font, right, top, col, cardHeight(2), "More");
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Mining HUD", config.miningHudEnabled, v -> config.miningHudEnabled = v, Feature.MINING);
+				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Inventory HUD", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v, Feature.INVENTORY);
 			}
-			case FOG -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Main");
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Custom fog", config.fogEnabled, v -> config.fogEnabled = v);
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Match world", config.matchFogToWorld, v -> config.matchFogToWorld = v);
-				int fogPreview = config.matchFogToWorld ? config.worldTintRgb : config.fogRgb;
-				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", fogPreview, PickerTarget.FOG);
-
-				y = featureCard(graphics, font, right, top, col, cardHeight(3), "Distance");
-				y = slider(graphics, font, rx, y, iw, "Start", String.format(Locale.ROOT, "%.0f%%", config.fogStart * 100), config.fogStart / 0.95f, v -> config.fogStart = VoidmarkConfig.clamp(v * 0.95f, 0f, 0.95f));
-				y = slider(graphics, font, rx, y, iw, "End", String.format(Locale.ROOT, "%.0f%%", config.fogEnd * 100), (config.fogEnd - 0.05f) / 0.95f, v -> config.fogEnd = VoidmarkConfig.clamp(0.05f + v * 0.95f, 0.05f, 1f));
-				slider(graphics, font, rx, y, iw, "Density", String.format(Locale.ROOT, "%.0f", config.fogDensity * 100), config.fogDensity, v -> config.fogDensity = v);
-			}
-			case MOBS -> drawMobsTab(graphics, font, mouseX, mouseY);
-			case MARKERS -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Main");
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.markersEnabled, v -> config.markersEnabled = v);
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Only in The End", config.onlyInTheEnd, v -> config.onlyInTheEnd = v);
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Force enable", config.forceEnable, v -> config.forceEnable = v);
-				slider(graphics, font, ix, y, iw, "Scan radius", config.scanRadius + "m", (config.scanRadius - 16) / 64f, v -> config.scanRadius = VoidmarkConfig.clamp(16 + Math.round(v * 64f), 16, 80));
-
-				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Detection");
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Block scan", config.blockScan, v -> config.blockScan = v);
-				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Particle hints", config.particleDetection, v -> config.particleDetection = v);
-			}
-			case MINING -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(2), "Main");
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mining HUD", config.miningHudEnabled, v -> config.miningHudEnabled = v);
-				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ability alert", config.miningAbilityAlert, v -> config.miningAbilityAlert = v);
-
-				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 54 + CARD_PAD, "Live");
-				var snap = MiningTracker.snapshot();
-				GuiDraw.menu(graphics, font, snap.ability(), rx, y + 2, Theme.TEXT);
-				GuiDraw.menu(graphics, font, snap.abilityReady() ? "Ready" : snap.abilityLabel(), rx, y + 14, snap.abilityReady() ? Theme.ACCENT : Theme.MUTED);
-				String jobs = snap.commissions().isEmpty() ? "No commissions" : snap.commissions().size() + " commission" + (snap.commissions().size() == 1 ? "" : "s");
-				GuiDraw.menu(graphics, font, jobs, rx, y + 28, Theme.MUTED);
-				GuiDraw.small(graphics, font, "Move this HUD from the toolbar editor.", rx, y + 42, Theme.MUTED);
-			}
-			case DISPLAY -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(6), "Esp");
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Filled box", config.boxFill, v -> config.boxFill = v);
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v);
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Tracer", config.tracersEnabled, v -> config.tracersEnabled = v);
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.throughWalls, v -> config.throughWalls = v);
-				y = slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
-				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Marker color", config.colorRgb, PickerTarget.NODE);
-
-				y = featureCard(graphics, font, right, top, col, cardHeight(8), "Overlay");
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Music HUD", config.musicHudEnabled, v -> config.musicHudEnabled = v);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Raw mats HUD", config.rawmatsHudEnabled, v -> config.rawmatsHudEnabled = v);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Mining HUD", config.miningHudEnabled, v -> config.miningHudEnabled = v);
-				y = cycle(graphics, font, rx, y, iw, mouseX, mouseY, "Materials", config.rawmatsModeLabel(), config::cycleRawmatsMode);
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Nametags", config.nametagsEnabled, v -> config.nametagsEnabled = v);
-				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
-			}
-			case HUD -> {
+			case BARS -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(7), "Bars");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hotbar", config.hudHotbar, v -> config.hudHotbar = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Health", config.hudHealth, v -> config.hudHealth = v);
@@ -1107,81 +1098,31 @@ public class VoidmarkScreen extends Screen {
 				GuiDraw.menu(graphics, font, "Move and scale each piece", rx, y + 4, Theme.MUTED);
 				GuiDraw.menu(graphics, font, "from the toolbar HUD editor.", rx, y + 16, Theme.MUTED);
 			}
-			case INVENTORY -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Inventory HUD");
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v);
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hotbar", config.inventoryHudHotbar, v -> config.inventoryHudHotbar = v);
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Armor", config.inventoryHudArmor, v -> config.inventoryHudArmor = v);
-				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Item count", config.inventoryHudCount, v -> config.inventoryHudCount = v);
+			case NODES -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(1), "Markers");
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.markersEnabled, v -> config.markersEnabled = v, Feature.NODES);
 
-				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 48 + CARD_PAD, "Layout");
-				GuiDraw.menu(graphics, font, "Move and scale this HUD", rx, y + 2, Theme.MUTED);
-				GuiDraw.menu(graphics, font, "from the toolbar HUD editor.", rx, y + 14, Theme.MUTED);
-				GuiDraw.menu(graphics, font, "Scroll or drag the scale bar.", rx, y + 26, Theme.MUTED);
-			}
-			case STATUS -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(5), "Server");
-				y = readout(graphics, font, ix, y, iw, "Hypixel", SkyblockLocation.onHypixel);
-				y = readout(graphics, font, ix, y, iw, "Skyblock", SkyblockLocation.inSkyblock);
-				y = readout(graphics, font, ix, y, iw, "The End", SkyblockLocation.inTheEnd);
-				y = statRow(graphics, font, ix, y, iw, "FPS", HudStats.fps() + "");
-				statRow(graphics, font, ix, y, iw, "Ping", HudStats.pingLabel());
-
-				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 42 + CARD_PAD, "Nodes");
+				y = featureCard(graphics, font, right, top, col, cardHeight(6), "Status");
+				y = readout(graphics, font, rx, y, iw, "Hypixel", SkyblockLocation.onHypixel);
+				y = readout(graphics, font, rx, y, iw, "Skyblock", SkyblockLocation.inSkyblock);
+				y = readout(graphics, font, rx, y, iw, "The End", SkyblockLocation.inTheEnd);
+				y = statRow(graphics, font, rx, y, iw, "FPS", HudStats.fps() + "");
+				y = statRow(graphics, font, rx, y, iw, "Ping", HudStats.pingLabel());
 				String area = SkyblockLocation.area.isEmpty() ? "Unknown" : SkyblockLocation.area;
-				GuiDraw.menu(graphics, font, area, rx, y + 2, Theme.TEXT);
-				GuiDraw.menu(graphics, font, EnderNodeTracker.get().count() + " tracked", rx, y + 14, Theme.MUTED);
-				GuiDraw.menu(graphics, font, "Right Shift", rx, y + 28, Theme.HEADER);
+				GuiDraw.menu(graphics, font, clip(font, area, (int) iw - 4), rx, GuiDraw.middle(y, ROW), Theme.MUTED);
 			}
-			case NICK -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(5), "Nametags");
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.nametagsEnabled, v -> config.nametagsEnabled = v);
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.nametagThroughWalls, v -> config.nametagThroughWalls = v);
-				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Show distance", config.nametagDistance, v -> config.nametagDistance = v);
-				y = slider(graphics, font, ix, y, iw, "Size", Math.round(config.nametagScale * 100) + "%", (config.nametagScale - 0.50f) / 1.50f, v -> config.nametagScale = VoidmarkConfig.clamp(0.50f + v * 1.50f, 0.50f, 2.00f));
-				slider(graphics, font, ix, y, iw, "Range", config.nametagRange + "m", (config.nametagRange - 64) / 192f, v -> config.nametagRange = VoidmarkConfig.clamp(64 + Math.round(v * 192f), 64, 256));
+			case MINING -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(1), "HUD");
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mining HUD", config.miningHudEnabled, v -> config.miningHudEnabled = v, Feature.MINING);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Hider");
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Replace my name", config.nickEnabled, v -> config.nickEnabled = v);
-				GuiDraw.small(graphics, font, "Chat, tab, scoreboard. Use &6 &l.", rx, y + 2, Theme.MUTED);
-
-				float full = contentW();
-				float inputY = top + cardHeight(5) + 8;
-				nickFieldX = left;
-				nickFieldY = inputY;
-				nickFieldW = full;
-				boolean hoverNick = GuiDraw.hovered(mouseX, mouseY, left, inputY, full, 18);
-				GuiDraw.panel(graphics, left, inputY, full, 18, 5, nickFocused || hoverNick ? Theme.CARD_HOVER : Theme.CARD, nickFocused ? Theme.ACCENT : Theme.LINE);
-				NickHider.suppress();
-				String raw = config.nick == null ? "" : config.nick;
-				String shown = raw.isEmpty() && !nickFocused ? "Nick  (&6Name)" : raw + (nickFocused ? "|" : "");
-				GuiDraw.menu(graphics, font, clip(font, shown, (int) full - 14), left + 7, GuiDraw.middle(inputY, 18), raw.isEmpty() && !nickFocused ? Theme.MUTED : Theme.TEXT);
-				NickHider.resume();
-				hits.add(new Hit(left, inputY, full, 18, () -> {
-					nickFocused = true;
-					capeFocused = false;
-					searchOpen = false;
-				}));
-
-				float previewY = inputY + 26;
-				float previewH = 56;
-				GuiDraw.panel(graphics, left, previewY, full, previewH, 8, Theme.CARD, Theme.LINE);
-				GuiDraw.small(graphics, font, "PREVIEW", left + CARD_PAD, previewY + 6, Theme.HEADER);
-				GuiDraw.hline(graphics, left + CARD_PAD, previewY + 16, full - CARD_PAD * 2, Theme.LINE);
-				GuiDraw.rounded(graphics, left + CARD_PAD, previewY + 22, full - CARD_PAD * 2, 26, 5, Theme.PANEL);
-				NickHider.suppress();
-				Component preview = config.nickEnabled ? NickHider.formattedNick() : Component.literal(playerName());
-				if (preview.getString().isEmpty()) {
-					GuiDraw.menu(graphics, font, "Your name will be hidden", left + CARD_PAD + 6, GuiDraw.middle(previewY + 22, 26), Theme.MUTED);
-				} else {
-					graphics.pose().pushMatrix();
-					graphics.pose().translate(left + CARD_PAD + 6, GuiDraw.middle(previewY + 22, 26));
-					graphics.text(font, preview, 0, 0, 0xFFFFFFFF, false);
-					graphics.pose().popMatrix();
-				}
-				NickHider.resume();
+				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 42 + CARD_PAD, "Live");
+				var snap = MiningTracker.snapshot();
+				GuiDraw.menu(graphics, font, snap.ability(), rx, y + 2, Theme.TEXT);
+				GuiDraw.menu(graphics, font, snap.abilityReady() ? "Ready" : snap.abilityLabel(), rx, y + 14, snap.abilityReady() ? Theme.ACCENT : Theme.MUTED);
+				String jobs = snap.commissions().isEmpty() ? "No commissions" : snap.commissions().size() + " commission" + (snap.commissions().size() == 1 ? "" : "s");
+				GuiDraw.menu(graphics, font, jobs, rx, y + 26, Theme.MUTED);
 			}
-			case CAPE -> drawCapeTab(graphics, font, mouseX, mouseY);
+			case PLAYER -> drawPlayerTab(graphics, font, mouseX, mouseY);
 		}
 	}
 
@@ -1205,6 +1146,10 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private float toggle(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String label, boolean value, Consumer<Boolean> setter) {
+		return toggle(graphics, font, x, y, w, mouseX, mouseY, label, value, setter, null);
+	}
+
+	private float toggle(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String label, boolean value, Consumer<Boolean> setter, Feature feature) {
 		boolean hovered = GuiDraw.hovered(mouseX, mouseY, x, y, w, ROW);
 		float hover = anim("hov-" + label, hovered ? 1f : 0f);
 		if (hover > 0.02f) {
@@ -1218,15 +1163,141 @@ public class VoidmarkScreen extends Screen {
 		float trackH = 11;
 		float tx = x + w - trackW;
 		float ty = y + (ROW - trackH) / 2f;
+		if (feature != null) {
+			float cogX = tx - COG_W - 2;
+			boolean cogOn = featureOpen && featureId == feature;
+			boolean cogHover = GuiDraw.hovered(mouseX, mouseY, cogX, y, COG_W, ROW);
+			GuiDraw.icon(graphics, font, MenuFont.SETTINGS, cogX + 1, labelY, cogOn || cogHover ? Theme.ACCENT : Theme.MUTED);
+			hits.add(new Hit(cogX, y, COG_W, ROW, () -> openFeature(feature)));
+		}
 		int fill = t > 0.5f ? Theme.ACCENT : Theme.TRACK;
 		GuiDraw.pill(graphics, tx, ty, trackW, trackH, fill);
 		float knob = tx + 6 + t * (trackW - 12);
 		GuiDraw.circle(graphics, knob, ty + trackH / 2f, 4.6f, t > 0.5f ? Theme.TEXT : Theme.OFF);
-		hits.add(new Hit(x, y, w, ROW, () -> {
-			setter.accept(!value);
-			UnloadState.markDirty();
-		}));
+		float hitW = feature == null ? w : w - COG_W - 2;
+		float hitX = feature == null ? x : x;
+		if (feature != null) {
+			hits.add(new Hit(x, y, tx - COG_W - 4 - x, ROW, () -> {
+				setter.accept(!value);
+				UnloadState.markDirty();
+			}));
+			hits.add(new Hit(tx, y, trackW, ROW, () -> {
+				setter.accept(!value);
+				UnloadState.markDirty();
+			}));
+		} else {
+			hits.add(new Hit(hitX, y, hitW, ROW, () -> {
+				setter.accept(!value);
+				UnloadState.markDirty();
+			}));
+		}
 		return y + ROW;
+	}
+
+	private void openFeature(Feature feature) {
+		if (featureOpen && featureId == feature) {
+			featureOpen = false;
+			return;
+		}
+		featureId = feature;
+		featureOpen = true;
+		settingsOpen = false;
+		bellOpen = false;
+		searchOpen = false;
+		pickerTarget = null;
+	}
+
+	private void drawFeaturePanel(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
+		Feature feature = featureId;
+		if (feature == null) {
+			return;
+		}
+		float h = feature.height();
+		featureX = contentX() + contentW() - FEATURE_W;
+		featureY = windowY + TOOLBAR_H + 2;
+		hits.add(new Hit(featureX, featureY, FEATURE_W, h, () -> {
+		}));
+		GuiDraw.panel(graphics, featureX, featureY, FEATURE_W, h * Math.max(0.2f, featureT), 8, Anim.fade(Theme.PANEL, featureT), Theme.ACCENT);
+		if (featureT < 0.85f) {
+			return;
+		}
+		GuiDraw.menu(graphics, font, feature.title, featureX + 8, featureY + 6, Theme.HEADER);
+		float ix = featureX + 8;
+		float y = featureY + 20;
+		float iw = FEATURE_W - 16;
+		VoidmarkConfig config = VoidmarkConfig.get();
+		switch (feature) {
+			case WORLD -> {
+				y = cycle(graphics, font, ix, y, iw, mouseX, mouseY, "Mode", config.worldTintModeLabel(), config::cycleWorldTintMode);
+				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.worldTintRgb, PickerTarget.WORLD);
+				y = slider(graphics, font, ix, y, iw, "Strength", String.format(Locale.ROOT, "%.0f", config.worldTintStrength * 100), config.worldTintStrength, v -> config.worldTintStrength = v);
+				if (config.worldTintUsesLightmap()) {
+					hint(graphics, font, ix, y, iw, "Turn fullbright off");
+				}
+			}
+			case SKY -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Match world", config.matchSkyToWorld, v -> config.matchSkyToWorld = v);
+				int skyPreview = config.matchSkyToWorld ? config.worldTintRgb : config.skyTintRgb;
+				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", skyPreview, PickerTarget.SKY);
+				slider(graphics, font, ix, y, iw, "Strength", String.format(Locale.ROOT, "%.0f", config.skyTintStrength * 100), config.skyTintStrength, v -> config.skyTintStrength = v);
+			}
+			case FOG -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Match world", config.matchFogToWorld, v -> config.matchFogToWorld = v);
+				int fogPreview = config.matchFogToWorld ? config.worldTintRgb : config.fogRgb;
+				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", fogPreview, PickerTarget.FOG);
+				y = slider(graphics, font, ix, y, iw, "Start", String.format(Locale.ROOT, "%.0f%%", config.fogStart * 100), config.fogStart / 0.95f, v -> config.fogStart = VoidmarkConfig.clamp(v * 0.95f, 0f, 0.95f));
+				y = slider(graphics, font, ix, y, iw, "End", String.format(Locale.ROOT, "%.0f%%", config.fogEnd * 100), (config.fogEnd - 0.05f) / 0.95f, v -> config.fogEnd = VoidmarkConfig.clamp(0.05f + v * 0.95f, 0.05f, 1f));
+				slider(graphics, font, ix, y, iw, "Density", String.format(Locale.ROOT, "%.0f", config.fogDensity * 100), config.fogDensity, v -> config.fogDensity = v);
+			}
+			case VIEW -> {
+				y = slider(graphics, font, ix, y, iw, "Aspect", aspectLabel(config.aspectRatio), (config.aspectRatio - 0.50f) / 0.70f, v -> config.aspectRatio = VoidmarkConfig.clamp(0.50f + v * 0.70f, 0.50f, 1.20f));
+				chipRow(graphics, font, ix, y, iw, mouseX, mouseY, new String[]{"Native", "16:10", "4:3", "5:4"}, aspectChipIndex(config.aspectRatio), index -> {
+					float[] values = {1.00f, 0.90f, 0.75f, 0.70f};
+					config.aspectEnabled = true;
+					config.aspectRatio = values[index];
+				});
+			}
+			case MOB -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.mobGlowThroughWalls, v -> config.mobGlowThroughWalls = v);
+				y = slider(graphics, font, ix, y, iw, "Size", String.format(Locale.ROOT, "%.0f", config.mobGlowSize * 100), (config.mobGlowSize - 0.12f) / 1.08f, v -> config.mobGlowSize = VoidmarkConfig.clamp(0.12f + v * 1.08f, 0.12f, 1.20f));
+				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.mobGlowOpacity * 100) + "%", (config.mobGlowOpacity - 0.15f) / 0.75f, v -> config.mobGlowOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
+			}
+			case NODE_ESP -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Tracer", config.tracersEnabled, v -> config.tracersEnabled = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.throughWalls, v -> config.throughWalls = v);
+				y = slider(graphics, font, ix, y, iw, "Fill opacity", Math.round(config.fillOpacity * 100) + "%", (config.fillOpacity - 0.08f) / 0.77f, v -> config.fillOpacity = VoidmarkConfig.clamp(0.08f + v * 0.77f, 0.08f, 0.85f));
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.colorRgb, PickerTarget.NODE);
+			}
+			case WATERMARK -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "FPS", config.watermarkFps, v -> config.watermarkFps = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ping", config.watermarkPing, v -> config.watermarkPing = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Clock", config.watermarkTime, v -> config.watermarkTime = v);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Name", config.watermarkName, v -> config.watermarkName = v);
+			}
+			case MUSIC -> toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
+			case RAWMATS -> cycle(graphics, font, ix, y, iw, mouseX, mouseY, "Materials", config.rawmatsModeLabel(), config::cycleRawmatsMode);
+			case MINING -> toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ability alert", config.miningAbilityAlert, v -> config.miningAbilityAlert = v);
+			case INVENTORY -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hotbar", config.inventoryHudHotbar, v -> config.inventoryHudHotbar = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Armor", config.inventoryHudArmor, v -> config.inventoryHudArmor = v);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Item count", config.inventoryHudCount, v -> config.inventoryHudCount = v);
+			}
+			case NAMETAGS -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.nametagThroughWalls, v -> config.nametagThroughWalls = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Show distance", config.nametagDistance, v -> config.nametagDistance = v);
+				y = slider(graphics, font, ix, y, iw, "Size", Math.round(config.nametagScale * 100) + "%", (config.nametagScale - 0.50f) / 1.50f, v -> config.nametagScale = VoidmarkConfig.clamp(0.50f + v * 1.50f, 0.50f, 2.00f));
+				slider(graphics, font, ix, y, iw, "Range", config.nametagRange + "m", (config.nametagRange - 64) / 192f, v -> config.nametagRange = VoidmarkConfig.clamp(64 + Math.round(v * 192f), 64, 256));
+			}
+			case NODES -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Only in The End", config.onlyInTheEnd, v -> config.onlyInTheEnd = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Force enable", config.forceEnable, v -> config.forceEnable = v);
+				y = slider(graphics, font, ix, y, iw, "Scan radius", config.scanRadius + "m", (config.scanRadius - 16) / 64f, v -> config.scanRadius = VoidmarkConfig.clamp(16 + Math.round(v * 64f), 16, 80));
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Block scan", config.blockScan, v -> config.blockScan = v);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Particle hints", config.particleDetection, v -> config.particleDetection = v);
+			}
+		}
 	}
 
 	private float cycle(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String label, String value, Runnable next) {
@@ -1436,7 +1507,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.81");
+			.orElse("1.1.82");
 	}
 
 	@Override
@@ -1447,7 +1518,7 @@ public class VoidmarkScreen extends Screen {
 		lastClickY = event.y();
 		dragging = false;
 		boolean onCape = GuiDraw.hovered(event.x(), event.y(), capeFieldX, capeFieldY, capeFieldW, ROW);
-		boolean onNick = GuiDraw.hovered(event.x(), event.y(), nickFieldX, nickFieldY, nickFieldW, 18);
+		boolean onNick = GuiDraw.hovered(event.x(), event.y(), nickFieldX, nickFieldY, nickFieldW, 16);
 		if (capeFocused && !onCape) {
 			capeFocused = false;
 			commitCapeUrl();
@@ -1476,6 +1547,10 @@ public class VoidmarkScreen extends Screen {
 		}
 		if (bellOpen && !GuiDraw.hovered(event.x(), event.y(), bellX, bellY, PANEL_W, 240)) {
 			bellOpen = false;
+			return true;
+		}
+		if (featureOpen && featureId != null && !GuiDraw.hovered(event.x(), event.y(), featureX, featureY, FEATURE_W, featureId.height())) {
+			featureOpen = false;
 			return true;
 		}
 		if (searchOpen && !GuiDraw.hovered(event.x(), event.y(), searchFieldX, windowY + 5, searchFieldW, 80)) {
@@ -1519,7 +1594,7 @@ public class VoidmarkScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-		if (tab == Tab.MOBS && scrollY != 0 && GuiDraw.hovered(mouseX, mouseY, mobFieldX, mobFieldY, mobListW, mobListY + mobListH - mobFieldY)) {
+		if (tab == Tab.ESP && scrollY != 0 && GuiDraw.hovered(mouseX, mouseY, mobFieldX, mobFieldY, mobListW, mobListY + mobListH - mobFieldY)) {
 			List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
 			float maxScroll = Math.max(0f, entries.size() * ROW - mobListH);
 			mobScroll = Mth.clamp(mobScroll - (float) scrollY * ROW * 2.2f, 0f, maxScroll);
@@ -1572,6 +1647,10 @@ public class VoidmarkScreen extends Screen {
 			}
 			if (pickerTarget != null) {
 				pickerTarget = null;
+				return true;
+			}
+			if (featureOpen) {
+				featureOpen = false;
 				return true;
 			}
 		}
@@ -1629,6 +1708,7 @@ public class VoidmarkScreen extends Screen {
 			searchOpen = true;
 			settingsOpen = false;
 			bellOpen = false;
+			featureOpen = false;
 			capeFocused = false;
 			nickFocused = false;
 			mobSearchFocused = false;
