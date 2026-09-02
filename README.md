@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.110.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.112.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -65,7 +65,7 @@ Config is saved to `.minecraft/config/voidmark.json`, including click-GUI positi
 
 ## Cape shop
 
-Paid custom capes ($1 via PayPal Friends and Family). You whitelist their Minecraft UUID on the cape site. They set the PNG in Voidmark. Other Voidmark clients fetch `/capes/{uuid}.png`. Changing the cape in the menu overwrites that file; others pick it up the next time they join a world. If a UUID is not on the list, the in-game Cape card stays locked. The shop still answers `uuid not whitelisted` if someone bypasses the lock. **Head tag** on the admin list is custom text above their nametag for Voidmark users (`&6` `&l` and the rest of the nick color codes). It refreshes on the same join.
+Paid custom capes ($1 via PayPal Friends and Family). You whitelist their Minecraft UUID on the cape site. They set the PNG in Voidmark. Other Voidmark clients fetch `/capes/{uuid}.png`. Changing the cape in the menu overwrites that file; others pick it up the next time they join a world. Players can change their own cape once per 24 hours unless **Upload bypass** is checked on the admin list. Admin cape uploads skip that limit. If a UUID is not on the list, the in-game Cape card stays locked. The shop still answers `uuid not whitelisted` if someone bypasses the lock. **Head tag** on the admin list is custom text above their nametag for Voidmark users (`&6` `&l` and the rest of the nick color codes). It refreshes on the same join.
 
 The mod talks to `https://voidmark-capes.inputm4.workers.dev` by default. Older configs that still point at localhost are rewritten to that URL on launch. To host your own copy, follow **[web/CLOUDFLARE.md](web/CLOUDFLARE.md)** and set `capeServerUrl` in `.minecraft/config/voidmark.json` (no trailing slash, no `/manage.html`).
 

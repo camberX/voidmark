@@ -20,6 +20,8 @@ const store = {
 	whitelist: await loadJson(join(DATA, "whitelist.json"), []),
 	names: await loadJson(join(DATA, "names.json"), {}),
 	tags: await loadJson(join(DATA, "tags.json"), {}),
+	bypass: await loadJson(join(DATA, "bypass.json"), {}),
+	capeAt: await loadJson(join(DATA, "capeAt.json"), {}),
 	config: await loadJson(join(DATA, "config.json"), {
 		paypal: "your-paypal@email.com",
 		price: "$1",
@@ -28,6 +30,12 @@ const store = {
 };
 if (!store.tags || typeof store.tags !== "object" || Array.isArray(store.tags)) {
 	store.tags = {};
+}
+if (!store.bypass || typeof store.bypass !== "object" || Array.isArray(store.bypass)) {
+	store.bypass = {};
+}
+if (!store.capeAt || typeof store.capeAt !== "object" || Array.isArray(store.capeAt)) {
+	store.capeAt = {};
 }
 
 const MIME = {
@@ -68,10 +76,10 @@ async function route(req, res) {
 		}
 		const file = capePath(id);
 		if (!existsSync(file)) {
-			json(res, 200, { has: false, hash: "", allowed: whitelisted(id), tag: tagFor(id) });
+			json(res, 200, { has: false, hash: "", allowed: whitelisted(id), tag: tagFor(id), bypass: hasBypass(id), retryIn: capeRetrySec(id) });
 			return;
 		}
-		json(res, 200, { has: true, hash: hashFile(file), allowed: whitelisted(id), tag: tagFor(id) });
+		json(res, 200, { has: true, hash: hashFile(file), allowed: whitelisted(id), tag: tagFor(id), bypass: hasBypass(id), retryIn: capeRetrySec(id) });
 		return;
 	}
 	if (req.method === "GET" && path.startsWith("/capes/") && path.endsWith(".png")) {
@@ -114,6 +122,10 @@ async function route(req, res) {
 		await handleTag(req, res);
 		return;
 	}
+	if (req.method === "PUT" && path === "/api/bypass") {
+		await handleBypass(req, res);
+		return;
+	}
 	if (req.method === "GET") {
 		await servePublic(res, path === "/" ? "/index.html" : path);
 		return;
@@ -131,12 +143,21 @@ async function handlePublish(req, res) {
 		json(res, 403, { error: "uuid not whitelisted" });
 		return;
 	}
+	const adminOk = adminHeaderOk(req);
+	const locked = capeRetryMs(uuid);
+	if (!adminOk && locked > 0) {
+		json(res, 429, { error: "Cape can be changed once per 24 hours", retryIn: Math.ceil(locked / 1000) });
+		return;
+	}
 	const body = await readBody(req, MAX_BYTES);
 	if (!isPng(body)) {
 		json(res, 400, { error: "Not a PNG" });
 		return;
 	}
 	await writeFile(capePath(uuid), body);
+	if (!adminOk) {
+		await touchCapeAt(uuid);
+	}
 	json(res, 200, { ok: true, uuid });
 }
 
@@ -150,10 +171,19 @@ async function handleDelete(req, res) {
 		json(res, 403, { error: "uuid not whitelisted" });
 		return;
 	}
+	const adminOk = adminHeaderOk(req);
+	const locked = capeRetryMs(uuid);
+	if (!adminOk && locked > 0) {
+		json(res, 429, { error: "Cape can be changed once per 24 hours", retryIn: Math.ceil(locked / 1000) });
+		return;
+	}
 	const file = capePath(uuid);
 	if (existsSync(file)) {
 		const { unlink } = await import("node:fs/promises");
 		await unlink(file);
+	}
+	if (!adminOk) {
+		await touchCapeAt(uuid);
 	}
 	json(res, 200, { ok: true });
 }
@@ -182,6 +212,8 @@ async function handleWhitelist(req, res) {
 		store.whitelist = store.whitelist.filter((id) => id !== uuid);
 		delete store.names[uuid];
 		delete store.tags[uuid];
+		delete store.bypass[uuid];
+		delete store.capeAt[uuid];
 		const file = capePath(uuid);
 		if (existsSync(file)) {
 			const { unlink } = await import("node:fs/promises");
@@ -193,6 +225,8 @@ async function handleWhitelist(req, res) {
 	await saveJson(join(DATA, "whitelist.json"), store.whitelist);
 	await saveJson(join(DATA, "names.json"), store.names);
 	await saveJson(join(DATA, "tags.json"), store.tags);
+	await saveJson(join(DATA, "bypass.json"), store.bypass);
+	await saveJson(join(DATA, "capeAt.json"), store.capeAt);
 	json(res, 200, { ok: true, uuids: store.whitelist, players: await playersFor(store.whitelist) });
 }
 
@@ -226,6 +260,35 @@ async function handleTag(req, res) {
 	json(res, 200, { ok: true, tag, players: await playersFor(store.whitelist) });
 }
 
+async function handleBypass(req, res) {
+	let body;
+	try {
+		body = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}");
+	} catch {
+		body = {};
+	}
+	if ((body.admin || "") !== ADMIN) {
+		json(res, 403, { error: "Bad admin key" });
+		return;
+	}
+	const uuid = normalizeUuid(body.uuid);
+	if (!uuid) {
+		json(res, 400, { error: "Need a valid UUID" });
+		return;
+	}
+	if (!whitelisted(uuid)) {
+		json(res, 403, { error: "uuid not whitelisted" });
+		return;
+	}
+	if (body.bypass) {
+		store.bypass[uuid] = true;
+	} else {
+		delete store.bypass[uuid];
+	}
+	await saveJson(join(DATA, "bypass.json"), store.bypass);
+	json(res, 200, { ok: true, bypass: Boolean(store.bypass[uuid]), players: await playersFor(store.whitelist) });
+}
+
 async function playersFor(uuids) {
 	return Promise.all(uuids.map(async (uuid) => {
 		const file = capePath(uuid);
@@ -235,30 +298,52 @@ async function playersFor(uuids) {
 			name: await mojangName(uuid),
 			cape: has,
 			hash: has ? hashFile(file) : "",
-			tag: tagFor(uuid)
+			tag: tagFor(uuid),
+			bypass: hasBypass(uuid),
+			retryIn: capeRetrySec(uuid)
 		};
 	}));
 }
 
 async function mojangName(uuid) {
-	if (store.names[uuid]) {
+	if (typeof store.names[uuid] === "string" && store.names[uuid]) {
 		return store.names[uuid];
 	}
-	try {
-		const response = await fetch("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid.replaceAll("-", ""), {
-			signal: AbortSignal.timeout(5000)
-		});
-		if (!response.ok) {
-			return "";
-		}
-		const data = await response.json();
-		if (data.name) {
-			store.names[uuid] = data.name;
-			await saveJson(join(DATA, "names.json"), store.names);
-			return data.name;
-		}
-	} catch {
+	const name = await lookupName(uuid);
+	if (name) {
+		store.names[uuid] = name;
+		await saveJson(join(DATA, "names.json"), store.names);
+	}
+	return name;
+}
+
+async function lookupName(uuid) {
+	const id = String(uuid || "").replaceAll("-", "");
+	if (id.length !== 32) {
 		return "";
+	}
+	const dashed = `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
+	const attempts = [
+		["https://api.ashcon.app/mojang/v2/user/" + dashed, (data) => data.username || data.name],
+		["https://playerdb.co/api/player/minecraft/" + dashed, (data) => data?.data?.player?.username],
+		["https://sessionserver.mojang.com/session/minecraft/profile/" + id, (data) => data.name]
+	];
+	for (const pair of attempts) {
+		try {
+			const response = await fetch(pair[0], {
+				headers: { "User-Agent": "Voidmark" },
+				signal: AbortSignal.timeout(5000)
+			});
+			if (!response.ok) {
+				continue;
+			}
+			const data = await response.json();
+			const name = String(pair[1](data) || "").trim();
+			if (name) {
+				return name;
+			}
+		} catch {
+		}
 	}
 	return "";
 }
@@ -272,6 +357,7 @@ function tagFor(uuid) {
 }
 
 const MAX_TAG = 48;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function sanitizeTag(value) {
 	return String(value || "")
@@ -279,6 +365,34 @@ function sanitizeTag(value) {
 		.replace(/\s+/g, " ")
 		.trim()
 		.slice(0, MAX_TAG);
+}
+
+function hasBypass(uuid) {
+	return Boolean(store.bypass[uuid]);
+}
+
+function capeRetryMs(uuid) {
+	if (hasBypass(uuid)) {
+		return 0;
+	}
+	const last = Number(store.capeAt[uuid]) || 0;
+	if (!last) {
+		return 0;
+	}
+	return Math.max(0, last + DAY_MS - Date.now());
+}
+
+function capeRetrySec(uuid) {
+	return Math.ceil(capeRetryMs(uuid) / 1000);
+}
+
+async function touchCapeAt(uuid) {
+	store.capeAt[uuid] = Date.now();
+	await saveJson(join(DATA, "capeAt.json"), store.capeAt);
+}
+
+function adminHeaderOk(req) {
+	return Boolean(ADMIN) && header(req, "x-admin") === ADMIN;
 }
 
 async function servePublic(res, requestPath) {

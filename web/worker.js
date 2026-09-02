@@ -36,9 +36,9 @@ async function route(request, env) {
 		const tag = tagFor(state, id);
 		const head = await env.CAPES.head(capeKey(id));
 		if (!head) {
-			return json(200, { has: false, hash: "", allowed: listed, tag });
+			return json(200, { has: false, hash: "", allowed: listed, tag, bypass: hasBypass(state, id), retryIn: capeRetrySec(state, id) });
 		}
-		return json(200, { has: true, hash: head.customMetadata?.hash || "", allowed: listed, tag });
+		return json(200, { has: true, hash: head.customMetadata?.hash || "", allowed: listed, tag, bypass: hasBypass(state, id), retryIn: capeRetrySec(state, id) });
 	}
 	if (request.method === "GET" && path.startsWith("/capes/") && path.endsWith(".png")) {
 		const id = normalizeUuid(path.slice("/capes/".length, -4));
@@ -71,6 +71,9 @@ async function route(request, env) {
 	if ((request.method === "PUT" || request.method === "DELETE") && path === "/api/tag") {
 		return handleTag(request, env);
 	}
+	if (request.method === "PUT" && path === "/api/bypass") {
+		return handleBypass(request, env);
+	}
 	if (request.method === "GET" && env.ASSETS) {
 		const asset = await env.ASSETS.fetch(request);
 		if (asset.status !== 404) {
@@ -95,6 +98,11 @@ async function handlePublish(request, env) {
 	if (!state.whitelist.includes(uuid)) {
 		return json(403, { error: "uuid not whitelisted" });
 	}
+	const adminOk = adminHeaderOk(request, env);
+	const locked = capeRetryMs(state, uuid);
+	if (!adminOk && locked > 0) {
+		return json(429, { error: "Cape can be changed once per 24 hours", retryIn: Math.ceil(locked / 1000) });
+	}
 	const body = new Uint8Array(await request.arrayBuffer());
 	if (!isPng(body)) {
 		return json(400, { error: "Not a PNG" });
@@ -104,6 +112,10 @@ async function handlePublish(request, env) {
 		httpMetadata: { contentType: "image/png" },
 		customMetadata: { hash }
 	});
+	if (!adminOk) {
+		touchCapeAt(state, uuid);
+		await saveState(env, state);
+	}
 	return json(200, { ok: true, uuid });
 }
 
@@ -116,7 +128,16 @@ async function handleDelete(request, env) {
 	if (!state.whitelist.includes(uuid)) {
 		return json(403, { error: "uuid not whitelisted" });
 	}
+	const adminOk = adminHeaderOk(request, env);
+	const locked = capeRetryMs(state, uuid);
+	if (!adminOk && locked > 0) {
+		return json(429, { error: "Cape can be changed once per 24 hours", retryIn: Math.ceil(locked / 1000) });
+	}
 	await env.CAPES.delete(capeKey(uuid));
+	if (!adminOk) {
+		touchCapeAt(state, uuid);
+		await saveState(env, state);
+	}
 	return json(200, { ok: true });
 }
 
@@ -151,6 +172,12 @@ async function handleWhitelist(request, env) {
 		}
 		if (state.tags) {
 			delete state.tags[uuid];
+		}
+		if (state.bypass) {
+			delete state.bypass[uuid];
+		}
+		if (state.capeAt) {
+			delete state.capeAt[uuid];
 		}
 		await env.CAPES.delete(capeKey(uuid));
 	} else if (!state.whitelist.includes(uuid)) {
@@ -193,12 +220,44 @@ async function handleTag(request, env) {
 	return json(200, { ok: true, tag, players: await playersFor(env, state) });
 }
 
+async function handleBypass(request, env) {
+	const admin = env.ADMIN || "";
+	if (!admin) {
+		return json(500, { error: "Admin key is not set on the Worker" });
+	}
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		body = {};
+	}
+	if ((body.admin || "") !== admin) {
+		return json(403, { error: "Bad admin key" });
+	}
+	const uuid = normalizeUuid(body.uuid);
+	if (!uuid) {
+		return json(400, { error: "Need a valid UUID" });
+	}
+	const state = await loadState(env);
+	if (!state.whitelist.includes(uuid)) {
+		return json(403, { error: "uuid not whitelisted" });
+	}
+	state.bypass = objectMap(state.bypass);
+	if (body.bypass) {
+		state.bypass[uuid] = true;
+	} else {
+		delete state.bypass[uuid];
+	}
+	await saveState(env, state);
+	return json(200, { ok: true, bypass: Boolean(state.bypass[uuid]), players: await playersFor(env, state) });
+}
+
 function tagFor(state, uuid) {
-	const tags = state.tags && typeof state.tags === "object" && !Array.isArray(state.tags) ? state.tags : {};
-	return sanitizeTag(tags[uuid]);
+	return sanitizeTag(objectMap(state.tags)[uuid]);
 }
 
 const MAX_TAG = 48;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function sanitizeTag(value) {
 	return String(value || "")
@@ -206,6 +265,39 @@ function sanitizeTag(value) {
 		.replace(/\s+/g, " ")
 		.trim()
 		.slice(0, MAX_TAG);
+}
+
+function objectMap(value) {
+	return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function hasBypass(state, uuid) {
+	return Boolean(objectMap(state.bypass)[uuid]);
+}
+
+function capeRetryMs(state, uuid) {
+	if (hasBypass(state, uuid)) {
+		return 0;
+	}
+	const last = Number(objectMap(state.capeAt)[uuid]) || 0;
+	if (!last) {
+		return 0;
+	}
+	return Math.max(0, last + DAY_MS - Date.now());
+}
+
+function capeRetrySec(state, uuid) {
+	return Math.ceil(capeRetryMs(state, uuid) / 1000);
+}
+
+function touchCapeAt(state, uuid) {
+	state.capeAt = objectMap(state.capeAt);
+	state.capeAt[uuid] = Date.now();
+}
+
+function adminHeaderOk(request, env) {
+	const admin = env.ADMIN || "";
+	return Boolean(admin) && (request.headers.get("x-admin") || "") === admin;
 }
 
 async function playersFor(env, state) {
@@ -216,30 +308,52 @@ async function playersFor(env, state) {
 			name: await mojangName(uuid, state),
 			cape: Boolean(head),
 			hash: head?.customMetadata?.hash || "",
-			tag: tagFor(state, uuid)
+			tag: tagFor(state, uuid),
+			bypass: hasBypass(state, uuid),
+			retryIn: capeRetrySec(state, uuid)
 		};
 	}));
 }
 
 async function mojangName(uuid, state) {
-	state.names = state.names && typeof state.names === "object" ? state.names : {};
-	if (state.names[uuid]) {
+	state.names = state.names && typeof state.names === "object" && !Array.isArray(state.names) ? state.names : {};
+	if (typeof state.names[uuid] === "string" && state.names[uuid]) {
 		return state.names[uuid];
 	}
-	try {
-		const response = await fetch("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid.replaceAll("-", ""), {
-			signal: AbortSignal.timeout(5000)
-		});
-		if (!response.ok) {
-			return "";
-		}
-		const data = await response.json();
-		if (data.name) {
-			state.names[uuid] = data.name;
-			return data.name;
-		}
-	} catch {
+	const name = await lookupName(uuid);
+	if (name) {
+		state.names[uuid] = name;
+	}
+	return name;
+}
+
+async function lookupName(uuid) {
+	const id = String(uuid || "").replaceAll("-", "");
+	if (id.length !== 32) {
 		return "";
+	}
+	const dashed = `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
+	const attempts = [
+		["https://api.ashcon.app/mojang/v2/user/" + dashed, (data) => data.username || data.name],
+		["https://playerdb.co/api/player/minecraft/" + dashed, (data) => data?.data?.player?.username],
+		["https://sessionserver.mojang.com/session/minecraft/profile/" + id, (data) => data.name]
+	];
+	for (const pair of attempts) {
+		try {
+			const response = await fetch(pair[0], {
+				headers: { "User-Agent": "Voidmark" },
+				signal: AbortSignal.timeout(5000)
+			});
+			if (!response.ok) {
+				continue;
+			}
+			const data = await response.json();
+			const name = String(pair[1](data) || "").trim();
+			if (name) {
+				return name;
+			}
+		} catch {
+		}
 	}
 	return "";
 }
@@ -247,17 +361,19 @@ async function mojangName(uuid, state) {
 async function loadState(env) {
 	const object = await env.CAPES.get("state.json");
 	if (!object) {
-		return { whitelist: [], names: {}, tags: {} };
+		return { whitelist: [], names: {}, tags: {}, bypass: {}, capeAt: {} };
 	}
 	try {
 		const parsed = JSON.parse(await object.text());
 		return {
 			whitelist: Array.isArray(parsed.whitelist) ? parsed.whitelist : [],
-			names: parsed.names && typeof parsed.names === "object" ? parsed.names : {},
-			tags: parsed.tags && typeof parsed.tags === "object" && !Array.isArray(parsed.tags) ? parsed.tags : {}
+			names: objectMap(parsed.names),
+			tags: objectMap(parsed.tags),
+			bypass: objectMap(parsed.bypass),
+			capeAt: objectMap(parsed.capeAt)
 		};
 	} catch {
-		return { whitelist: [], names: {}, tags: {} };
+		return { whitelist: [], names: {}, tags: {}, bypass: {}, capeAt: {} };
 	}
 }
 
@@ -419,6 +535,8 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		.name { font-weight: 800; font-size: 16px; }
 		.uuid { color: var(--muted); font-size: 12px; word-break: break-all; margin-top: 4px; }
 		.tagline { margin-top: 8px; display: inline-flex; align-items: center; background: #0008; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 12px; min-height: 22px; }
+		.bypass { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--text); font-size: 13px; font-weight: 700; letter-spacing: 0; text-transform: none; cursor: pointer; }
+		.bypass input { width: 16px; height: 16px; accent-color: var(--accent); }
 		.nocape { color: var(--muted); font-size: 12px; text-align: center; }
 		.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 		.overlay { position: fixed; inset: 0; background: #05070dcc; display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
@@ -449,7 +567,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				<button type="button" class="ghost" id="out">Log out</button>
 			</div>
 			<div class="rule"></div>
-			<p>Whitelisted players. They set a cape in Voidmark, or you can set it here. Head tag is the line above their nametag.</p>
+			<p>Whitelisted players. They can change their own cape once per 24 hours unless Upload bypass is checked. Head tag is the line above their nametag.</p>
 			<label for="uuid">Add UUID</label>
 			<div class="add">
 				<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="f1b21931-667f-4be2-91bb-a06074978e0e">
@@ -606,6 +724,70 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			status.textContent = text;
 		}
 
+		async function lookupName(id) {
+			const dashed = String(id || "");
+			const urls = [
+				["https://api.ashcon.app/mojang/v2/user/" + dashed, function (data) { return data.username || data.name; }],
+				["https://playerdb.co/api/player/minecraft/" + dashed, function (data) { return data && data.data && data.data.player ? data.data.player.username : ""; }]
+			];
+			for (const pair of urls) {
+				try {
+					const response = await fetch(pair[0]);
+					if (!response.ok) continue;
+					const name = String(pair[1](await response.json()) || "").trim();
+					if (name) return name;
+				} catch (error) {
+				}
+			}
+			return "";
+		}
+
+		function fillName(el, player) {
+			if (player.name) {
+				el.textContent = player.name;
+				return;
+			}
+			el.textContent = "Looking up…";
+			lookupName(player.uuid).then((name) => {
+				el.textContent = name || "Unknown";
+			});
+		}
+
+		function formatWait(seconds) {
+			const total = Math.max(0, Number(seconds) || 0);
+			const hours = Math.floor(total / 3600);
+			const minutes = Math.floor((total % 3600) / 60);
+			if (hours >= 1) {
+				return hours + "h " + minutes + "m";
+			}
+			if (minutes >= 1) {
+				return minutes + "m";
+			}
+			return total + "s";
+		}
+
+		async function setBypass(id, enabled, box) {
+			try {
+				const response = await fetch("/api/bypass", {
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ admin: key, uuid: id, bypass: enabled })
+				});
+				const data = await response.json();
+				if (response.status === 403) {
+					sessionStorage.removeItem("voidmark-admin");
+					location.replace("/");
+					return;
+				}
+				if (!response.ok) throw new Error(data.error || "Could not save bypass");
+				draw(data.players || []);
+				setStatus(true, enabled ? "Upload bypass on. They can change their cape anytime." : "Upload bypass off. They can change their cape once per 24 hours.");
+			} catch (error) {
+				if (box) box.checked = !enabled;
+				setStatus(false, error.message);
+			}
+		}
+
 		async function api(method, id) {
 			const response = await fetch("/api/whitelist", {
 				method,
@@ -642,7 +824,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				meta.className = "meta";
 				const name = document.createElement("div");
 				name.className = "name";
-				name.textContent = player.name || "Unknown";
+				fillName(name, player);
 				const id = document.createElement("div");
 				id.className = "uuid";
 				id.textContent = player.uuid;
@@ -652,6 +834,22 @@ const MANAGE_HTML = `<!DOCTYPE html>
 					plate.className = "tagline";
 					plate.append(renderLegacy(player.tag));
 					meta.append(plate);
+				}
+				const bypass = document.createElement("label");
+				bypass.className = "bypass";
+				const box = document.createElement("input");
+				box.type = "checkbox";
+				box.checked = Boolean(player.bypass);
+				box.onchange = () => setBypass(player.uuid, box.checked, box);
+				const bypassText = document.createElement("span");
+				bypassText.textContent = "Upload bypass";
+				bypass.append(box, bypassText);
+				meta.append(bypass);
+				if (!player.bypass && player.retryIn > 0) {
+					const wait = document.createElement("div");
+					wait.className = "uuid";
+					wait.textContent = "Next self-change in " + formatWait(player.retryIn);
+					meta.append(wait);
 				}
 				let capeBox;
 				if (player.cape) {

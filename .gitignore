@@ -26,6 +26,8 @@ libs/
 web/data/whitelist.json
 web/data/names.json
 web/data/tags.json
+web/data/bypass.json
+web/data/capeAt.json
 web/data/capes/*.png
 !web/data/capes/.gitkeep
 web/node_modules/

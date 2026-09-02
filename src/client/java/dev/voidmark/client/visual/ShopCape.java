@@ -99,24 +99,20 @@ public final class ShopCape {
 	}
 
 	private static void setAllowed(boolean listed) {
-		boolean was = Boolean.TRUE.equals(allowed);
 		allowed = listed;
-		if (listed && !was && CustomCape.ready()) {
-			publish(CustomCape.png());
-		}
 	}
 
 	public static PlayerSkin patch(UUID uuid, PlayerSkin skin) {
 		if (skin == null || uuid == null) {
 			return skin;
 		}
-		Minecraft client = Minecraft.getInstance();
-		if (client.player != null && uuid.equals(client.player.getUUID()) && CustomCape.ready() && allowed()) {
-			return CustomCape.patch(skin);
-		}
 		Slot slot = SLOTS.get(uuid);
 		if (slot != null && slot.asset != null) {
 			return new PlayerSkin(skin.body(), slot.asset, skin.elytra(), skin.model(), skin.secure());
+		}
+		Minecraft client = Minecraft.getInstance();
+		if (client.player != null && uuid.equals(client.player.getUUID()) && CustomCape.ready() && allowed()) {
+			return CustomCape.patch(skin);
 		}
 		ensure(uuid, false);
 		return skin;
@@ -126,12 +122,12 @@ public final class ShopCape {
 		if (uuid == null) {
 			return false;
 		}
-		Minecraft client = Minecraft.getInstance();
-		if (client.player != null && uuid.equals(client.player.getUUID()) && CustomCape.ready() && allowed()) {
+		Slot slot = SLOTS.get(uuid);
+		if (slot != null && slot.asset != null) {
 			return true;
 		}
-		Slot slot = SLOTS.get(uuid);
-		return slot != null && slot.asset != null;
+		Minecraft client = Minecraft.getInstance();
+		return client.player != null && uuid.equals(client.player.getUUID()) && CustomCape.ready() && allowed();
 	}
 
 	public static void publish(byte[] png) {

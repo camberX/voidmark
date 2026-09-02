@@ -8,6 +8,14 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.112", new String[]{
+			"Cape changes are once per 24 hours unless the admin checks Upload bypass.",
+			"A cape set in the admin list overrides your local cape."
+		}),
+		new Entry("1.1.111", new String[]{
+			"A cape set in the admin list overrides your local cape.",
+			"Shop capes and head tags still refresh when you join a world."
+		}),
 		new Entry("1.1.110", new String[]{
 			"Shop capes and head tags refresh when you join a world, not every couple of seconds."
 		}),

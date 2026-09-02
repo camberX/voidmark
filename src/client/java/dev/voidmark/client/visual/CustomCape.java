@@ -262,7 +262,7 @@ public final class CustomCape {
 					failOn(gen, "HTTP " + response.statusCode());
 					return;
 				}
-				register(gen, response.body());
+				register(gen, response.body(), save);
 			} catch (IllegalArgumentException exception) {
 				failOn(gen, "Invalid URL");
 			} catch (Exception exception) {
@@ -291,14 +291,14 @@ public final class CustomCape {
 					failOn(gen, "Too large");
 					return;
 				}
-				register(gen, Files.readAllBytes(path));
+				register(gen, Files.readAllBytes(path), save);
 			} catch (Exception exception) {
 				failOn(gen, "Can't read file");
 			}
 		});
 	}
 
-	private static void register(int gen, byte[] bytes) {
+	private static void register(int gen, byte[] bytes, boolean publish) {
 		if (bytes.length < 8 || bytes.length > MAX_BYTES) {
 			failOn(gen, "Bad size");
 			return;
@@ -346,7 +346,9 @@ public final class CustomCape {
 				lastPng = bytes;
 				status = Status.READY;
 				error = "";
-				ShopCape.publish(bytes);
+				if (publish) {
+					ShopCape.publish(bytes);
+				}
 			} catch (Exception exception) {
 				atlas.close();
 				fail("Register failed");
