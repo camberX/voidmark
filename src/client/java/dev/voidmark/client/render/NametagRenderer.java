@@ -3,6 +3,7 @@ package dev.voidmark.client.render;
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.ui.Anim;
+import dev.voidmark.client.ui.MenuFont;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.visual.NickHider;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -218,11 +219,7 @@ public final class NametagRenderer {
 				drawNameText(graphics, font, name, tag, x, y, w, showDist, false, alpha);
 			}
 		} else if (tag.dev) {
-			float badgeW = badgeWidth(font);
-			float bx = -badgeW * 0.5f;
-			float by = -14f - BADGE_H;
-			GuiDraw.panel(graphics, bx, by, badgeW, BADGE_H, 5, pane, line);
-			drawBadgeText(graphics, font, bx, by, badgeW, alpha);
+			drawVanillaBadge(graphics, font, alpha);
 		}
 		graphics.pose().popMatrix();
 	}
@@ -277,6 +274,23 @@ public final class NametagRenderer {
 
 	private static float badgeWidth(Font font) {
 		return PAD_X + GuiDraw.menuWidth(font, BADGE_BRAND) + 3f + GuiDraw.menuWidth(font, BADGE_ROLE) + PAD_X;
+	}
+
+	/**
+	 * Vanilla nametag chrome (square fill, option background) with the menu font
+	 * so the Dev line matches the name underneath when custom plates are off.
+	 */
+	private static void drawVanillaBadge(GuiGraphicsExtractor graphics, Font font, float alpha) {
+		float brandW = GuiDraw.menuWidth(font, BADGE_BRAND);
+		float gap = 4f;
+		float inner = brandW + gap + GuiDraw.menuWidth(font, BADGE_ROLE);
+		int w = Math.max(1, Math.round(inner));
+		int x = Math.round(-w * 0.5f);
+		int top = -12;
+		int bg = Anim.fade(Minecraft.getInstance().options.getBackgroundColor(0.25f), alpha);
+		graphics.fill(x - 1, top - 1, x + w + 1, top + 9, bg);
+		GuiDraw.text(graphics, font, MenuFont.body(BADGE_BRAND), x, top, Anim.fade(Theme.ACCENT, alpha), false);
+		GuiDraw.text(graphics, font, MenuFont.body(BADGE_ROLE), x + brandW + gap, top, Anim.fade(Theme.WARN, alpha), false);
 	}
 
 	/** Vanilla nametag: default font, option background, white text, centered. */
