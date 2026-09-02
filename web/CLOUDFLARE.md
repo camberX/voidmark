@@ -99,7 +99,7 @@ If deploy fails with a bucket error, the bucket name in the dashboard does not m
 
 ## 7. Point Voidmark at that URL
 
-The jar is hardcoded to `https://voidmark.cloud`. Do not set `capeServerUrl` in `.minecraft/config/voidmark.json` — launch rewrites it to that host.
+The jar is hardcoded to `https://voidmark.cloud`. There is no `capeServerUrl` in `.minecraft/config/voidmark.json`. Launch drops that key if an older config still has it.
 
 Attach `voidmark.cloud` to the Worker (Settings → Domains & Routes). The `workers.dev` URL still works in a browser for the admin list if you want it.
 

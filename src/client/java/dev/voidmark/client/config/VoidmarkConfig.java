@@ -2,6 +2,8 @@ package dev.voidmark.client.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.render.MobCatalog;
 import net.fabricmc.loader.api.FabricLoader;
@@ -16,8 +18,6 @@ public final class VoidmarkConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("voidmark.json");
 	private static VoidmarkConfig instance = new VoidmarkConfig();
-	public static final String DEFAULT_CAPE_SERVER_URL = "https://voidmark.cloud";
-
 	public boolean markersEnabled = true;
 	public boolean hudEnabled = true;
 	public boolean tracersEnabled = true;
@@ -121,7 +121,6 @@ public final class VoidmarkConfig {
 	public float hudOpacity = 0.90f;
 	public String capeUrl = "";
 	public String capePath = "";
-	public String capeServerUrl = DEFAULT_CAPE_SERVER_URL;
 	public String capeShopKey = "";
 	public boolean nickEnabled = false;
 	public String nick = "";
@@ -197,7 +196,9 @@ public final class VoidmarkConfig {
 		}
 
 		try (Reader reader = Files.newBufferedReader(PATH)) {
-			VoidmarkConfig loaded = GSON.fromJson(reader, VoidmarkConfig.class);
+			JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
+			boolean dropCapeServerUrl = json.remove("capeServerUrl") != null;
+			VoidmarkConfig loaded = GSON.fromJson(json, VoidmarkConfig.class);
 			if (loaded != null) {
 				loaded.scanRadius = clamp(loaded.scanRadius, 16, 80);
 				loaded.fillOpacity = clamp(loaded.fillOpacity, 0.08f, 0.85f);
@@ -231,8 +232,6 @@ public final class VoidmarkConfig {
 				if (loaded.capeUrl == null) {
 					loaded.capeUrl = "";
 				}
-				boolean capeServerChanged = !DEFAULT_CAPE_SERVER_URL.equals(loaded.capeServerUrl == null ? "" : loaded.capeServerUrl);
-				loaded.capeServerUrl = DEFAULT_CAPE_SERVER_URL;
 				if (loaded.capeShopKey == null) {
 					loaded.capeShopKey = "";
 				}
@@ -301,7 +300,7 @@ public final class VoidmarkConfig {
 					? 0.90f
 					: clamp(loaded.hudOpacity, 0.20f, 1f);
 				instance = loaded;
-				if (capeServerChanged) {
+				if (dropCapeServerUrl) {
 					instance.save();
 				}
 			}

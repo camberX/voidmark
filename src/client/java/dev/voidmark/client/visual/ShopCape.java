@@ -2,7 +2,6 @@ package dev.voidmark.client.visual;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.voidmark.Voidmark;
-import dev.voidmark.client.config.VoidmarkConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -28,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * when you join a server or a singleplayer world.
  */
 public final class ShopCape {
+	private static final String SHOP_URL = "https://voidmark.cloud";
 	private static final int MAX_BYTES = 2 * 1024 * 1024;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
@@ -414,7 +414,7 @@ public final class ShopCape {
 	}
 
 	private static String shopUrl() {
-		return VoidmarkConfig.DEFAULT_CAPE_SERVER_URL;
+		return SHOP_URL;
 	}
 
 	private static UUID selfUuid() {

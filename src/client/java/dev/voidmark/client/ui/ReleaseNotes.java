@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.116", new String[]{
+			"capeServerUrl is gone from voidmark.json. Capes still use https://voidmark.cloud."
+		}),
 		new Entry("1.1.115", new String[]{
 			"Cape shop is always https://voidmark.cloud. Old workers.dev and localhost URLs are ignored."
 		}),
