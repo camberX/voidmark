@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.113", new String[]{
+			"Refresh capes on the Cape card pulls the latest shop capes and head tags."
+		}),
 		new Entry("1.1.112", new String[]{
 			"Cape changes are once per 24 hours unless the admin checks Upload bypass.",
 			"A cape set in the admin list overrides your local cape."

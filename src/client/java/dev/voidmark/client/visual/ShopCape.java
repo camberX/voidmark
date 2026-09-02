@@ -16,7 +16,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -35,6 +37,7 @@ public final class ShopCape {
 	private static volatile String publishStatus = "";
 	private static volatile Boolean allowed;
 	private static volatile boolean pendingJoin;
+	private static volatile boolean refreshing;
 	private static int publishGen;
 
 	private ShopCape() {
@@ -42,6 +45,37 @@ public final class ShopCape {
 
 	public static void onJoin() {
 		pendingJoin = true;
+	}
+
+	public static void refreshAll() {
+		if (shopUrl().isEmpty()) {
+			publishStatus = "No cape server";
+			return;
+		}
+		refreshing = true;
+		publishStatus = "Refreshing capes and tags…";
+		for (Slot slot : SLOTS.values()) {
+			slot.fetched = false;
+		}
+		Set<UUID> ids = new HashSet<>(SLOTS.keySet());
+		UUID self = selfUuid();
+		if (self != null) {
+			ids.add(self);
+		}
+		Minecraft client = Minecraft.getInstance();
+		if (client.level != null) {
+			for (AbstractClientPlayer player : client.level.players()) {
+				ids.add(player.getUUID());
+			}
+		}
+		if (ids.isEmpty()) {
+			refreshing = false;
+			publishStatus = "Join a world to refresh nearby players.";
+			return;
+		}
+		for (UUID id : ids) {
+			ensure(id, true);
+		}
 	}
 
 	public static void tick() {
@@ -314,6 +348,22 @@ public final class ShopCape {
 		synchronized (slot) {
 			slot.kind = kind;
 			slot.fetched = true;
+		}
+		finishRefreshIfIdle();
+	}
+
+	private static void finishRefreshIfIdle() {
+		if (!refreshing) {
+			return;
+		}
+		for (Slot slot : SLOTS.values()) {
+			if (slot.kind == Kind.LOADING) {
+				return;
+			}
+		}
+		refreshing = false;
+		if (publishStatus.startsWith("Refreshing")) {
+			publishStatus = "Capes and tags updated.";
 		}
 	}
 

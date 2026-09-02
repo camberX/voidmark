@@ -177,7 +177,8 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Hypixel", Tab.NODES, "Status"),
 		new SearchEntry("Nick hider", Tab.PLAYER, "Player"),
 		new SearchEntry("Cape", Tab.PLAYER, "Player"),
-		new SearchEntry("Cape shop", Tab.PLAYER, "Player")
+		new SearchEntry("Cape shop", Tab.PLAYER, "Player"),
+		new SearchEntry("Refresh capes", Tab.PLAYER, "Player")
 	};
 
 	private final List<Hit> hits = new ArrayList<>();
@@ -699,12 +700,15 @@ public class VoidmarkScreen extends Screen {
 			}
 		}
 
-		float y = featureCard(graphics, font, right, top, col, ShopCape.allowed() ? cardHeight(4) : cardHeight(2), "Cape");
+		float y = featureCard(graphics, font, right, top, col, ShopCape.allowed() ? cardHeight(5) : cardHeight(3), "Cape");
 		if (!ShopCape.allowed()) {
-			GuiDraw.small(graphics, font, ShopCape.lockLabel(), rx, y + 2, Theme.WARN);
+			String shop = ShopCape.publishStatus();
+			GuiDraw.small(graphics, font, shop.isBlank() ? ShopCape.lockLabel() : shop, rx, y + 2, Theme.WARN);
 			y += ROW;
 			GuiDraw.panel(graphics, rx, y + 1, iw, ROW - 2, 5, Theme.CARD, Theme.LINE);
 			GuiDraw.menu(graphics, font, "Cape locked", rx + 5, GuiDraw.middle(y, ROW), Theme.MUTED);
+			y += ROW;
+			capeRefreshRow(graphics, font, mouseX, mouseY, rx, y, iw);
 			return;
 		}
 		String shop = ShopCape.publishStatus();
@@ -741,6 +745,15 @@ public class VoidmarkScreen extends Screen {
 			capeUrlDraft = "";
 			CustomCape.clear();
 		}));
+		y += ROW;
+		capeRefreshRow(graphics, font, mouseX, mouseY, rx, y, iw);
+	}
+
+	private void capeRefreshRow(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY, float rx, float y, float iw) {
+		boolean hover = GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
+		GuiDraw.panel(graphics, rx, y + 1, iw, ROW - 2, 5, hover ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
+		GuiDraw.menu(graphics, font, "Refresh capes", rx + 5, GuiDraw.middle(y, ROW), Theme.TEXT);
+		hits.add(new Hit(rx, y, iw, ROW, ShopCape::refreshAll));
 	}
 
 	private void commitCapeUrl() {
@@ -1511,7 +1524,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.112");
+			.orElse("1.1.113");
 	}
 
 	@Override
