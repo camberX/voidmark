@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.110", new String[]{
+			"Shop capes and head tags refresh when you join a world, not every couple of seconds."
+		}),
 		new Entry("1.1.109", new String[]{
 			"Admin can set a head tag on the cape list. Color codes work, and it shows above their nametag."
 		}),

@@ -341,7 +341,7 @@
 				if (!response.ok) throw new Error(data.error || "Could not save tag");
 				draw(data.players || []);
 				closeTag();
-				setStatus(true, clear || !tagtext.value.trim() ? "Head tag cleared." : "Head tag saved. Voidmark users see it in a couple of seconds.");
+				setStatus(true, clear || !tagtext.value.trim() ? "Head tag cleared." : "Head tag saved. Others see it the next time they join a world.");
 			} catch (error) {
 				setStatus(false, error.message);
 			}
@@ -369,7 +369,7 @@
 				const data = await response.json().catch(() => ({}));
 				if (!response.ok) throw new Error(data.error || "Upload failed");
 				await send("POST");
-				setStatus(true, "Cape updated. Voidmark users will see it in a couple of seconds.");
+				setStatus(true, "Cape updated. Others see it the next time they join a world.");
 			} catch (error) {
 				setStatus(false, error.message);
 			}

@@ -131,7 +131,7 @@ You should see your PayPal and price. After they set a cape in-game:
 curl https://voidmark-capes.YOURNAME.workers.dev/api/cape/THEIR-UUID
 ```
 
-should return `"has":true` and a hash. Changing the cape in the Voidmark menu overwrites that file; other clients pick up the new hash within a couple of seconds.
+should return `"has":true` and a hash. Changing the cape in the Voidmark menu overwrites that file; other clients pick it up the next time they join a world.
 
 ## 10. Cap the bill (do this once)
 

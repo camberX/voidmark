@@ -144,7 +144,10 @@ public final class VoidmarkClient implements ClientModInitializer {
 			ShopCape.tick();
 		});
 
-		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> SkyblockProfileApi.refresh());
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			SkyblockProfileApi.refresh();
+			ShopCape.onJoin();
+		});
 
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			SkyblockLocation.reset();

@@ -21,13 +21,12 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Shared cape shop. Everyone with Voidmark fetches {@code /capes/{uuid}.png}.
- * Changing a cape in the menu uploads it so other clients pick it up.
+ * Shared cape shop. Everyone with Voidmark fetches {@code /capes/{uuid}.png}
+ * and head tags from the same request. Both load once per player, then again
+ * when you join a server or a singleplayer world.
  */
 public final class ShopCape {
 	private static final int MAX_BYTES = 2 * 1024 * 1024;
-	private static final long MISS_MS = 3_000L;
-	private static final long READY_MS = 2_000L;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.connectTimeout(Duration.ofSeconds(8))
@@ -35,25 +34,33 @@ public final class ShopCape {
 	private static final Map<UUID, Slot> SLOTS = new ConcurrentHashMap<>();
 	private static volatile String publishStatus = "";
 	private static volatile Boolean allowed;
+	private static volatile boolean pendingJoin;
 	private static int publishGen;
 
 	private ShopCape() {
 	}
 
+	public static void onJoin() {
+		pendingJoin = true;
+	}
+
 	public static void tick() {
-		Minecraft client = Minecraft.getInstance();
 		if (shopUrl().isEmpty()) {
 			return;
+		}
+		Minecraft client = Minecraft.getInstance();
+		if (pendingJoin && client.player != null && client.level != null) {
+			pendingJoin = false;
+			for (Slot slot : SLOTS.values()) {
+				slot.fetched = false;
+			}
+			for (AbstractClientPlayer player : client.level.players()) {
+				ensure(player.getUUID(), true);
+			}
 		}
 		UUID self = selfUuid();
 		if (self != null) {
 			ensure(self, false);
-		}
-		if (client.player == null || client.level == null) {
-			return;
-		}
-		for (AbstractClientPlayer player : client.level.players()) {
-			ensure(player.getUUID(), false);
 		}
 	}
 
@@ -80,7 +87,11 @@ public final class ShopCape {
 			return "";
 		}
 		Slot slot = SLOTS.get(uuid);
-		return slot == null || slot.tag == null ? "" : slot.tag;
+		if (slot == null) {
+			ensure(uuid, false);
+			return "";
+		}
+		return slot.tag == null ? "" : slot.tag;
 	}
 
 	public static boolean hasTag(UUID uuid) {
@@ -104,11 +115,11 @@ public final class ShopCape {
 			return CustomCape.patch(skin);
 		}
 		Slot slot = SLOTS.get(uuid);
-		if (slot == null || slot.kind != Kind.READY || slot.asset == null) {
-			ensure(uuid, false);
-			return skin;
+		if (slot != null && slot.asset != null) {
+			return new PlayerSkin(skin.body(), slot.asset, skin.elytra(), skin.model(), skin.secure());
 		}
-		return new PlayerSkin(skin.body(), slot.asset, skin.elytra(), skin.model(), skin.secure());
+		ensure(uuid, false);
+		return skin;
 	}
 
 	public static boolean showing(UUID uuid) {
@@ -120,7 +131,7 @@ public final class ShopCape {
 			return true;
 		}
 		Slot slot = SLOTS.get(uuid);
-		return slot != null && slot.kind == Kind.READY && slot.asset != null;
+		return slot != null && slot.asset != null;
 	}
 
 	public static void publish(byte[] png) {
@@ -199,25 +210,24 @@ public final class ShopCape {
 		if (uuid == null || shopUrl().isEmpty()) {
 			return;
 		}
-		long now = System.currentTimeMillis();
 		Slot slot = SLOTS.computeIfAbsent(uuid, id -> new Slot());
 		synchronized (slot) {
 			if (slot.kind == Kind.LOADING) {
 				return;
 			}
-			if (!force && slot.nextCheck > now) {
+			if (!force && slot.fetched) {
 				return;
 			}
 			slot.kind = Kind.LOADING;
 		}
-		Util.nonCriticalIoPool().execute(() -> download(uuid, slot, force));
+		Util.nonCriticalIoPool().execute(() -> download(uuid, slot));
 	}
 
-	private static void download(UUID uuid, Slot slot, boolean force) {
+	private static void download(UUID uuid, Slot slot) {
 		try {
 			String base = shopUrl();
 			if (base.isEmpty()) {
-				missCape(slot);
+				failKeep(slot);
 				return;
 			}
 			HttpRequest meta = HttpRequest.newBuilder(URI.create(base + "/api/cape/" + uuid))
@@ -227,7 +237,7 @@ public final class ShopCape {
 				.build();
 			HttpResponse<String> status = HTTP.send(meta, HttpResponse.BodyHandlers.ofString());
 			if (status.statusCode() != 200) {
-				missCape(slot);
+				failKeep(slot);
 				return;
 			}
 			boolean has = status.body().contains("\"has\":true") || status.body().contains("\"has\": true");
@@ -243,9 +253,8 @@ public final class ShopCape {
 				missCape(slot);
 				return;
 			}
-			if (!force && !hash.isBlank() && hash.equals(slot.hash) && slot.asset != null) {
-				slot.kind = Kind.READY;
-				slot.nextCheck = System.currentTimeMillis() + READY_MS;
+			if (!hash.isBlank() && hash.equals(slot.hash) && slot.asset != null) {
+				done(slot, Kind.READY);
 				return;
 			}
 			HttpRequest png = HttpRequest.newBuilder(URI.create(base + "/capes/" + uuid + ".png"))
@@ -255,12 +264,12 @@ public final class ShopCape {
 				.build();
 			HttpResponse<byte[]> response = HTTP.send(png, HttpResponse.BodyHandlers.ofByteArray());
 			if (response.statusCode() != 200 || !isPng(response.body())) {
-				missCape(slot);
+				failKeep(slot);
 				return;
 			}
 			register(uuid, slot, response.body(), hash);
 		} catch (Exception exception) {
-			missCape(slot);
+			failKeep(slot);
 		}
 	}
 
@@ -269,14 +278,14 @@ public final class ShopCape {
 		try {
 			image = NativeImage.read(bytes);
 		} catch (Exception exception) {
-			missCape(slot);
+			failKeep(slot);
 			return;
 		}
 		NativeImage atlas;
 		try {
 			atlas = CapeAtlas.toAtlas(image);
 		} catch (Exception exception) {
-			missCape(slot);
+			failKeep(slot);
 			return;
 		}
 		String safeHash = hash == null || hash.isBlank() ? Long.toHexString(System.currentTimeMillis()) : hash;
@@ -287,20 +296,29 @@ public final class ShopCape {
 				Minecraft.getInstance().getTextureManager().register(id, texture);
 				slot.asset = new ClientAsset.ResourceTexture(id, id);
 				slot.hash = hash == null ? "" : hash;
-				slot.kind = Kind.READY;
-				slot.nextCheck = System.currentTimeMillis() + READY_MS;
+				done(slot, Kind.READY);
 			} catch (Exception exception) {
 				atlas.close();
-				missCape(slot);
+				failKeep(slot);
 			}
 		});
 	}
 
 	private static void missCape(Slot slot) {
-		slot.kind = Kind.MISS;
 		slot.asset = null;
 		slot.hash = "";
-		slot.nextCheck = System.currentTimeMillis() + MISS_MS;
+		done(slot, Kind.MISS);
+	}
+
+	private static void failKeep(Slot slot) {
+		done(slot, slot.asset != null ? Kind.READY : Kind.MISS);
+	}
+
+	private static void done(Slot slot, Kind kind) {
+		synchronized (slot) {
+			slot.kind = kind;
+			slot.fetched = true;
+		}
 	}
 
 	private static boolean isPng(byte[] bytes) {
@@ -360,6 +378,6 @@ public final class ShopCape {
 		ClientAsset.Texture asset;
 		String hash = "";
 		String tag = "";
-		long nextCheck;
+		boolean fetched;
 	}
 }
