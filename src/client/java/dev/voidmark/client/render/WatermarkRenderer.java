@@ -80,7 +80,7 @@ public final class WatermarkRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		GuiDraw.panel(graphics, 0, 0, w, HEIGHT, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		HudChrome.panel(graphics, 0, 0, w, HEIGHT, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
 
 		float cx = pad + 2;
 		float textY = GuiDraw.middle(0, HEIGHT);

@@ -103,7 +103,7 @@ public final class StatusHudRenderer {
 		HudLayout.apply(graphics, font, HudLayout.Id.EXPERIENCE, () -> {
 			float w = xpWidth();
 			float barY = XP_BOX_H - XP_H;
-			GuiDraw.panel(graphics, 0, barY, w, XP_H, 4, Theme.WINDOW, Theme.LINE);
+			HudChrome.panel(graphics, 0, barY, w, XP_H, 4, Theme.WINDOW, Theme.LINE);
 			if (t > 0.01f) {
 				GuiDraw.rounded(graphics, 1, barY + 1, Math.max(2f, (w - 2f) * t), XP_H - 2, 3, Theme.ACCENT);
 			}
@@ -124,7 +124,7 @@ public final class StatusHudRenderer {
 
 	private static void bar(GuiGraphicsExtractor graphics, Font font, float x, float y, String label, String value, float t, int fill) {
 		t = Mth.clamp(t, 0f, 1f);
-		GuiDraw.panel(graphics, x, y, BAR_W, BAR_H, 4, Theme.WINDOW, Theme.LINE);
+		HudChrome.panel(graphics, x, y, BAR_W, BAR_H, 4, Theme.WINDOW, Theme.LINE);
 		if (t > 0.01f) {
 			GuiDraw.rounded(graphics, x + 1, y + 1, Math.max(2f, (BAR_W - 2f) * t), BAR_H - 2, 3, fill);
 		}

@@ -33,15 +33,22 @@ public final class Starfield {
 		float appear
 	) {
 		try {
-			paint(graphics, PANE, x, y, w, h, radius, appear, 0.72f, 18f, true);
+			paint(graphics, PANE, x, y, w, h, radius, appear, 0.72f, 18f, true, false);
+		} catch (Throwable ignored) {
+		}
+	}
+
+	public static void drawHud(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius) {
+		try {
+			paint(graphics, PANE, x, y, w, h, radius, 0.88f, 0.55f, 12f, false, true);
 		} catch (Throwable ignored) {
 		}
 	}
 
 	public static void drawSky(GuiGraphicsExtractor graphics, float w, float h) {
 		try {
-			paint(graphics, SKY, 0f, 0f, w, h, 0f, 1f, 0.92f, Math.max(22f, w * 0.045f), true);
-			paint(graphics, PANE, 0f, 0f, w, h, 0f, 1f, 0.55f, 18f, false);
+			paint(graphics, SKY, 0f, 0f, w, h, 0f, 1f, 0.92f, Math.max(22f, w * 0.045f), true, false);
+			paint(graphics, PANE, 0f, 0f, w, h, 0f, 1f, 0.55f, 18f, false, false);
 		} catch (Throwable ignored) {
 		}
 	}
@@ -57,7 +64,8 @@ public final class Starfield {
 		float appear,
 		float alphaScale,
 		float trail,
-		boolean shooting
+		boolean shooting,
+		boolean roundAll
 	) {
 		if (stars == null || stars.length == 0 || appear < 0.04f || w < 12f || h < 12f) {
 			return;
@@ -68,7 +76,7 @@ public final class Starfield {
 		for (Star star : stars) {
 			float px = x + wrap(star.nx * w + t * star.vx, w);
 			float py = y + wrap(star.ny * h + t * star.vy, h);
-			if (!insideRoundRight(px, py, x, y, w, h, r)) {
+			if (!insideRound(px, py, x, y, w, h, r, roundAll)) {
 				continue;
 			}
 			float twinkle = 0.38f + 0.62f * (0.5f + 0.5f * (float) Math.sin(t * star.freq + star.phase));
@@ -88,7 +96,7 @@ public final class Starfield {
 			}
 		}
 		if (shooting) {
-			drawShootingStar(graphics, x, y, w, h, r, t, appear, trail);
+			drawShootingStar(graphics, x, y, w, h, r, t, appear, trail, roundAll);
 		}
 		if (clipped) {
 			GuiDraw.disableScissor(graphics);
@@ -128,7 +136,8 @@ public final class Starfield {
 		float r,
 		float t,
 		float appear,
-		float trail
+		float trail,
+		boolean roundAll
 	) {
 		float cycle = 9.5f;
 		float u = (t % cycle) / cycle;
@@ -144,7 +153,7 @@ public final class Starfield {
 			float k = i / 9f;
 			float px = sx - k * trail;
 			float py = sy - k * trail * 0.30f;
-			if (!insideRoundRight(px, py, x, y, w, h, r)) {
+			if (!insideRound(px, py, x, y, w, h, r, roundAll)) {
 				continue;
 			}
 			int a = Math.round(200f * fade * (1f - k) * (1f - k));
@@ -160,19 +169,24 @@ public final class Starfield {
 		return Theme.mix(rgb, Theme.ACCENT & 0xFFFFFF, t);
 	}
 
-	private static boolean insideRoundRight(float px, float py, float x, float y, float w, float h, float r) {
+	private static boolean insideRound(float px, float py, float x, float y, float w, float h, float r, boolean all) {
 		if (px < x || py < y || px >= x + w || py >= y + h) {
 			return false;
 		}
-		if (r < 0.75f || px <= x + w - r) {
+		if (r < 0.75f) {
 			return true;
 		}
-		float cx = x + w - r;
-		if (py < y + r) {
-			return dist2(px - cx, py - (y + r)) <= r * r;
+		if (px < x + r && py < y + r) {
+			return !all || dist2(px - (x + r), py - (y + r)) <= r * r;
 		}
-		if (py > y + h - r) {
-			return dist2(px - cx, py - (y + h - r)) <= r * r;
+		if (px > x + w - r && py < y + r) {
+			return dist2(px - (x + w - r), py - (y + r)) <= r * r;
+		}
+		if (px < x + r && py > y + h - r) {
+			return !all || dist2(px - (x + r), py - (y + h - r)) <= r * r;
+		}
+		if (px > x + w - r && py > y + h - r) {
+			return dist2(px - (x + w - r), py - (y + h - r)) <= r * r;
 		}
 		return true;
 	}

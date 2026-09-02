@@ -122,6 +122,9 @@ public final class VoidmarkConfig {
 	public boolean nametagDistance = true;
 	public int nametagRange = 128;
 	public float nametagScale = 1.0f;
+	public float nametagOpacity = 1.0f;
+	public float menuScale = 1.0f;
+	public boolean hudStarfield = false;
 	public boolean mobGlowEnabled = false;
 	public boolean mobGlowThroughWalls = true;
 	public boolean blockOutlineGlow = true;
@@ -230,6 +233,8 @@ public final class VoidmarkConfig {
 				}
 				loaded.nametagRange = clamp(loaded.nametagRange <= 0 ? 128 : loaded.nametagRange, 64, 256);
 				loaded.nametagScale = clampHudScale(loaded.nametagScale);
+				loaded.nametagOpacity = loaded.nametagOpacity <= 0f ? 1.0f : clamp(loaded.nametagOpacity, 0.15f, 1f);
+				loaded.menuScale = normalizeMenuScale(loaded.menuScale);
 				if (loaded.mobGlowIds == null) {
 					loaded.mobGlowIds = new java.util.ArrayList<>();
 				}
@@ -371,6 +376,23 @@ public final class VoidmarkConfig {
 			case "PLAYER", "NICK", "CAPE" -> "PLAYER";
 			default -> "WORLD";
 		};
+	}
+
+	public static float normalizeMenuScale(float value) {
+		if (value <= 0f) {
+			return 1.0f;
+		}
+		float[] steps = {1.00f, 0.90f, 0.75f, 0.50f};
+		float best = 1.00f;
+		float err = Float.MAX_VALUE;
+		for (float step : steps) {
+			float d = Math.abs(value - step);
+			if (d < err) {
+				err = d;
+				best = step;
+			}
+		}
+		return best;
 	}
 
 	public static float clampHudScale(float value) {

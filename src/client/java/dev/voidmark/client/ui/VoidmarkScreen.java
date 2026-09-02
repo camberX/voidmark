@@ -52,7 +52,7 @@ public class VoidmarkScreen extends Screen {
 	private static final float PICKER_H = 122;
 	private static final float PANEL_W = 168;
 	private static final float FEATURE_W = 176;
-	private static final float SETTINGS_H = 176;
+	private static final float SETTINGS_H = 248;
 	private static final float COG_W = 14;
 
 	private enum Group {
@@ -99,7 +99,7 @@ public class VoidmarkScreen extends Screen {
 		RAWMATS("Raw mats", 1),
 		MINING("Mining", 1),
 		INVENTORY("Inventory", 3),
-		NAMETAGS("Nametags", 4),
+		NAMETAGS("Nametags", 5),
 		NODES("Nodes", 5);
 
 		final String title;
@@ -136,6 +136,9 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Node ESP", Tab.ESP, "ESP"),
 		new SearchEntry("Nametags", Tab.ESP, "ESP"),
 		new SearchEntry("Nametag size", Tab.ESP, "ESP"),
+		new SearchEntry("Nametag opacity", Tab.ESP, "ESP"),
+		new SearchEntry("Menu scale", Tab.OVERLAY, "Theme"),
+		new SearchEntry("HUD stars", Tab.OVERLAY, "Theme"),
 		new SearchEntry("Markers", Tab.NODES, "Nodes"),
 		new SearchEntry("Node HUD", Tab.NODES, "Nodes"),
 		new SearchEntry("Mining HUD", Tab.MINING, "Mining"),
@@ -244,6 +247,10 @@ public class VoidmarkScreen extends Screen {
 	private float windowY;
 	private float windowW = MENU_W;
 	private float windowH = MENU_H;
+	private float viewScale = 1f;
+	private float viewCx;
+	private float viewCy;
+	private float viewLift;
 
 	public VoidmarkScreen() {
 		super(Component.literal("Voidmark"));
@@ -283,10 +290,16 @@ public class VoidmarkScreen extends Screen {
 		int dim = Anim.fade(0x14000000, appear);
 		GuiDraw.fill(graphics, 0, 0, width, height, dim);
 
-		float scale = 0.92f + 0.08f * appear;
+		float scale = (0.92f + 0.08f * appear) * VoidmarkConfig.normalizeMenuScale(VoidmarkConfig.get().menuScale);
 		float lift = (1f - appear) * 12f;
 		float cx = windowX + windowW * 0.5f;
 		float cy = windowY + windowH * 0.5f;
+		viewScale = Math.max(0.35f, scale);
+		viewCx = cx;
+		viewCy = cy;
+		viewLift = lift;
+		int localMx = Math.round(localX(mouseX));
+		int localMy = Math.round(localY(mouseY));
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(cx, cy + lift);
 		graphics.pose().scale(scale, scale);
@@ -301,20 +314,20 @@ public class VoidmarkScreen extends Screen {
 			GuiDraw.disableScissor(graphics);
 		}
 
-		drawSidebar(graphics, font, mouseX, mouseY);
-		drawToolbar(graphics, font, mouseX, mouseY);
-		drawColumns(graphics, font, mouseX, mouseY);
+		drawSidebar(graphics, font, localMx, localMy);
+		drawToolbar(graphics, font, localMx, localMy);
+		drawColumns(graphics, font, localMx, localMy);
 		if (searchT > 0.02f && !searchQuery.isBlank()) {
-			drawSearchResults(graphics, font, mouseX, mouseY);
+			drawSearchResults(graphics, font, localMx, localMy);
 		}
 		if (featureT > 0.02f && featureId != null) {
-			drawFeaturePanel(graphics, font, mouseX, mouseY);
+			drawFeaturePanel(graphics, font, localMx, localMy);
 		}
 		if (settingsT > 0.02f) {
-			drawSettings(graphics, font, mouseX, mouseY);
+			drawSettings(graphics, font, localMx, localMy);
 		}
 		if (notesT > 0.02f) {
-			drawNotes(graphics, font, mouseX, mouseY);
+			drawNotes(graphics, font, localMx, localMy);
 		}
 		if (pickerT > 0.02f && pickerTarget != null) {
 			drawPicker(graphics, font);
@@ -360,6 +373,14 @@ public class VoidmarkScreen extends Screen {
 		}
 		windowX = Mth.clamp(windowX, 4, Math.max(4, width - windowW - 4));
 		windowY = Mth.clamp(windowY, 4, Math.max(4, height - windowH - 4));
+	}
+
+	private float localX(double mx) {
+		return (float) ((mx - viewCx) / viewScale + viewCx);
+	}
+
+	private float localY(double my) {
+		return (float) ((my - viewCy - viewLift) / viewScale + viewCy);
 	}
 
 	private float contentX() {
@@ -582,6 +603,9 @@ public class VoidmarkScreen extends Screen {
 		previewH = Math.max(48, modelH - CARD_HEAD - CARD_PAD);
 		if (!previewDrag) {
 			previewYaw += dt * 22f;
+			if (previewYaw > 360f || previewYaw < -360f) {
+				previewYaw %= 360f;
+			}
 		}
 		boolean previewHover = GuiDraw.hovered(mouseX, mouseY, previewX, previewY, previewW, previewH);
 		if (!PlayerPreview.draw(graphics, previewX, previewY, previewW, previewH, previewYaw, previewPitch)) {
@@ -881,6 +905,7 @@ public class VoidmarkScreen extends Screen {
 				config.nametagDistance = true;
 				config.nametagRange = 128;
 				config.nametagScale = 1.0f;
+				config.nametagOpacity = 1.0f;
 				mobQuery = "";
 				mobScroll = 0f;
 			}
@@ -1008,7 +1033,28 @@ public class VoidmarkScreen extends Screen {
 			VoidmarkConfig.get().themePaneOpacity = VoidmarkConfig.clamp(0.20f + v * 0.80f, 0.20f, 1f);
 			Theme.refresh();
 		});
+		GuiDraw.small(graphics, font, "Scale", settingsX + 8, y + 1, Theme.MUTED);
+		y += 12;
+		y = chipRow(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, new String[]{"100%", "90%", "75%", "50%"}, menuScaleChip(), index -> {
+			float[] values = {1.00f, 0.90f, 0.75f, 0.50f};
+			VoidmarkConfig.get().menuScale = values[index];
+		});
+		y = toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "HUD stars", VoidmarkConfig.get().hudStarfield, v -> VoidmarkConfig.get().hudStarfield = v);
 		toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Animations", VoidmarkConfig.get().uiAnimations, v -> VoidmarkConfig.get().uiAnimations = v);
+	}
+
+	private static int menuScaleChip() {
+		float scale = VoidmarkConfig.normalizeMenuScale(VoidmarkConfig.get().menuScale);
+		if (Math.abs(scale - 1.00f) < 0.01f) {
+			return 0;
+		}
+		if (Math.abs(scale - 0.90f) < 0.01f) {
+			return 1;
+		}
+		if (Math.abs(scale - 0.75f) < 0.01f) {
+			return 2;
+		}
+		return 3;
 	}
 
 	private float swatchRow(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float startX, float startY, Theme.Swatch[] swatches, boolean accent) {
@@ -1307,6 +1353,7 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.nametagThroughWalls, v -> config.nametagThroughWalls = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Show distance", config.nametagDistance, v -> config.nametagDistance = v);
 				y = slider(graphics, font, ix, y, iw, "Size", Math.round(config.nametagScale * 100) + "%", (config.nametagScale - 0.50f) / 1.50f, v -> config.nametagScale = VoidmarkConfig.clamp(0.50f + v * 1.50f, 0.50f, 2.00f));
+				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.nametagOpacity * 100) + "%", (config.nametagOpacity - 0.15f) / 0.85f, v -> config.nametagOpacity = VoidmarkConfig.clamp(0.15f + v * 0.85f, 0.15f, 1f));
 				slider(graphics, font, ix, y, iw, "Range", config.nametagRange + "m", (config.nametagRange - 64) / 192f, v -> config.nametagRange = VoidmarkConfig.clamp(64 + Math.round(v * 192f), 64, 256));
 			}
 			case NODES -> {
@@ -1334,20 +1381,22 @@ public class VoidmarkScreen extends Screen {
 
 	private float chipRow(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY, String[] labels, int selected, java.util.function.IntConsumer pick) {
 		float cx = x;
+		float rowY = y;
 		for (int i = 0; i < labels.length; i++) {
 			float cw = GuiDraw.menuWidth(font, labels[i]) + 10;
-			if (cx + cw > x + w) {
-				break;
+			if (cx > x && cx + cw > x + w) {
+				cx = x;
+				rowY += ROW;
 			}
 			boolean on = i == selected;
-			boolean hover = GuiDraw.hovered(mouseX, mouseY, cx, y + 1, cw, ROW - 2);
-			GuiDraw.panel(graphics, cx, y + 1, cw, ROW - 2, 5, on ? Theme.ACCENT : hover ? Theme.CARD_HOVER : Theme.CARD, on ? Theme.ACCENT : Theme.LINE);
-			GuiDraw.menu(graphics, font, labels[i], cx + 5, GuiDraw.middle(y, ROW), on ? Theme.WINDOW_SOLID : Theme.TEXT);
+			boolean hover = GuiDraw.hovered(mouseX, mouseY, cx, rowY + 1, cw, ROW - 2);
+			GuiDraw.panel(graphics, cx, rowY + 1, cw, ROW - 2, 5, on ? Theme.ACCENT : hover ? Theme.CARD_HOVER : Theme.CARD, on ? Theme.ACCENT : Theme.LINE);
+			GuiDraw.menu(graphics, font, labels[i], cx + 5, GuiDraw.middle(rowY, ROW), on ? Theme.WINDOW_SOLID : Theme.TEXT);
 			int index = i;
-			hits.add(new Hit(cx, y, cw, ROW, () -> pick.accept(index)));
+			hits.add(new Hit(cx, rowY, cw, ROW, () -> pick.accept(index)));
 			cx += cw + 4;
 		}
-		return y + ROW;
+		return rowY + ROW;
 	}
 
 	private static int aspectChipIndex(float ratio) {
@@ -1527,7 +1576,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.86");
+			.orElse("1.1.87");
 	}
 
 	@Override
@@ -1535,10 +1584,12 @@ public class VoidmarkScreen extends Screen {
 		if (event.button() != 0) {
 			return super.mouseClicked(event, doubled);
 		}
-		lastClickY = event.y();
+		lastClickY = localY(event.y());
 		dragging = false;
-		boolean onCape = GuiDraw.hovered(event.x(), event.y(), capeFieldX, capeFieldY, capeFieldW, ROW);
-		boolean onNick = GuiDraw.hovered(event.x(), event.y(), nickFieldX, nickFieldY, nickFieldW, 16);
+		double lx = localX(event.x());
+		double ly = lastClickY;
+		boolean onCape = GuiDraw.hovered(lx, ly, capeFieldX, capeFieldY, capeFieldW, ROW);
+		boolean onNick = GuiDraw.hovered(lx, ly, nickFieldX, nickFieldY, nickFieldW, 16);
 		if (capeFocused && !onCape) {
 			capeFocused = false;
 			commitCapeUrl();
@@ -1546,34 +1597,34 @@ public class VoidmarkScreen extends Screen {
 		if (nickFocused && !onNick) {
 			nickFocused = false;
 		}
-		boolean onMobSearch = GuiDraw.hovered(event.x(), event.y(), mobFieldX, mobFieldY, mobFieldW, 14);
+		boolean onMobSearch = GuiDraw.hovered(lx, ly, mobFieldX, mobFieldY, mobFieldW, 14);
 		if (mobSearchFocused && !onMobSearch) {
 			mobSearchFocused = false;
 		}
 		for (int i = hits.size() - 1; i >= 0; i--) {
 			Hit hit = hits.get(i);
-			if (hit.contains(event.x(), event.y())) {
-				hit.click(event.x());
+			if (hit.contains(lx, ly)) {
+				hit.click(lx);
 				return true;
 			}
 		}
-		if (pickerTarget != null && !GuiDraw.hovered(event.x(), event.y(), pickerX, pickerY, PICKER_W, PICKER_H)) {
+		if (pickerTarget != null && !GuiDraw.hovered(lx, ly, pickerX, pickerY, PICKER_W, PICKER_H)) {
 			pickerTarget = null;
 			return true;
 		}
-		if (settingsOpen && !GuiDraw.hovered(event.x(), event.y(), settingsX, settingsY, PANEL_W, SETTINGS_H)) {
+		if (settingsOpen && !GuiDraw.hovered(lx, ly, settingsX, settingsY, PANEL_W, SETTINGS_H)) {
 			settingsOpen = false;
 			return true;
 		}
-		if (notesOpen && !GuiDraw.hovered(event.x(), event.y(), notesX, notesY, PANEL_W, notesH)) {
+		if (notesOpen && !GuiDraw.hovered(lx, ly, notesX, notesY, PANEL_W, notesH)) {
 			notesOpen = false;
 			return true;
 		}
-		if (featureOpen && featureId != null && !GuiDraw.hovered(event.x(), event.y(), featureX, featureY, FEATURE_W, featureId.height())) {
+		if (featureOpen && featureId != null && !GuiDraw.hovered(lx, ly, featureX, featureY, FEATURE_W, featureId.height())) {
 			featureOpen = false;
 			return true;
 		}
-		if (searchOpen && !GuiDraw.hovered(event.x(), event.y(), searchFieldX, windowY + 5, searchFieldW, 80)) {
+		if (searchOpen && !GuiDraw.hovered(lx, ly, searchFieldX, windowY + 5, searchFieldW, 80)) {
 			searchOpen = false;
 			return true;
 		}
@@ -1588,17 +1639,18 @@ public class VoidmarkScreen extends Screen {
 			return true;
 		}
 		if (event.button() == 0 && dragging) {
-			windowX = (float) (event.x() - dragOffX);
-			windowY = (float) (event.y() - dragOffY);
+			windowX = localX(event.x()) - (float) dragOffX;
+			windowY = localY(event.y()) - (float) dragOffY;
 			moved = true;
 			return true;
 		}
 		if (event.button() == 0) {
-			lastClickY = event.y();
+			lastClickY = localY(event.y());
+			double lx = localX(event.x());
 			for (int i = hits.size() - 1; i >= 0; i--) {
 				Hit hit = hits.get(i);
-				if (hit.drag && hit.contains(event.x(), event.y())) {
-					hit.click(event.x());
+				if (hit.drag && hit.contains(lx, lastClickY)) {
+					hit.click(lx);
 					return true;
 				}
 			}
@@ -1620,12 +1672,14 @@ public class VoidmarkScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-		if (notesOpen && scrollY != 0 && GuiDraw.hovered(mouseX, mouseY, notesX, notesY, PANEL_W, notesH)) {
+		double lx = localX(mouseX);
+		double ly = localY(mouseY);
+		if (notesOpen && scrollY != 0 && GuiDraw.hovered(lx, ly, notesX, notesY, PANEL_W, notesH)) {
 			float maxScroll = Math.max(0f, ReleaseNotes.contentHeight(11) - (notesH - 28));
 			notesScroll = Mth.clamp(notesScroll - (float) scrollY * 18f, 0f, maxScroll);
 			return true;
 		}
-		if (tab == Tab.ESP && scrollY != 0 && GuiDraw.hovered(mouseX, mouseY, mobFieldX, mobFieldY, mobListW, mobListY + mobListH - mobFieldY)) {
+		if (tab == Tab.ESP && scrollY != 0 && GuiDraw.hovered(lx, ly, mobFieldX, mobFieldY, mobListW, mobListY + mobListH - mobFieldY)) {
 			List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
 			float maxScroll = Math.max(0f, entries.size() * ROW - mobListH);
 			mobScroll = Mth.clamp(mobScroll - (float) scrollY * ROW * 2.2f, 0f, maxScroll);

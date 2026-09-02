@@ -8,6 +8,13 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.87", new String[]{
+			"3D preview head stays locked to the body.",
+			"Nametag pills fit the text. Compact Dev badge.",
+			"Nametag opacity plus a fade when you enter range.",
+			"Nick applies to your own F5 tag.",
+			"Menu scale 100/90/75/50%. Optional HUD stars."
+		}),
 		new Entry("1.1.86", new String[]{
 			"Bell opens versioned release notes.",
 			"Settings panes stay more opaque.",

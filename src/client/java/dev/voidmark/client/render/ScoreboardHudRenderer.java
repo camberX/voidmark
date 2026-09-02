@@ -49,7 +49,7 @@ public final class ScoreboardHudRenderer {
 	}
 
 	private static void draw(GuiGraphicsExtractor graphics, Font font, Layout layout, float x, float y) {
-		GuiDraw.panel(graphics, x, y, layout.w, layout.h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		HudChrome.panel(graphics, x, y, layout.w, layout.h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
 		GuiDraw.small(graphics, font, "SCOREBOARD", x + PAD + 4, y + PAD - 1, Theme.ACCENT);
 		GuiDraw.text(graphics, font, layout.title, x + PAD + 4, y + PAD + 8, 0xFFFFFFFF, false);
 		float ly = y + PAD + HEAD + 2;

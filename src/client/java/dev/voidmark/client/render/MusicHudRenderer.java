@@ -114,7 +114,7 @@ public final class MusicHudRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		GuiDraw.panel(graphics, 0, 0, WIDTH, h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		HudChrome.panel(graphics, 0, 0, WIDTH, h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
 		float cover = drawCover(graphics, font, track, live, h);
 		float textX = COVER_PAD + cover + 6;
 

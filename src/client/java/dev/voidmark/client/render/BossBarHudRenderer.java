@@ -78,7 +78,7 @@ public final class BossBarHudRenderer {
 	}
 
 	private static void drawEmpty(GuiGraphicsExtractor graphics, Font font, float x, float y) {
-		GuiDraw.panel(graphics, x, y, BAR_W, BAR_H, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		HudChrome.panel(graphics, x, y, BAR_W, BAR_H, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
 		GuiDraw.small(graphics, font, "BOSS", x + 8, y + 4, Theme.MUTED);
 	}
 
