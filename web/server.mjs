@@ -19,12 +19,16 @@ await mkdir(CAPES, { recursive: true });
 const store = {
 	whitelist: await loadJson(join(DATA, "whitelist.json"), []),
 	names: await loadJson(join(DATA, "names.json"), {}),
+	tags: await loadJson(join(DATA, "tags.json"), {}),
 	config: await loadJson(join(DATA, "config.json"), {
 		paypal: "your-paypal@email.com",
 		price: "$1",
 		title: "VOIDMARK Capes"
 	})
 };
+if (!store.tags || typeof store.tags !== "object" || Array.isArray(store.tags)) {
+	store.tags = {};
+}
 
 const MIME = {
 	".html": "text/html; charset=utf-8",
@@ -64,10 +68,10 @@ async function route(req, res) {
 		}
 		const file = capePath(id);
 		if (!existsSync(file)) {
-		json(res, 200, { has: false, hash: "", allowed: whitelisted(id) });
-		return;
-	}
-	json(res, 200, { has: true, hash: hashFile(file), allowed: whitelisted(id) });
+			json(res, 200, { has: false, hash: "", allowed: whitelisted(id), tag: tagFor(id) });
+			return;
+		}
+		json(res, 200, { has: true, hash: hashFile(file), allowed: whitelisted(id), tag: tagFor(id) });
 		return;
 	}
 	if (req.method === "GET" && path.startsWith("/capes/") && path.endsWith(".png")) {
@@ -104,6 +108,10 @@ async function route(req, res) {
 	}
 	if ((req.method === "POST" || req.method === "PUT" || req.method === "DELETE") && path === "/api/whitelist") {
 		await handleWhitelist(req, res);
+		return;
+	}
+	if ((req.method === "PUT" || req.method === "DELETE") && path === "/api/tag") {
+		await handleTag(req, res);
 		return;
 	}
 	if (req.method === "GET") {
@@ -173,6 +181,7 @@ async function handleWhitelist(req, res) {
 	if (req.method === "DELETE") {
 		store.whitelist = store.whitelist.filter((id) => id !== uuid);
 		delete store.names[uuid];
+		delete store.tags[uuid];
 		const file = capePath(uuid);
 		if (existsSync(file)) {
 			const { unlink } = await import("node:fs/promises");
@@ -183,7 +192,38 @@ async function handleWhitelist(req, res) {
 	}
 	await saveJson(join(DATA, "whitelist.json"), store.whitelist);
 	await saveJson(join(DATA, "names.json"), store.names);
+	await saveJson(join(DATA, "tags.json"), store.tags);
 	json(res, 200, { ok: true, uuids: store.whitelist, players: await playersFor(store.whitelist) });
+}
+
+async function handleTag(req, res) {
+	let body;
+	try {
+		body = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}");
+	} catch {
+		body = {};
+	}
+	if ((body.admin || "") !== ADMIN) {
+		json(res, 403, { error: "Bad admin key" });
+		return;
+	}
+	const uuid = normalizeUuid(body.uuid);
+	if (!uuid) {
+		json(res, 400, { error: "Need a valid UUID" });
+		return;
+	}
+	if (!whitelisted(uuid)) {
+		json(res, 403, { error: "uuid not whitelisted" });
+		return;
+	}
+	const tag = req.method === "DELETE" ? "" : sanitizeTag(body.tag);
+	if (tag) {
+		store.tags[uuid] = tag;
+	} else {
+		delete store.tags[uuid];
+	}
+	await saveJson(join(DATA, "tags.json"), store.tags);
+	json(res, 200, { ok: true, tag, players: await playersFor(store.whitelist) });
 }
 
 async function playersFor(uuids) {
@@ -194,7 +234,8 @@ async function playersFor(uuids) {
 			uuid,
 			name: await mojangName(uuid),
 			cape: has,
-			hash: has ? hashFile(file) : ""
+			hash: has ? hashFile(file) : "",
+			tag: tagFor(uuid)
 		};
 	}));
 }
@@ -224,6 +265,20 @@ async function mojangName(uuid) {
 
 function whitelisted(uuid) {
 	return store.whitelist.includes(uuid);
+}
+
+function tagFor(uuid) {
+	return sanitizeTag(store.tags[uuid]);
+}
+
+const MAX_TAG = 48;
+
+function sanitizeTag(value) {
+	return String(value || "")
+		.replace(/[\u0000-\u001f\\"]/g, "")
+		.replace(/\s+/g, " ")
+		.trim()
+		.slice(0, MAX_TAG);
 }
 
 async function servePublic(res, requestPath) {

@@ -75,6 +75,18 @@ public final class ShopCape {
 		return "uuid not whitelisted";
 	}
 
+	public static String tag(UUID uuid) {
+		if (uuid == null) {
+			return "";
+		}
+		Slot slot = SLOTS.get(uuid);
+		return slot == null || slot.tag == null ? "" : slot.tag;
+	}
+
+	public static boolean hasTag(UUID uuid) {
+		return !tag(uuid).isBlank();
+	}
+
 	private static void setAllowed(boolean listed) {
 		boolean was = Boolean.TRUE.equals(allowed);
 		allowed = listed;
@@ -205,7 +217,7 @@ public final class ShopCape {
 		try {
 			String base = shopUrl();
 			if (base.isEmpty()) {
-				miss(slot);
+				missCape(slot);
 				return;
 			}
 			HttpRequest meta = HttpRequest.newBuilder(URI.create(base + "/api/cape/" + uuid))
@@ -215,18 +227,20 @@ public final class ShopCape {
 				.build();
 			HttpResponse<String> status = HTTP.send(meta, HttpResponse.BodyHandlers.ofString());
 			if (status.statusCode() != 200) {
-				miss(slot);
+				missCape(slot);
 				return;
 			}
 			boolean has = status.body().contains("\"has\":true") || status.body().contains("\"has\": true");
 			String hash = jsonField(status.body(), "hash");
+			String tag = jsonField(status.body(), "tag");
 			boolean listed = status.body().contains("\"allowed\":true") || status.body().contains("\"allowed\": true");
+			slot.tag = tag;
 			if (uuid.equals(selfUuid())) {
 				boolean listedCopy = listed;
 				Minecraft.getInstance().execute(() -> setAllowed(listedCopy));
 			}
 			if (!has) {
-				miss(slot);
+				missCape(slot);
 				return;
 			}
 			if (!force && !hash.isBlank() && hash.equals(slot.hash) && slot.asset != null) {
@@ -241,12 +255,12 @@ public final class ShopCape {
 				.build();
 			HttpResponse<byte[]> response = HTTP.send(png, HttpResponse.BodyHandlers.ofByteArray());
 			if (response.statusCode() != 200 || !isPng(response.body())) {
-				miss(slot);
+				missCape(slot);
 				return;
 			}
 			register(uuid, slot, response.body(), hash);
 		} catch (Exception exception) {
-			miss(slot);
+			missCape(slot);
 		}
 	}
 
@@ -255,14 +269,14 @@ public final class ShopCape {
 		try {
 			image = NativeImage.read(bytes);
 		} catch (Exception exception) {
-			miss(slot);
+			missCape(slot);
 			return;
 		}
 		NativeImage atlas;
 		try {
 			atlas = CapeAtlas.toAtlas(image);
 		} catch (Exception exception) {
-			miss(slot);
+			missCape(slot);
 			return;
 		}
 		String safeHash = hash == null || hash.isBlank() ? Long.toHexString(System.currentTimeMillis()) : hash;
@@ -277,12 +291,12 @@ public final class ShopCape {
 				slot.nextCheck = System.currentTimeMillis() + READY_MS;
 			} catch (Exception exception) {
 				atlas.close();
-				miss(slot);
+				missCape(slot);
 			}
 		});
 	}
 
-	private static void miss(Slot slot) {
+	private static void missCape(Slot slot) {
 		slot.kind = Kind.MISS;
 		slot.asset = null;
 		slot.hash = "";
@@ -345,6 +359,7 @@ public final class ShopCape {
 		Kind kind = Kind.MISS;
 		ClientAsset.Texture asset;
 		String hash = "";
+		String tag = "";
 		long nextCheck;
 	}
 }

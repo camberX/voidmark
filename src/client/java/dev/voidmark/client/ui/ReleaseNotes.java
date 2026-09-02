@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.109", new String[]{
+			"Admin can set a head tag on the cape list. Color codes work, and it shows above their nametag."
+		}),
 		new Entry("1.1.108", new String[]{
 			"Cape shop defaults to the live Cloudflare host. Localhost configs migrate on launch."
 		}),

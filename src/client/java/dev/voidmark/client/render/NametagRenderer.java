@@ -6,6 +6,7 @@ import dev.voidmark.client.ui.Anim;
 import dev.voidmark.client.ui.MenuFont;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.visual.NickHider;
+import dev.voidmark.client.visual.ShopCape;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Camera;
@@ -70,7 +71,7 @@ public final class NametagRenderer {
 		if (config.nametagsEnabled) {
 			return true;
 		}
-		return isDev(entity.getUUID()) && (!self || config.nametagSelf);
+		return hasBadge(entity.getUUID()) && (!self || config.nametagSelf);
 	}
 
 	public static boolean hidingVanillaState(EntityRenderState state) {
@@ -101,11 +102,13 @@ public final class NametagRenderer {
 		List<Tag> tags = new ArrayList<>();
 		for (AbstractClientPlayer player : client.level.players()) {
 			boolean self = player == client.player;
-			boolean dev = DEV_UUID.equals(player.getUUID());
+			Component title = titleFor(player.getUUID());
+			boolean titled = !title.getString().isBlank();
+			boolean branded = isDev(player.getUUID()) && !titled;
 			if (self && !own) {
 				continue;
 			}
-			if (!plates && !dev) {
+			if (!plates && !branded && !titled) {
 				continue;
 			}
 			if (!include(client, player, through, maxSq, camPos)) {
@@ -133,7 +136,8 @@ public final class NametagRenderer {
 				x,
 				y,
 				self,
-				dev,
+				branded,
+				title,
 				plates
 			));
 		}
@@ -221,21 +225,25 @@ public final class NametagRenderer {
 		int line = Anim.fade(Theme.LINE, alpha);
 		if (tag.plates) {
 			boolean showDist = showDistance && !tag.self;
+			boolean badge = tag.badge();
 			Component name = tag.name;
 			float nameW = pillWidth(font.width(name), showDist ? distWidth(font, tag.dist) : 0f);
-			float badgeW = tag.dev ? badgeWidth(font) : 0f;
+			float badgeW = badge ? badgeWidth(font, tag) : 0f;
 			float w = Math.max(nameW, badgeW);
-			float h = TAG_H + (tag.dev ? BADGE_H : 0f);
+			float h = TAG_H + (badge ? BADGE_H : 0f);
 			float x = -w * 0.5f;
 			float y = -2f - h;
 			GuiDraw.panel(graphics, x, y, w, h, 5, pane, line);
-			if (tag.dev) {
+			if (tag.titled()) {
+				drawTitleText(graphics, font, tag.title, x, y, w, alpha);
+				drawNameText(graphics, font, name, tag, x, y + BADGE_H, w, showDist, true, alpha);
+			} else if (tag.branded) {
 				drawBadgeText(graphics, font, x, y, w, alpha);
 				drawNameText(graphics, font, name, tag, x, y + BADGE_H, w, showDist, true, alpha);
 			} else {
 				drawNameText(graphics, font, name, tag, x, y, w, showDist, false, alpha);
 			}
-		} else if (tag.dev) {
+		} else if (tag.badge()) {
 			drawVanillaStack(graphics, font, tag, alpha);
 		}
 		graphics.pose().popMatrix();
@@ -281,6 +289,12 @@ public final class NametagRenderer {
 		GuiDraw.menu(graphics, font, BADGE_ROLE, cx + brandW + 3f, textY, Anim.fade(Theme.WARN, alpha));
 	}
 
+	private static void drawTitleText(GuiGraphicsExtractor graphics, Font font, Component title, float x, float y, float w, float alpha) {
+		float titleW = font.width(title);
+		float tx = x + (w - titleW) * 0.5f;
+		GuiDraw.text(graphics, font, title, tx, GuiDraw.middle(y, BADGE_H), Anim.fade(0xFFFFFFFF, alpha), false);
+	}
+
 	private static float pillWidth(float nameW, float distW) {
 		return PAD_X + nameW + (distW > 0f ? 5f + distW : 0f) + PAD_X;
 	}
@@ -289,7 +303,10 @@ public final class NametagRenderer {
 		return font.width(GuiDraw.meters(dist));
 	}
 
-	private static float badgeWidth(Font font) {
+	private static float badgeWidth(Font font, Tag tag) {
+		if (tag.titled()) {
+			return PAD_X + font.width(tag.title) + PAD_X;
+		}
 		return PAD_X + GuiDraw.menuWidth(font, BADGE_BRAND) + 3f + GuiDraw.menuWidth(font, BADGE_ROLE) + PAD_X;
 	}
 
@@ -307,11 +324,21 @@ public final class NametagRenderer {
 		int nameTop = 0;
 		graphics.fill(nx - 1, nameTop - 1, nx + nameW + 1, nameTop + 9, bg);
 		graphics.text(font, tag.name, nx, nameTop, white, false);
+		int badgeTop = nameTop - 11;
+		if (tag.titled()) {
+			int titleW = font.width(tag.title);
+			int bx = Math.round(-titleW * 0.5f);
+			graphics.fill(bx - 1, badgeTop - 1, bx + titleW + 1, badgeTop + 9, bg);
+			graphics.pose().pushMatrix();
+			graphics.pose().translate(bx, badgeTop);
+			graphics.text(font, tag.title, 0, 0, white, false);
+			graphics.pose().popMatrix();
+			return;
+		}
 		float brandW = GuiDraw.menuWidth(font, BADGE_BRAND);
 		float gap = 4f;
 		int badgeW = Math.max(1, Math.round(brandW + gap + GuiDraw.menuWidth(font, BADGE_ROLE)));
 		int bx = Math.round(-badgeW * 0.5f);
-		int badgeTop = nameTop - 11;
 		graphics.fill(bx - 1, badgeTop - 1, bx + badgeW + 1, badgeTop + 9, bg);
 		GuiDraw.text(graphics, font, MenuFont.body(BADGE_BRAND), bx, badgeTop, accent, false);
 		GuiDraw.text(graphics, font, MenuFont.body(BADGE_ROLE), bx + brandW + gap, badgeTop, warn, false);
@@ -334,11 +361,30 @@ public final class NametagRenderer {
 		return uuid != null && DEV_UUID.equals(uuid);
 	}
 
+	public static boolean hasBadge(UUID uuid) {
+		return isDev(uuid) || ShopCape.hasTag(uuid);
+	}
+
+	private static Component titleFor(UUID uuid) {
+		String raw = ShopCape.tag(uuid);
+		if (raw == null || raw.isBlank()) {
+			return Component.empty();
+		}
+		return NickHider.parseLegacy(raw);
+	}
+
 	/** Larger up close, smaller far away. Anchored so ~12m reads as 1.0 before the Size slider. */
 	private static float distanceScale(double dist) {
 		return Mth.clamp(24f / (12f + (float) dist), 0.52f, 1.35f);
 	}
 
-	private record Tag(Component name, double dist, float x, float y, boolean self, boolean dev, boolean plates) {
+	private record Tag(Component name, double dist, float x, float y, boolean self, boolean branded, Component title, boolean plates) {
+		boolean titled() {
+			return title != null && !title.getString().isBlank();
+		}
+
+		boolean badge() {
+			return branded || titled();
+		}
 	}
 }

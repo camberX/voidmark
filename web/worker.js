@@ -31,12 +31,14 @@ async function route(request, env) {
 		if (!id) {
 			return json(400, { error: "Bad UUID" });
 		}
-		const listed = (await loadState(env)).whitelist.includes(id);
+		const state = await loadState(env);
+		const listed = state.whitelist.includes(id);
+		const tag = tagFor(state, id);
 		const head = await env.CAPES.head(capeKey(id));
 		if (!head) {
-			return json(200, { has: false, hash: "", allowed: listed });
+			return json(200, { has: false, hash: "", allowed: listed, tag });
 		}
-		return json(200, { has: true, hash: head.customMetadata?.hash || "", allowed: listed });
+		return json(200, { has: true, hash: head.customMetadata?.hash || "", allowed: listed, tag });
 	}
 	if (request.method === "GET" && path.startsWith("/capes/") && path.endsWith(".png")) {
 		const id = normalizeUuid(path.slice("/capes/".length, -4));
@@ -65,6 +67,9 @@ async function route(request, env) {
 	}
 	if ((request.method === "POST" || request.method === "PUT" || request.method === "DELETE") && path === "/api/whitelist") {
 		return handleWhitelist(request, env);
+	}
+	if ((request.method === "PUT" || request.method === "DELETE") && path === "/api/tag") {
+		return handleTag(request, env);
 	}
 	if (request.method === "GET" && env.ASSETS) {
 		const asset = await env.ASSETS.fetch(request);
@@ -144,12 +149,63 @@ async function handleWhitelist(request, env) {
 		if (state.names) {
 			delete state.names[uuid];
 		}
+		if (state.tags) {
+			delete state.tags[uuid];
+		}
 		await env.CAPES.delete(capeKey(uuid));
 	} else if (!state.whitelist.includes(uuid)) {
 		state.whitelist.push(uuid);
 	}
 	await saveState(env, state);
 	return json(200, { ok: true, uuids: state.whitelist, players: await playersFor(env, state) });
+}
+
+async function handleTag(request, env) {
+	const admin = env.ADMIN || "";
+	if (!admin) {
+		return json(500, { error: "Admin key is not set on the Worker" });
+	}
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		body = {};
+	}
+	if ((body.admin || "") !== admin) {
+		return json(403, { error: "Bad admin key" });
+	}
+	const uuid = normalizeUuid(body.uuid);
+	if (!uuid) {
+		return json(400, { error: "Need a valid UUID" });
+	}
+	const state = await loadState(env);
+	if (!state.whitelist.includes(uuid)) {
+		return json(403, { error: "uuid not whitelisted" });
+	}
+	state.tags = state.tags && typeof state.tags === "object" && !Array.isArray(state.tags) ? state.tags : {};
+	const tag = request.method === "DELETE" ? "" : sanitizeTag(body.tag);
+	if (tag) {
+		state.tags[uuid] = tag;
+	} else {
+		delete state.tags[uuid];
+	}
+	await saveState(env, state);
+	return json(200, { ok: true, tag, players: await playersFor(env, state) });
+}
+
+function tagFor(state, uuid) {
+	const tags = state.tags && typeof state.tags === "object" && !Array.isArray(state.tags) ? state.tags : {};
+	return sanitizeTag(tags[uuid]);
+}
+
+const MAX_TAG = 48;
+
+function sanitizeTag(value) {
+	return String(value || "")
+		.replace(/[\u0000-\u001f\\"]/g, "")
+		.replace(/\s+/g, " ")
+		.trim()
+		.slice(0, MAX_TAG);
 }
 
 async function playersFor(env, state) {
@@ -159,7 +215,8 @@ async function playersFor(env, state) {
 			uuid,
 			name: await mojangName(uuid, state),
 			cape: Boolean(head),
-			hash: head?.customMetadata?.hash || ""
+			hash: head?.customMetadata?.hash || "",
+			tag: tagFor(state, uuid)
 		};
 	}));
 }
@@ -190,16 +247,17 @@ async function mojangName(uuid, state) {
 async function loadState(env) {
 	const object = await env.CAPES.get("state.json");
 	if (!object) {
-		return { whitelist: [], names: {} };
+		return { whitelist: [], names: {}, tags: {} };
 	}
 	try {
 		const parsed = JSON.parse(await object.text());
 		return {
 			whitelist: Array.isArray(parsed.whitelist) ? parsed.whitelist : [],
-			names: parsed.names && typeof parsed.names === "object" ? parsed.names : {}
+			names: parsed.names && typeof parsed.names === "object" ? parsed.names : {},
+			tags: parsed.tags && typeof parsed.tags === "object" && !Array.isArray(parsed.tags) ? parsed.tags : {}
 		};
 	} catch {
-		return { whitelist: [], names: {} };
+		return { whitelist: [], names: {}, tags: {} };
 	}
 }
 
@@ -343,7 +401,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		p, label { color: var(--muted); font-size: 14px; line-height: 1.5; }
 		label { display: block; margin: 0 0 6px; font-weight: 700; color: var(--text); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
 		.add { display: flex; gap: 8px; flex-wrap: wrap; }
-		.add input { flex: 1; min-width: 180px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px 12px; font: inherit; }
+		.add input, .sheet input { flex: 1; min-width: 180px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px 12px; font: inherit; }
 		button { border: 0; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 800; padding: 10px 14px; cursor: pointer; }
 		button.ghost { background: var(--card); color: var(--text); border: 1px solid var(--line); }
 		button.warn { background: #3a2a1a; color: var(--warn); border: 1px solid #5a4430; }
@@ -360,8 +418,22 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		.meta { min-width: 0; }
 		.name { font-weight: 800; font-size: 16px; }
 		.uuid { color: var(--muted); font-size: 12px; word-break: break-all; margin-top: 4px; }
+		.tagline { margin-top: 8px; display: inline-flex; align-items: center; background: #0008; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 12px; min-height: 22px; }
 		.nocape { color: var(--muted); font-size: 12px; text-align: center; }
 		.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+		.overlay { position: fixed; inset: 0; background: #05070dcc; display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
+		.overlay[hidden] { display: none; }
+		.sheet { width: min(460px, 100%); background: var(--pane); border: 1px solid var(--line); border-radius: 16px; padding: 22px; box-shadow: 0 24px 80px #000a; }
+		.sheet h2 { margin: 0 0 6px; font-size: 16px; letter-spacing: 0.12em; }
+		.sheet .who { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+		.sheet input { width: 100%; margin: 0 0 10px; }
+		.codes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+		.chip { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #ffffff33; padding: 0; color: #111; font-size: 11px; font-weight: 800; }
+		.chip.fmt { background: var(--card); color: var(--text); width: auto; padding: 0 8px; }
+		.preview-plate { background: #000a; border: 1px solid var(--line); border-radius: 8px; min-height: 40px; display: flex; align-items: center; justify-content: center; padding: 10px 12px; margin: 0 0 14px; font-family: "Minecraft", "Courier New", monospace; font-size: 16px; text-shadow: 1px 1px #000; }
+		.preview-plate .empty { margin: 0; font-family: inherit; }
+		.row { display: flex; gap: 8px; flex-wrap: wrap; }
+		.row button { flex: 1; }
 		@media (max-width: 700px) {
 			.player { grid-template-columns: 52px minmax(0, 1fr) 46px; }
 			.actions { grid-column: 1 / -1; justify-content: stretch; }
@@ -377,7 +449,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				<button type="button" class="ghost" id="out">Log out</button>
 			</div>
 			<div class="rule"></div>
-			<p>Whitelisted players. They set a cape in Voidmark, or you can set it here.</p>
+			<p>Whitelisted players. They set a cape in Voidmark, or you can set it here. Head tag is the line above their nametag.</p>
 			<label for="uuid">Add UUID</label>
 			<div class="add">
 				<input id="uuid" type="text" autocomplete="off" spellcheck="false" placeholder="f1b21931-667f-4be2-91bb-a06074978e0e">
@@ -388,6 +460,22 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		<p class="empty" id="empty">No UUIDs yet.</p>
 		<div class="list" id="list"></div>
 	</main>
+	<div class="overlay" id="tagbox" hidden>
+		<div class="sheet">
+			<h2>HEAD TAG</h2>
+			<p class="who" id="tagwho"></p>
+			<label for="tagtext">Text</label>
+			<input id="tagtext" type="text" maxlength="48" autocomplete="off" spellcheck="false" placeholder="&amp;bVIP  or  &amp;6&amp;lDonor">
+			<div class="codes" id="codes"></div>
+			<label>Preview</label>
+			<div class="preview-plate" id="tagpreview"></div>
+			<div class="row">
+				<button type="button" id="tagsave">Save</button>
+				<button type="button" class="ghost" id="tagclear">Clear</button>
+				<button type="button" class="ghost" id="tagcancel">Cancel</button>
+			</div>
+		</div>
+	</div>
 	<script>
 		const key = sessionStorage.getItem("voidmark-admin") || "";
 		if (!key) location.replace("/");
@@ -395,6 +483,123 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		const list = document.getElementById("list");
 		const empty = document.getElementById("empty");
 		const uuid = document.getElementById("uuid");
+		const tagbox = document.getElementById("tagbox");
+		const tagtext = document.getElementById("tagtext");
+		const tagpreview = document.getElementById("tagpreview");
+		const tagwho = document.getElementById("tagwho");
+		let tagTarget = "";
+		const COLORS = [
+			["0", "#000000"], ["1", "#0000aa"], ["2", "#00aa00"], ["3", "#00aaaa"],
+			["4", "#aa0000"], ["5", "#aa00aa"], ["6", "#ffaa00"], ["7", "#aaaaaa"],
+			["8", "#555555"], ["9", "#5555ff"], ["a", "#55ff55"], ["b", "#55ffff"],
+			["c", "#ff5555"], ["d", "#ff55ff"], ["e", "#ffff55"], ["f", "#ffffff"]
+		];
+		const FORMATS = [["l", "Bold"], ["o", "Italic"], ["n", "Under"], ["m", "Strike"], ["r", "Reset"]];
+
+		(function paintCodes() {
+			const box = document.getElementById("codes");
+			for (const pair of COLORS) {
+				const chip = document.createElement("button");
+				chip.type = "button";
+				chip.className = "chip";
+				chip.style.background = pair[1];
+				chip.title = "&" + pair[0];
+				chip.textContent = pair[0];
+				chip.style.color = "01234589abcdef".indexOf(pair[0]) >= 0 && "018".indexOf(pair[0]) >= 0 ? "#fff" : "#111";
+				chip.onclick = () => insertCode(pair[0]);
+				box.append(chip);
+			}
+			for (const pair of FORMATS) {
+				const chip = document.createElement("button");
+				chip.type = "button";
+				chip.className = "chip fmt";
+				chip.textContent = pair[1];
+				chip.onclick = () => insertCode(pair[0]);
+				box.append(chip);
+			}
+		})();
+
+		function insertCode(code) {
+			const start = tagtext.selectionStart || tagtext.value.length;
+			const end = tagtext.selectionEnd || start;
+			tagtext.value = tagtext.value.slice(0, start) + "&" + code + tagtext.value.slice(end);
+			tagtext.focus();
+			const cursor = start + 2;
+			tagtext.setSelectionRange(cursor, cursor);
+			paintPreview();
+		}
+
+		function paintPreview() {
+			tagpreview.innerHTML = "";
+			const rendered = renderLegacy(tagtext.value);
+			if (!rendered.childNodes.length) {
+				const hint = document.createElement("span");
+				hint.className = "empty";
+				hint.textContent = "No tag";
+				tagpreview.append(hint);
+				return;
+			}
+			tagpreview.append(rendered);
+		}
+
+		function renderLegacy(raw) {
+			const root = document.createElement("span");
+			let color = "#ffffff";
+			let bold = false;
+			let italic = false;
+			let strike = false;
+			let under = false;
+			let buffer = "";
+			function flush() {
+				if (!buffer) return;
+				const span = document.createElement("span");
+				span.textContent = buffer;
+				span.style.color = color;
+				if (bold) span.style.fontWeight = "800";
+				if (italic) span.style.fontStyle = "italic";
+				const deco = [];
+				if (strike) deco.push("line-through");
+				if (under) deco.push("underline");
+				if (deco.length) span.style.textDecoration = deco.join(" ");
+				root.append(span);
+				buffer = "";
+			}
+			for (let i = 0; i < raw.length; i++) {
+				const current = raw.charAt(i);
+				if (current === "&" && i + 1 < raw.length) {
+					const code = raw.charAt(i + 1).toLowerCase();
+					const next = COLORS.find((pair) => pair[0] === code);
+					if (next) {
+						flush();
+						color = next[1];
+						i++;
+						continue;
+					}
+					if (code === "l") { flush(); bold = true; i++; continue; }
+					if (code === "o") { flush(); italic = true; i++; continue; }
+					if (code === "n") { flush(); under = true; i++; continue; }
+					if (code === "m") { flush(); strike = true; i++; continue; }
+					if (code === "r") {
+						flush();
+						color = "#ffffff";
+						bold = false;
+						italic = false;
+						strike = false;
+						under = false;
+						i++;
+						continue;
+					}
+					if (raw.charAt(i + 1) === "&") {
+						buffer += "&";
+						i++;
+						continue;
+					}
+				}
+				buffer += current;
+			}
+			flush();
+			return root;
+		}
 
 		function setStatus(ok, text) {
 			status.className = "status " + (ok ? "ok" : "err");
@@ -429,6 +634,10 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				head.height = 52;
 				head.alt = player.name || "Head";
 				head.src = "https://crafthead.net/helm/" + player.uuid + "/64";
+				head.onerror = () => {
+					head.onerror = null;
+					head.src = "https://mc-heads.net/avatar/" + player.uuid + "/64";
+				};
 				const meta = document.createElement("div");
 				meta.className = "meta";
 				const name = document.createElement("div");
@@ -438,6 +647,12 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				id.className = "uuid";
 				id.textContent = player.uuid;
 				meta.append(name, id);
+				if (player.tag) {
+					const plate = document.createElement("div");
+					plate.className = "tagline";
+					plate.append(renderLegacy(player.tag));
+					meta.append(plate);
+				}
 				let capeBox;
 				if (player.cape) {
 					capeBox = document.createElement("img");
@@ -463,14 +678,56 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				file.onchange = () => {
 					if (file.files[0]) uploadCape(player.uuid, file.files[0]);
 				};
+				const tagBtn = document.createElement("button");
+				tagBtn.type = "button";
+				tagBtn.className = "ghost";
+				tagBtn.textContent = player.tag ? "Edit tag" : "Head tag";
+				tagBtn.onclick = () => openTag(player);
 				const remove = document.createElement("button");
 				remove.type = "button";
 				remove.className = "warn";
 				remove.textContent = "Dewhitelist";
 				remove.onclick = () => send("DELETE", player.uuid);
-				actions.append(file, change, remove);
+				actions.append(file, change, tagBtn, remove);
 				row.append(head, meta, capeBox, actions);
 				list.append(row);
+			}
+		}
+
+		function openTag(player) {
+			tagTarget = player.uuid;
+			tagwho.textContent = (player.name || "Unknown") + "  " + player.uuid;
+			tagtext.value = player.tag || "";
+			tagbox.hidden = false;
+			tagtext.focus();
+			paintPreview();
+		}
+
+		function closeTag() {
+			tagbox.hidden = true;
+			tagTarget = "";
+		}
+
+		async function saveTag(clear) {
+			if (!tagTarget) return;
+			try {
+				const response = await fetch("/api/tag", {
+					method: clear ? "DELETE" : "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ admin: key, uuid: tagTarget, tag: tagtext.value })
+				});
+				const data = await response.json();
+				if (response.status === 403) {
+					sessionStorage.removeItem("voidmark-admin");
+					location.replace("/");
+					return;
+				}
+				if (!response.ok) throw new Error(data.error || "Could not save tag");
+				draw(data.players || []);
+				closeTag();
+				setStatus(true, clear || !tagtext.value.trim() ? "Head tag cleared." : "Head tag saved. Voidmark users see it in a couple of seconds.");
+			} catch (error) {
+				setStatus(false, error.message);
 			}
 		}
 
@@ -513,6 +770,13 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			sessionStorage.removeItem("voidmark-admin");
 			location.replace("/");
 		};
+		tagtext.addEventListener("input", paintPreview);
+		document.getElementById("tagsave").onclick = () => saveTag(false);
+		document.getElementById("tagclear").onclick = () => saveTag(true);
+		document.getElementById("tagcancel").onclick = closeTag;
+		tagbox.addEventListener("click", (event) => {
+			if (event.target === tagbox) closeTag();
+		});
 		send("POST");
 	</script>
 </body>

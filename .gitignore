@@ -25,6 +25,7 @@ libs/
 *.jar
 web/data/whitelist.json
 web/data/names.json
+web/data/tags.json
 web/data/capes/*.png
 !web/data/capes/.gitkeep
 web/node_modules/
