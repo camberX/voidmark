@@ -26,12 +26,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Pulls Ender Chest and backpack inventories from
- * {@code https://hypixel.odtheking.com/get/(uuid)}. Live inventory stays
- * client-side so a profile refresh cannot wipe what you are holding.
+ * {@code https://hypixel.odtheking.com/get/(uuid)}. Fetches when you join a
+ * server and when {@code /vm rawmats} runs. Live inventory stays client-side
+ * so a profile refresh cannot wipe what you are holding.
  */
 public final class SkyblockProfileApi {
 	private static final String ENDPOINT = "https://hypixel.odtheking.com/get/";
-	private static final long REFRESH_MS = 90_000L;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.connectTimeout(Duration.ofSeconds(10))
@@ -62,32 +62,33 @@ public final class SkyblockProfileApi {
 	public static void refresh() {
 		force = true;
 		lastFetchMs = 0L;
+		Minecraft client = Minecraft.getInstance();
+		UUID uuid = uuidOf(client);
+		if (uuid != null) {
+			startFetch(uuid);
+		}
 	}
 
 	public static void tick(Minecraft client) {
-		if (client == null || !RawmatsTracker.tracking()) {
+		if (client == null || !force) {
 			return;
 		}
 		UUID uuid = uuidOf(client);
 		if (uuid == null) {
 			return;
 		}
-		if (tracked != null && !tracked.equals(uuid)) {
-			lastFetchMs = 0L;
-		}
-		tracked = uuid;
-		long now = System.currentTimeMillis();
-		if (!force && ItemStorage.hasApiStorage() && now - lastFetchMs < REFRESH_MS) {
-			return;
-		}
-		if (!IN_FLIGHT.compareAndSet(false, true)) {
+		startFetch(uuid);
+	}
+
+	private static void startFetch(UUID uuid) {
+		if (uuid == null || !IN_FLIGHT.compareAndSet(false, true)) {
 			return;
 		}
 		force = false;
 		status = Status.LOADING;
 		error = "";
-		UUID fetchId = uuid;
-		Util.nonCriticalIoPool().execute(() -> fetch(fetchId));
+		tracked = uuid;
+		Util.nonCriticalIoPool().execute(() -> fetch(uuid));
 	}
 
 	private static void fetch(UUID uuid) {
@@ -272,12 +273,6 @@ public final class SkyblockProfileApi {
 
 	private static void fail(String message) {
 		error = message == null || message.isBlank() ? "lookup failed" : message;
-		if (!ItemStorage.hasApiStorage()) {
-			lastFetchMs = System.currentTimeMillis() - REFRESH_MS + 15_000L;
-			status = Status.ERROR;
-		} else {
-			status = Status.READY;
-			lastFetchMs = System.currentTimeMillis();
-		}
+		status = ItemStorage.hasApiStorage() ? Status.READY : Status.ERROR;
 	}
 }

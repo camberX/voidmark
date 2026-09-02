@@ -72,10 +72,6 @@ public final class RawmatsTracker {
 		SkyblockProfileApi.tick(client);
 	}
 
-	public static void disconnect() {
-		SkyblockProfileApi.refresh();
-	}
-
 	public static boolean tracking() {
 		String id = VoidmarkConfig.get().rawmatsItemId;
 		return id != null && !id.isBlank();

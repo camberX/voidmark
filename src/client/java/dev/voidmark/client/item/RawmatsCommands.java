@@ -133,7 +133,7 @@ public final class RawmatsCommands {
 			shown++;
 		}
 		if (!ItemStorage.hasApiStorage() && (!snap.sawEnder() || !snap.sawBackpack())) {
-			tell(muted("Ender Chest and backpacks load from your Skyblock profile. /vm rawmats refresh if they look stale."));
+			tell(muted("Ender Chest and backpacks load when you join a server or run /vm rawmats."));
 		}
 		return Command.SINGLE_SUCCESS;
 	}

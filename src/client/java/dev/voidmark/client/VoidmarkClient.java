@@ -144,7 +144,6 @@ public final class VoidmarkClient implements ClientModInitializer {
 			SkyblockLocation.reset();
 			EnderNodeTracker.get().clear();
 			ConnectionPing.reset();
-			RawmatsTracker.disconnect();
 			MiningTracker.reset();
 		});
 	}
