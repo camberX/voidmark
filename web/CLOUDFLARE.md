@@ -2,11 +2,27 @@
 
 This puts the upload site and cape files on Cloudflare Workers + R2. You are not running a VPS. The free tier is enough for Voidmark: 10 GB of PNGs, no bandwidth bill.
 
-**R2 asks for a card even on the free plan.** That is verification, not a charge. Stay under the free limits and the bill is $0. After you add a card, set a spending cap (step 10).
+**R2 asks for a card even on the free plan.** That is verification, not a charge. Stay under the free limits and the bill is $0. After you add a card, set a spending cap (step 10 in the CLI path).
 
 The admin key never goes in the HTML. It is a Worker **secret**.
 
-## 0. What you need
+## Windows: dashboard only (no Git, no WSL)
+
+Origin has no Download ZIP. Do not type your Google password into Git.
+
+1. Cloudflare → **Workers & Pages** (Compute) → **Create** → start from a Hello World Worker.
+2. Name it `voidmark-capes`. Deploy once so it exists.
+3. **Edit code**. Delete the sample. On [the Voidmark codebase](https://cursor.com/codebase/shora/voidmark) open `web/worker.js`, copy the whole file, paste it into the Worker editor. **Deploy**.
+4. Worker **Settings** → **Bindings** → **R2** → Add. Variable name must be `CAPES`. Bucket: `voidmark-capes`. Save.
+5. Worker **Settings** → **Variables and Secrets**:
+   - `ADMIN` → Encrypt / Secret. Paste a long random string and save it in a password manager.
+   - `PAYPAL` → your Friends and Family email (plain text).
+   - `PRICE` → `$1` (plain text).
+6. Deploy again if it asks.
+7. Open the Worker URL (`https://voidmark-capes.…workers.dev`). You should see the cape page. Grant codes at `/admin.html`.
+8. In `.minecraft/config/voidmark.json` set `capeServerUrl` to that URL, no trailing slash. Restart Minecraft.
+
+## 0. What you need (CLI path)
 
 - A Cloudflare account ([dash.cloudflare.com](https://dash.cloudflare.com/sign-up))
 - Node.js 20+ on your computer ([nodejs.org](https://nodejs.org/)) so you can run `wrangler`
