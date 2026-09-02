@@ -123,6 +123,7 @@ public final class VoidmarkConfig {
 	public boolean nickEnabled = false;
 	public String nick = "";
 	public boolean nametagsEnabled = true;
+	public boolean nametagSelf = true;
 	public boolean nametagThroughWalls = false;
 	public boolean nametagDistance = true;
 	public int nametagRange = 128;

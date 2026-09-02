@@ -101,7 +101,7 @@ public class VoidmarkScreen extends Screen {
 		MINING("Mining HUD", 1),
 		TITANIUM("Titanium ESP", 3),
 		INVENTORY("Inventory", 3),
-		NAMETAGS("Nametags", 5),
+		NAMETAGS("Nametags", 6),
 		NODES("Nodes", 5);
 
 		final String title;
@@ -137,6 +137,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Mobs", Tab.ESP, "ESP"),
 		new SearchEntry("Node ESP", Tab.ESP, "ESP"),
 		new SearchEntry("Nametags", Tab.ESP, "ESP"),
+		new SearchEntry("Own nametag", Tab.ESP, "ESP"),
 		new SearchEntry("Nametag size", Tab.ESP, "ESP"),
 		new SearchEntry("Nametag opacity", Tab.ESP, "ESP"),
 		new SearchEntry("Menu scale", Tab.OVERLAY, "Theme"),
@@ -1268,6 +1269,7 @@ public class VoidmarkScreen extends Screen {
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Item count", config.inventoryHudCount, v -> config.inventoryHudCount = v);
 			}
 			case NAMETAGS -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Own nametag", config.nametagSelf, v -> config.nametagSelf = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.nametagThroughWalls, v -> config.nametagThroughWalls = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Show distance", config.nametagDistance, v -> config.nametagDistance = v);
 				y = slider(graphics, font, ix, y, iw, "Size", Math.round(config.nametagScale * 100) + "%", (config.nametagScale - 0.50f) / 1.50f, v -> config.nametagScale = VoidmarkConfig.clamp(0.50f + v * 1.50f, 0.50f, 2.00f));
@@ -1495,7 +1497,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.103");
+			.orElse("1.1.104");
 	}
 
 	@Override

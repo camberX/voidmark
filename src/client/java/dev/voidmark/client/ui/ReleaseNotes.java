@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.104", new String[]{
+			"Own nametag toggle. VOIDMARK Dev only draws with it, and no longer overlaps the name."
+		}),
 		new Entry("1.1.103", new String[]{
 			"VOIDMARK Dev uses vanilla nametag chrome when custom nametags are off."
 		}),

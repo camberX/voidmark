@@ -58,7 +58,19 @@ public final class NametagRenderer {
 	}
 
 	public static boolean hidingVanilla(Entity entity) {
-		return entity instanceof Avatar && VoidmarkConfig.get().nametagsEnabled;
+		if (!(entity instanceof Avatar)) {
+			return false;
+		}
+		VoidmarkConfig config = VoidmarkConfig.get();
+		Minecraft client = Minecraft.getInstance();
+		boolean self = client.player != null && entity == client.player;
+		if (self && !config.nametagSelf) {
+			return true;
+		}
+		if (config.nametagsEnabled) {
+			return true;
+		}
+		return isDev(entity.getUUID()) && (!self || config.nametagSelf);
 	}
 
 	public static boolean hidingVanillaState(EntityRenderState state) {
@@ -75,6 +87,7 @@ public final class NametagRenderer {
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
 		boolean plates = config.nametagsEnabled;
+		boolean own = config.nametagSelf;
 		float partial = deltaTracker.getGameTimeDeltaPartialTick(true);
 		Camera camera = client.gameRenderer.getMainCamera();
 		if (!camera.isInitialized()) {
@@ -87,7 +100,11 @@ public final class NametagRenderer {
 		boolean through = plates && config.nametagThroughWalls;
 		List<Tag> tags = new ArrayList<>();
 		for (AbstractClientPlayer player : client.level.players()) {
+			boolean self = player == client.player;
 			boolean dev = DEV_UUID.equals(player.getUUID());
+			if (self && !own) {
+				continue;
+			}
 			if (!plates && !dev) {
 				continue;
 			}
@@ -115,7 +132,7 @@ public final class NametagRenderer {
 				dist,
 				x,
 				y,
-				player == client.player,
+				self,
 				dev,
 				plates
 			));
@@ -219,7 +236,7 @@ public final class NametagRenderer {
 				drawNameText(graphics, font, name, tag, x, y, w, showDist, false, alpha);
 			}
 		} else if (tag.dev) {
-			drawVanillaBadge(graphics, font, alpha);
+			drawVanillaStack(graphics, font, tag, alpha);
 		}
 		graphics.pose().popMatrix();
 	}
@@ -277,20 +294,27 @@ public final class NametagRenderer {
 	}
 
 	/**
-	 * Vanilla nametag chrome (square fill, option background) with the menu font
-	 * so the Dev line matches the name underneath when custom plates are off.
+	 * Vanilla nametag chrome for both lines, stacked with a 1px gap so the Dev
+	 * plate never sits on the name.
 	 */
-	private static void drawVanillaBadge(GuiGraphicsExtractor graphics, Font font, float alpha) {
+	private static void drawVanillaStack(GuiGraphicsExtractor graphics, Font font, Tag tag, float alpha) {
+		int bg = Anim.fade(Minecraft.getInstance().options.getBackgroundColor(0.25f), alpha);
+		int white = Anim.fade(0xFFFFFFFF, alpha);
+		int accent = Anim.fade(Theme.ACCENT, alpha);
+		int warn = Anim.fade(Theme.WARN, alpha);
+		int nameW = font.width(tag.name);
+		int nx = Math.round(-nameW * 0.5f);
+		int nameTop = 0;
+		graphics.fill(nx - 1, nameTop - 1, nx + nameW + 1, nameTop + 9, bg);
+		graphics.text(font, tag.name, nx, nameTop, white, false);
 		float brandW = GuiDraw.menuWidth(font, BADGE_BRAND);
 		float gap = 4f;
-		float inner = brandW + gap + GuiDraw.menuWidth(font, BADGE_ROLE);
-		int w = Math.max(1, Math.round(inner));
-		int x = Math.round(-w * 0.5f);
-		int top = -12;
-		int bg = Anim.fade(Minecraft.getInstance().options.getBackgroundColor(0.25f), alpha);
-		graphics.fill(x - 1, top - 1, x + w + 1, top + 9, bg);
-		GuiDraw.text(graphics, font, MenuFont.body(BADGE_BRAND), x, top, Anim.fade(Theme.ACCENT, alpha), false);
-		GuiDraw.text(graphics, font, MenuFont.body(BADGE_ROLE), x + brandW + gap, top, Anim.fade(Theme.WARN, alpha), false);
+		int badgeW = Math.max(1, Math.round(brandW + gap + GuiDraw.menuWidth(font, BADGE_ROLE)));
+		int bx = Math.round(-badgeW * 0.5f);
+		int badgeTop = nameTop - 11;
+		graphics.fill(bx - 1, badgeTop - 1, bx + badgeW + 1, badgeTop + 9, bg);
+		GuiDraw.text(graphics, font, MenuFont.body(BADGE_BRAND), bx, badgeTop, accent, false);
+		GuiDraw.text(graphics, font, MenuFont.body(BADGE_ROLE), bx + brandW + gap, badgeTop, warn, false);
 	}
 
 	/** Vanilla nametag: default font, option background, white text, centered. */
