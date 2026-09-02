@@ -24,7 +24,7 @@ import org.joml.Vector3f;
  * extracted state only — in-world rendering is unchanged.
  */
 public final class PlayerPreview {
-	private static final float NAME_PAD = 18f;
+	private static final float NAME_PAD = 20f;
 	private static final float HINT_PAD = 16f;
 
 	private PlayerPreview() {
@@ -69,13 +69,13 @@ public final class PlayerPreview {
 		state.nameTag = null;
 		freeze(state, yaw, pitch);
 		float body = Math.max(1.5f, state.boundingBoxHeight);
-		float size = Math.min(38f, Math.max(26f, h * 0.18f));
+		float size = Math.min(62f, Math.max(40f, h * 0.28f));
 		float visH = size * body;
-		float boxW = Math.min(w - 8f, Math.max(44f, size * 1.3f));
-		float boxH = visH + 20f;
+		float boxW = Math.min(w - 8f, Math.max(52f, size * 1.35f));
+		float boxH = visH + 24f;
 		if (boxH > h - NAME_PAD - HINT_PAD) {
 			boxH = Math.max(36f, h - NAME_PAD - HINT_PAD);
-			size = (boxH - 20f) / body;
+			size = (boxH - 24f) / body;
 			visH = size * body;
 		}
 		float boxX = x + (w - boxW) * 0.5f;
