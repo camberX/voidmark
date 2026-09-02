@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.119", new String[]{
+			"Fake ban duration is white. Remaining time stays frozen on the kick screen and only updates when you reconnect."
+		}),
 		new Entry("1.1.118", new String[]{
 			"Fake boosting bans match Hypixel: 180d countdown, Boosting detected on one or multiple SkyBlock profiles, and reconnects skip Limbo."
 		}),

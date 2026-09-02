@@ -21,8 +21,8 @@ import java.util.UUID;
 /**
  * Admin-triggered prank: first sighting runs {@code /limbo} for two seconds,
  * then a Hypixel-style 180-day boosting kick. Later reconnects skip Limbo
- * and drop straight to the same screen, with remaining time counting down
- * until the shop ban expires or an admin lifts it.
+ * and drop straight to the same screen. Remaining time is snapshotted at
+ * kick and only refreshes on the next reconnect.
  */
 public final class FakeBan {
 	static final String APPEAL_URL = "https://www.hypixel.net/appeal";
@@ -80,7 +80,9 @@ public final class FakeBan {
 	public static Component reason() {
 		String id = pendingBanId.isEmpty() ? "#00000000" : pendingBanId;
 		MutableComponent text = Component.empty();
-		text.append(Component.literal("You are temporarily banned for " + clock(remainingMs()) + " from this server!\n\n").withStyle(ChatFormatting.RED));
+		text.append(Component.literal("You are temporarily banned for ").withStyle(ChatFormatting.RED));
+		text.append(Component.literal(clock(remainingMs())).withStyle(ChatFormatting.WHITE));
+		text.append(Component.literal(" from this server!\n\n").withStyle(ChatFormatting.RED));
 		text.append(Component.literal("Reason: ").withStyle(ChatFormatting.GRAY));
 		text.append(Component.literal("Boosting detected on one or multiple SkyBlock profiles.\n").withStyle(ChatFormatting.WHITE));
 		text.append(Component.literal("Find out more: ").withStyle(ChatFormatting.GRAY));
@@ -157,7 +159,7 @@ public final class FakeBan {
 		inLimbo = false;
 		limboDoneBanId = banId;
 		ServerData server = client.getCurrentServer();
-		client.disconnect(new FakeBanScreen(new JoinMultiplayerScreen(new TitleScreen()), server), false);
+		client.disconnect(new FakeBanScreen(new JoinMultiplayerScreen(new TitleScreen()), server, reason()), false);
 	}
 
 	private static void poll() {

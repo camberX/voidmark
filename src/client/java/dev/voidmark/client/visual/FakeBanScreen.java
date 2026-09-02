@@ -13,18 +13,19 @@ import net.minecraft.network.chat.Component;
 
 /**
  * Vanilla-looking Hypixel kick: dirt background, {@code connect.failed} title,
- * live remaining time, Retry, and Back to server list.
+ * frozen remaining time, Retry, and Back to server list. Time updates on
+ * the next reconnect, not while this screen is open.
  */
 public final class FakeBanScreen extends Screen {
 	private final Screen parent;
 	private final ServerData server;
-	private MultiLineTextWidget body;
-	private String lastClock = "";
+	private final Component reason;
 
-	public FakeBanScreen(Screen parent, ServerData server) {
+	public FakeBanScreen(Screen parent, ServerData server, Component reason) {
 		super(Component.translatable("connect.failed"));
 		this.parent = parent;
 		this.server = server;
+		this.reason = reason;
 	}
 
 	@Override
@@ -32,10 +33,9 @@ public final class FakeBanScreen extends Screen {
 		LinearLayout layout = LinearLayout.vertical().spacing(8);
 		layout.defaultCellSetting().alignHorizontallyCenter();
 		layout.addChild(new StringWidget(getTitle(), font));
-		body = new MultiLineTextWidget(FakeBan.reason(), font)
+		layout.addChild(new MultiLineTextWidget(reason, font)
 			.setMaxWidth(Math.max(200, width - 50))
-			.setCentered(true);
-		layout.addChild(body);
+			.setCentered(true));
 		layout.addChild(Button.builder(Component.literal("Retry"), button -> retry())
 			.width(Button.DEFAULT_WIDTH)
 			.build(), settings -> settings.paddingTop(16));
@@ -45,16 +45,6 @@ public final class FakeBanScreen extends Screen {
 		layout.arrangeElements();
 		FrameLayout.centerInRectangle(layout, getRectangle());
 		layout.visitWidgets(this::addRenderableWidget);
-		lastClock = FakeBan.clock(FakeBan.remainingMs());
-	}
-
-	@Override
-	public void tick() {
-		String clock = FakeBan.clock(FakeBan.remainingMs());
-		if (!clock.equals(lastClock) && body != null) {
-			lastClock = clock;
-			body.setMessage(FakeBan.reason());
-		}
 	}
 
 	@Override
