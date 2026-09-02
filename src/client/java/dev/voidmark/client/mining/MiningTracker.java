@@ -203,14 +203,15 @@ public final class MiningTracker {
 	}
 
 	public static boolean hasTitaniumCommission() {
+		return titaniumFilter().active();
+	}
+
+	public static MiningAreas.TitaniumFilter titaniumFilter() {
+		List<Commission> copy;
 		synchronized (LOCK) {
-			for (Commission commission : commissions) {
-				if (!commission.done() && commission.name().toLowerCase(Locale.ROOT).contains("titanium")) {
-					return true;
-				}
-			}
+			copy = commissions;
 		}
-		return false;
+		return MiningAreas.filter(copy);
 	}
 
 	private static List<Commission> parseCommissions(List<String> lines) {

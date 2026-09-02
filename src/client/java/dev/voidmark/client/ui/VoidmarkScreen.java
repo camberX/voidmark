@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.voidmark.client.config.UnloadState;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
+import dev.voidmark.client.mining.MiningAreas;
 import dev.voidmark.client.mining.MiningTracker;
 import dev.voidmark.client.mining.TitaniumTracker;
 import dev.voidmark.client.render.GuiDraw;
@@ -1207,8 +1208,19 @@ public class VoidmarkScreen extends Screen {
 				GuiDraw.menu(graphics, font, snap.abilityReady() ? "Ready" : snap.abilityLabel(), rx, y + 14, snap.abilityReady() ? Theme.ACCENT : Theme.MUTED);
 				String jobs = snap.commissions().isEmpty() ? "No commissions" : snap.commissions().size() + " commission" + (snap.commissions().size() == 1 ? "" : "s");
 				GuiDraw.menu(graphics, font, jobs, rx, y + 26, Theme.MUTED);
-				String titanium = MiningTracker.hasTitaniumCommission() ? TitaniumTracker.get().count() + " titanium" : "No titanium job";
-				GuiDraw.menu(graphics, font, titanium, rx, y + 38, MiningTracker.hasTitaniumCommission() ? Theme.ACCENT : Theme.MUTED);
+				String titanium;
+				int titaniumColor = Theme.MUTED;
+				if (!MiningTracker.hasTitaniumCommission()) {
+					titanium = "No titanium job";
+				} else {
+					MiningAreas.TitaniumFilter filter = MiningTracker.titaniumFilter();
+					int count = TitaniumTracker.get().count();
+					titanium = filter.unrestricted()
+						? count + " titanium"
+						: count + " in " + filter.label();
+					titaniumColor = Theme.ACCENT;
+				}
+				GuiDraw.menu(graphics, font, clip(font, titanium, (int) iw - 4), rx, y + 38, titaniumColor);
 			}
 			case PLAYER -> drawPlayerTab(graphics, font, mouseX, mouseY);
 		}
@@ -1609,7 +1621,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.93");
+			.orElse("1.1.94");
 	}
 
 	@Override

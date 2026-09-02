@@ -21,7 +21,10 @@ public final class MiningHudRenderer {
 	private static final float PAD = 5;
 	private static final float HEAD = 12;
 	private static final float BAR = 2.2f;
-	private static final float ROW = 11;
+	private static final float COMM_BAR = 2.4f;
+	private static final float ROW = 16;
+	private static final int PROGRESS_LOW = 0xF87171;
+	private static final int PROGRESS_MID = 0xF5C16C;
 
 	private MiningHudRenderer() {
 	}
@@ -101,6 +104,7 @@ public final class MiningHudRenderer {
 			GuiDraw.small(graphics, font, "No commissions", PAD + 2, rowY, Theme.MUTED);
 		} else {
 			for (MiningTracker.Commission commission : commissions) {
+				int progressColor = progressColor(commission);
 				String name = clip(font, commission.name(), WIDTH - PAD * 2 - 28);
 				GuiDraw.small(graphics, font, name, PAD + 2, rowY, commission.done() ? Theme.ACCENT : Theme.TEXT);
 				GuiDraw.small(
@@ -109,8 +113,14 @@ public final class MiningHudRenderer {
 					commission.progress(),
 					WIDTH - PAD - GuiDraw.smallWidth(font, commission.progress()),
 					rowY,
-					commission.done() ? Theme.ACCENT : Theme.MUTED
+					progressColor
 				);
+				float commBarY = rowY + 10;
+				GuiDraw.rounded(graphics, barX, commBarY, barW, COMM_BAR, 1.2f, Theme.HUD_TRACK);
+				float amount = Math.max(commission.fraction() > 0f ? 2f : 0f, barW * commission.fraction());
+				if (amount > 0.5f) {
+					GuiDraw.rounded(graphics, barX, commBarY, amount, COMM_BAR, 1.2f, progressColor);
+				}
 				rowY += ROW;
 			}
 		}
@@ -142,6 +152,20 @@ public final class MiningHudRenderer {
 	private static float heightOf(MiningTracker.Snapshot snap) {
 		int rows = Math.max(1, snap.commissions().size());
 		return PAD + HEAD + BAR + 4 + rows * ROW + PAD;
+	}
+
+	private static int progressColor(MiningTracker.Commission commission) {
+		if (commission.done() || commission.fraction() >= 0.999f) {
+			return Theme.ACCENT;
+		}
+		float t = Math.max(0f, Math.min(1f, commission.fraction()));
+		int rgb;
+		if (t < 0.5f) {
+			rgb = Theme.mix(PROGRESS_LOW, PROGRESS_MID, t / 0.5f);
+		} else {
+			rgb = Theme.mix(PROGRESS_MID, Theme.ACCENT & 0xFFFFFF, (t - 0.5f) / 0.5f);
+		}
+		return 0xFF000000 | rgb;
 	}
 
 	private static String clip(Font font, String value, float max) {

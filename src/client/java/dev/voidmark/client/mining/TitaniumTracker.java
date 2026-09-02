@@ -19,11 +19,14 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Polished diorite is Hypixel's Titanium ore block in the Dwarven Mines.
  * Scans loaded chunks while an unfinished Titanium commission is on the tab list.
+ * {@code [Area] Titanium} jobs only keep ores in that named region;
+ * {@code Titanium Miner} keeps every vein in range.
  */
 public final class TitaniumTracker {
 	private static final TitaniumTracker INSTANCE = new TitaniumTracker();
 	private final Map<Long, BlockPos> blocks = new ConcurrentHashMap<>();
 	private List<BlockPos> view = List.of();
+	private MiningAreas.TitaniumFilter filter = MiningAreas.TitaniumFilter.NONE;
 	private int tick;
 
 	private TitaniumTracker() {
@@ -34,6 +37,9 @@ public final class TitaniumTracker {
 	}
 
 	public void tick(Minecraft client) {
+		MiningAreas.TitaniumFilter next = MiningTracker.titaniumFilter();
+		boolean filterChanged = !next.equals(filter);
+		filter = next;
 		if (!active() || client.player == null || client.level == null) {
 			if (!blocks.isEmpty()) {
 				blocks.clear();
@@ -45,12 +51,15 @@ public final class TitaniumTracker {
 		ClientLevel level = client.level;
 		BlockPos origin = client.player.blockPosition();
 		int radius = VoidmarkConfig.get().titaniumEspRange;
-		if (tick % 12 == 0) {
+		if (filterChanged || tick % 12 == 0) {
 			scan(level, origin, radius);
 		}
 		int radiusSq = radius * radius;
 		blocks.entrySet().removeIf(entry -> {
 			BlockPos pos = entry.getValue();
+			if (!filter.allows(pos)) {
+				return true;
+			}
 			if (origin.distSqr(pos) > (long) radiusSq * 4L) {
 				return true;
 			}
@@ -65,6 +74,7 @@ public final class TitaniumTracker {
 	public void clear() {
 		blocks.clear();
 		view = List.of();
+		filter = MiningAreas.TitaniumFilter.NONE;
 	}
 
 	public List<BlockPos> snapshot() {
@@ -156,6 +166,9 @@ public final class TitaniumTracker {
 						long dy = y - origin.getY();
 						long dz = z - origin.getZ();
 						if (dx * dx + dy * dy + dz * dz > radiusSq) {
+							continue;
+						}
+						if (!filter.allows(x, y, z)) {
 							continue;
 						}
 						if (isTitanium(section.getBlockState(lx, ly, lz))) {

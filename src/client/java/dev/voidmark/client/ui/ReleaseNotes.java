@@ -8,6 +8,11 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.94", new String[]{
+			"Titanium ESP follows the commission area; Titanium Miner still marks every vein.",
+			"Commission HUD bars are back, colored with the percent.",
+			"Player preview fills the card and hides armor."
+		}),
 		new Entry("1.1.93", new String[]{
 			"Rounded corners no longer show black gaps from the fill fast-path."
 		}),
