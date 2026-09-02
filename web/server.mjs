@@ -26,8 +26,10 @@ const store = {
 	config: await loadJson(join(DATA, "config.json"), {
 		paypal: "your-paypal@email.com",
 		price: "$1",
-		title: "VOIDMARK Capes"
-	})
+		title: "VOIDMARK Capes",
+		blurb: ""
+	}),
+	notes: await loadJson(join(DATA, "notes.json"), {})
 };
 if (!store.tags || typeof store.tags !== "object" || Array.isArray(store.tags)) {
 	store.tags = {};
@@ -40,6 +42,12 @@ if (!store.capeAt || typeof store.capeAt !== "object" || Array.isArray(store.cap
 }
 if (!store.namesAt || typeof store.namesAt !== "object" || Array.isArray(store.namesAt)) {
 	store.namesAt = {};
+}
+if (!store.notes || typeof store.notes !== "object" || Array.isArray(store.notes)) {
+	store.notes = {};
+}
+if (!store.config || typeof store.config !== "object" || Array.isArray(store.config)) {
+	store.config = { paypal: "your-paypal@email.com", price: "$1", title: "VOIDMARK Capes", blurb: "" };
 }
 
 const MIME = {
@@ -69,7 +77,11 @@ async function route(req, res) {
 		return;
 	}
 	if (req.method === "GET" && path === "/api/config") {
-		json(res, 200, { paypal: store.config.paypal, price: store.config.price, title: store.config.title });
+		json(res, 200, shopConfig());
+		return;
+	}
+	if (req.method === "PUT" && path === "/api/config") {
+		await handleShopConfig(req, res);
 		return;
 	}
 	if (req.method === "GET" && path.startsWith("/api/cape/")) {
@@ -130,6 +142,18 @@ async function route(req, res) {
 		await handleBypass(req, res);
 		return;
 	}
+	if ((req.method === "PUT" || req.method === "DELETE") && path === "/api/note") {
+		await handleNote(req, res);
+		return;
+	}
+	if (req.method === "DELETE" && path === "/api/cooldown") {
+		await handleCooldown(req, res);
+		return;
+	}
+	if (req.method === "PUT" && path === "/api/bulk") {
+		await handleBulk(req, res);
+		return;
+	}
 	if (req.method === "GET") {
 		await servePublic(res, path === "/" ? "/index.html" : path);
 		return;
@@ -153,7 +177,11 @@ async function handlePublish(req, res) {
 		json(res, 429, { error: "Cape can be changed once per 24 hours", retryIn: Math.ceil(locked / 1000) });
 		return;
 	}
-	const body = await readBody(req, MAX_BYTES);
+	const body = await readCapeBytes(req, adminOk);
+	if (!body) {
+		json(res, 400, { error: adminOk ? "Need a PNG or a cape URL" : "Not a PNG" });
+		return;
+	}
 	if (!isPng(body)) {
 		json(res, 400, { error: "Not a PNG" });
 		return;
@@ -303,6 +331,146 @@ async function handleBypass(req, res) {
 	json(res, 200, { ok: true, bypass: Boolean(store.bypass[uuid]), players: await playersFor(store.whitelist) });
 }
 
+async function handleNote(req, res) {
+	const body = await readAdminBody(req, res);
+	if (!body) {
+		return;
+	}
+	const uuid = normalizeUuid(body.uuid);
+	if (!uuid) {
+		json(res, 400, { error: "Need a valid UUID" });
+		return;
+	}
+	if (!whitelisted(uuid)) {
+		json(res, 403, { error: "uuid not whitelisted" });
+		return;
+	}
+	const note = req.method === "DELETE" ? "" : sanitizeNote(body.note);
+	if (note) {
+		store.notes[uuid] = note;
+	} else {
+		delete store.notes[uuid];
+	}
+	await saveJson(join(DATA, "notes.json"), store.notes);
+	json(res, 200, { ok: true, note, players: await playersFor(store.whitelist) });
+}
+
+async function handleCooldown(req, res) {
+	const body = await readAdminBody(req, res);
+	if (!body) {
+		return;
+	}
+	const uuid = normalizeUuid(body.uuid);
+	if (!uuid) {
+		json(res, 400, { error: "Need a valid UUID" });
+		return;
+	}
+	if (!whitelisted(uuid)) {
+		json(res, 403, { error: "uuid not whitelisted" });
+		return;
+	}
+	delete store.capeAt[uuid];
+	await saveJson(join(DATA, "capeAt.json"), store.capeAt);
+	json(res, 200, { ok: true, retryIn: 0, players: await playersFor(store.whitelist) });
+}
+
+async function handleBulk(req, res) {
+	const body = await readAdminBody(req, res, 16384);
+	if (!body) {
+		return;
+	}
+	const raw = Array.isArray(body.names) ? body.names : String(body.text || "").split(/[\n,]+/);
+	const names = raw.map((value) => String(value || "").trim()).filter(Boolean).slice(0, 25);
+	if (!names.length) {
+		json(res, 400, { error: "Paste usernames or UUIDs, one per line" });
+		return;
+	}
+	const added = [];
+	const skipped = [];
+	const failed = [];
+	for (const name of names) {
+		const resolved = await resolvePlayer(name);
+		if (!resolved.uuid) {
+			failed.push(name);
+			continue;
+		}
+		if (store.whitelist.includes(resolved.uuid)) {
+			skipped.push(name);
+			continue;
+		}
+		store.whitelist.push(resolved.uuid);
+		if (resolved.name) {
+			rememberName(resolved.uuid, resolved.name);
+		}
+		added.push(resolved.name || resolved.uuid);
+	}
+	const players = await playersFor(store.whitelist, true);
+	await persistStore();
+	json(res, 200, { ok: true, added: added.length, skipped: skipped.length, failed, players });
+}
+
+async function handleShopConfig(req, res) {
+	const body = await readAdminBody(req, res);
+	if (!body) {
+		return;
+	}
+	store.config = {
+		...shopConfig(),
+		paypal: sanitizePaypal(body.paypal),
+		price: sanitizePrice(body.price),
+		title: sanitizeTitle(body.title),
+		blurb: sanitizeBlurb(body.blurb)
+	};
+	await saveJson(join(DATA, "config.json"), store.config);
+	json(res, 200, { ok: true, ...store.config });
+}
+
+async function readAdminBody(req, res, max) {
+	let body;
+	try {
+		body = JSON.parse((await readBody(req, max || 4096)).toString("utf8") || "{}");
+	} catch {
+		body = {};
+	}
+	if ((body.admin || "") !== ADMIN) {
+		json(res, 403, { error: "Bad admin key" });
+		return null;
+	}
+	return body;
+}
+
+async function readCapeBytes(req, adminOk) {
+	const type = header(req, "content-type").toLowerCase();
+	if (type.includes("application/json")) {
+		if (!adminOk) {
+			return null;
+		}
+		let payload;
+		try {
+			payload = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}");
+		} catch {
+			return null;
+		}
+		const url = String(payload.url || "").trim();
+		if (!/^https?:\/\//i.test(url)) {
+			return null;
+		}
+		try {
+			const response = await fetch(url, {
+				headers: { "User-Agent": "Voidmark" },
+				signal: AbortSignal.timeout(10000)
+			});
+			if (!response.ok) {
+				return null;
+			}
+			return Buffer.from(await response.arrayBuffer());
+		} catch {
+			return null;
+		}
+	}
+	return readBody(req, MAX_BYTES);
+}
+
 async function persistStore() {
 	await saveJson(join(DATA, "whitelist.json"), store.whitelist);
 	await saveJson(join(DATA, "names.json"), store.names);
@@ -310,6 +478,8 @@ async function persistStore() {
 	await saveJson(join(DATA, "tags.json"), store.tags);
 	await saveJson(join(DATA, "bypass.json"), store.bypass);
 	await saveJson(join(DATA, "capeAt.json"), store.capeAt);
+	await saveJson(join(DATA, "notes.json"), store.notes);
+	await saveJson(join(DATA, "config.json"), store.config);
 }
 
 async function playersFor(uuids, forceNames) {
@@ -323,7 +493,8 @@ async function playersFor(uuids, forceNames) {
 			hash: has ? hashFile(file) : "",
 			tag: tagFor(uuid),
 			bypass: hasBypass(uuid),
-			retryIn: capeRetrySec(uuid)
+			retryIn: capeRetrySec(uuid),
+			note: noteFor(uuid)
 		};
 	}));
 	await saveJson(join(DATA, "names.json"), store.names);
@@ -348,6 +519,7 @@ function forgetPlayer(uuid) {
 	delete store.tags[uuid];
 	delete store.bypass[uuid];
 	delete store.capeAt[uuid];
+	delete store.notes[uuid];
 }
 
 function sanitizeUsername(value) {
@@ -457,7 +629,22 @@ function tagFor(uuid) {
 	return sanitizeTag(store.tags[uuid]);
 }
 
+function noteFor(uuid) {
+	return sanitizeNote(store.notes[uuid]);
+}
+
+function shopConfig() {
+	const stored = store.config && typeof store.config === "object" ? store.config : {};
+	return {
+		paypal: stored.paypal || "your-paypal@email.com",
+		price: stored.price || "$1",
+		title: stored.title || "VOIDMARK Capes",
+		blurb: stored.blurb || ""
+	};
+}
+
 const MAX_TAG = 48;
+const MAX_NOTE = 160;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function sanitizeTag(value) {
@@ -466,6 +653,38 @@ function sanitizeTag(value) {
 		.replace(/\s+/g, " ")
 		.trim()
 		.slice(0, MAX_TAG);
+}
+
+function sanitizeNote(value) {
+	return String(value || "")
+		.replace(/[\u0000-\u001f]/g, "")
+		.replace(/\s+/g, " ")
+		.trim()
+		.slice(0, MAX_NOTE);
+}
+
+function sanitizePaypal(value) {
+	return String(value || "")
+		.replace(/\s+/g, "")
+		.slice(0, 80);
+}
+
+function sanitizePrice(value) {
+	const price = String(value || "").replace(/\s+/g, " ").trim().slice(0, 24);
+	return price || "$1";
+}
+
+function sanitizeTitle(value) {
+	const title = String(value || "").replace(/\s+/g, " ").trim().slice(0, 48);
+	return title || "VOIDMARK Capes";
+}
+
+function sanitizeBlurb(value) {
+	return String(value || "")
+		.replace(/[\u0000-\u001f]/g, "")
+		.replace(/\s+/g, " ")
+		.trim()
+		.slice(0, 280);
 }
 
 function hasBypass(uuid) {

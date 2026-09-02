@@ -19,7 +19,7 @@ Origin has no Download ZIP. Do not type your Google password into Git.
    - `PAYPAL` → your Friends and Family email (plain text).
    - `PRICE` → `$1` (plain text).
 6. Deploy again if it asks.
-7. Open the Worker URL (`https://voidmark-capes.…workers.dev`). Enter the admin key. That opens the list: add by username or UUID, names, heads, capes, head tags, change cape, and dewhitelist.
+7. Open the Worker URL (`https://voidmark.cloud` or the `workers.dev` URL). The public shop is `/`. Admin login is `/admin.html`. That opens the cape desk: players, bulk add, shop copy, notes, cooldown reset, and cape upload.
 8. The shipped mod always uses `https://voidmark.cloud`. Attach that custom domain to this Worker (Workers & Pages → `voidmark-capes` → Settings → Domains & Routes). Restart Minecraft after a domain change.
 
 ## 0. What you need (CLI path)
@@ -106,9 +106,9 @@ Attach `voidmark.cloud` to the Worker (Settings → Domains & Routes). The `work
 ## 8. After someone pays
 
 1. They send $1 Friends and Family with their Minecraft name.
-2. Open `https://voidmark-capes.YOURNAME.workers.dev`, enter the admin key, and you land on the list.
-3. Type their username or UUID and click **Add**. You should see their current name, head, and cape.
-4. **Dewhitelist** drops them. **Change cape** uploads a PNG for them.
+2. Open `https://voidmark.cloud/admin.html` (or your Worker `/admin.html`), enter the admin key, and you land on the cape desk.
+3. Type their username or UUID and click **Add**, or use Bulk add. You should see their current name, skin, and cape.
+4. Click a player to change cape, head tag, note, bypass, or reset the 24 hour cooldown. **Dewhitelist** drops them.
 
 Friends and Family has no PayPal purchase protection. Capes only show for Voidmark users.
 

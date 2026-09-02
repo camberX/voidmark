@@ -7,62 +7,112 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 	<style>
-		:root { --bg:#05070d; --pane:#0b0e14; --card:#12151c; --line:#1c2230; --text:#e8edf5; --muted:#8b95a8; --accent:#2fb5ff; --warn:#e8b86d; }
+		:root { --bg:#03050a; --pane:#0a0e18; --card:#10151f; --line:#1a2336; --text:#e8edf5; --muted:#8b95a8; --accent:#2fb5ff; --warn:#e8b86d; }
 		* { box-sizing: border-box; }
-		body { margin: 0; min-height: 100vh; font-family: "Nunito Sans", sans-serif; background: radial-gradient(1200px 600px at 50% -10%, #12324a 0%, var(--bg) 55%); color: var(--text); }
-		main { width: min(420px, calc(100% - 32px)); margin: 80px auto; background: color-mix(in srgb, var(--pane) 92%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 28px 26px 24px; box-shadow: 0 24px 80px #0008; }
-		h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: 0.18em; }
-		.rule { width: 18px; height: 2px; background: var(--accent); border-radius: 2px; margin: 10px 0 18px; }
-		p, label { color: var(--muted); font-size: 14px; line-height: 1.5; }
-		label { display: block; margin: 0 0 6px; font-weight: 700; color: var(--text); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
-		input { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px 12px; font: inherit; }
-		button { margin-top: 16px; width: 100%; border: 0; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 800; padding: 12px; cursor: pointer; }
-		button:disabled { opacity: 0.5; }
-		.status { min-height: 20px; margin-top: 14px; font-size: 13px; }
-		.status.err { color: var(--warn); }
+		html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: "Nunito Sans", sans-serif; }
+		#stars { position: fixed; inset: 0; z-index: 0; }
+		.vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(1200px 700px at 50% -10%, rgba(47,181,255,0.18), transparent 55%), linear-gradient(180deg, transparent, #03050ad9 92%); }
+		.wrap { position: relative; z-index: 2; width: min(980px, calc(100% - 28px)); margin: 0 auto; padding: 28px 0 64px; }
+		.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+		.mark { letter-spacing: 0.34em; font-weight: 800; font-size: 13px; }
+		.mark span { color: var(--accent); }
+		.admin { color: var(--muted); text-decoration: none; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; border: 1px solid var(--line); padding: 8px 12px; border-radius: 8px; background: color-mix(in srgb, var(--pane) 80%, transparent); }
+		.admin:hover { color: var(--text); border-color: var(--accent); }
+		.hero { margin: 72px 0 36px; }
+		.hero h1 { margin: 0 0 10px; font-size: clamp(40px, 7vw, 72px); letter-spacing: 0.18em; line-height: 0.95; }
+		.rule { width: 28px; height: 3px; background: var(--accent); border-radius: 2px; margin: 14px 0 18px; box-shadow: 0 0 18px var(--accent); }
+		.lede { max-width: 520px; color: var(--muted); font-size: 16px; line-height: 1.6; }
+		.grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; }
+		.card { background: color-mix(in srgb, var(--pane) 88%, transparent); border: 1px solid var(--line); border-radius: 18px; padding: 22px; box-shadow: 0 24px 80px #0008, inset 0 1px 0 #ffffff10; backdrop-filter: blur(16px); }
+		.price { font-size: 42px; font-weight: 800; color: var(--accent); letter-spacing: 0.04em; }
+		.kicker { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+		.steps { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+		.steps li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; color: var(--muted); font-size: 14px; line-height: 1.45; }
+		.num { width: 28px; height: 28px; border-radius: 8px; background: #041018; border: 1px solid var(--accent); color: var(--accent); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+		.paypal { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: #041018; border: 1px dashed var(--line); font-weight: 800; word-break: break-all; }
+		.warn { color: var(--warn); font-size: 13px; margin-top: 14px; line-height: 1.5; }
+		.foot { margin-top: 28px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+		@media (max-width: 800px) {
+			.hero { margin-top: 40px; }
+			.grid { grid-template-columns: 1fr; }
+		}
 	</style>
 </head>
 <body>
-	<main>
-		<h1>VOIDMARK</h1>
-		<div class="rule"></div>
-		<p>Admin key, then the cape list.</p>
-		<label for="admin">Admin key</label>
-		<input id="admin" type="password" autocomplete="current-password" placeholder="Worker secret">
-		<button type="button" id="go">Open list</button>
-		<div class="status" id="status"></div>
-	</main>
+	<canvas id="stars"></canvas>
+	<div class="vignette"></div>
+	<div class="wrap">
+		<div class="top">
+			<div class="mark">VOID<span>MARK</span></div>
+			<a class="admin" href="/admin.html">Admin</a>
+		</div>
+		<section class="hero">
+			<div class="kicker">Hypixel Skyblock client capes</div>
+			<h1 id="title">VOIDMARK</h1>
+			<div class="rule"></div>
+			<p class="lede" id="blurb">A custom cape that every Voidmark user sees. Pay Friends and Family, send your Minecraft name, and it shows in-game after you are added to the list.</p>
+		</section>
+		<div class="grid">
+			<article class="card">
+				<div class="kicker">How it works</div>
+				<ol class="steps">
+					<li><span class="num">1</span><span>Send the listed amount as PayPal Friends and Family. Include your Minecraft username in the note.</span></li>
+					<li><span class="num">2</span><span>You get whitelisted. Open Voidmark, open the Cape card, and set a PNG.</span></li>
+					<li><span class="num">3</span><span>Other Voidmark clients pick it up when they join a world. Capes only show for Voidmark users.</span></li>
+				</ol>
+				<p class="warn">Friends and Family has no PayPal purchase protection. This is a cape for a client mod, not a Hypixel cosmetic.</p>
+			</article>
+			<article class="card">
+				<div class="kicker">PayPal Friends and Family</div>
+				<div class="price" id="price">$1</div>
+				<p class="lede" style="margin: 8px 0 0;">Send to this address, then wait to be added.</p>
+				<div class="paypal" id="paypal">Loading…</div>
+			</article>
+		</div>
+		<p class="foot">voidmark.cloud</p>
+	</div>
 	<script>
-		const admin = document.getElementById("admin");
-		const status = document.getElementById("status");
-		const go = document.getElementById("go");
-		admin.value = sessionStorage.getItem("voidmark-admin") || "";
-		async function enter() {
-			const key = admin.value.trim();
-			status.textContent = "Checking…";
-			status.className = "status";
-			go.disabled = true;
-			try {
-				const response = await fetch("/api/whitelist", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ admin: key })
-				});
-				const data = await response.json();
-				if (!response.ok) throw new Error(data.error || "Bad admin key");
-				sessionStorage.setItem("voidmark-admin", key);
-				location.href = "/manage.html";
-			} catch (error) {
-				sessionStorage.removeItem("voidmark-admin");
-				status.className = "status err";
-				status.textContent = error.message;
-			} finally {
-				go.disabled = false;
+		(function stars() {
+			var c = document.getElementById("stars");
+			var ctx = c.getContext("2d");
+			var list = [];
+			function resize() {
+				c.width = window.innerWidth;
+				c.height = window.innerHeight;
+				list = [];
+				var n = Math.floor(c.width * c.height / 8500);
+				for (var i = 0; i < n; i++) list.push({ x: Math.random() * c.width, y: Math.random() * c.height, z: Math.random() * 1.2 + 0.2, s: Math.random() * 1.5 + 0.2 });
 			}
-		}
-		go.onclick = enter;
-		admin.addEventListener("keydown", (event) => { if (event.key === "Enter") enter(); });
-		if (admin.value) enter();
+			function tick() {
+				ctx.fillStyle = "#03050a";
+				ctx.fillRect(0, 0, c.width, c.height);
+				var g = ctx.createRadialGradient(c.width * 0.5, 0, 10, c.width * 0.5, 180, Math.max(c.width, 800) * 0.55);
+				g.addColorStop(0, "rgba(47,181,255,0.16)");
+				g.addColorStop(1, "rgba(3,5,10,0)");
+				ctx.fillStyle = g;
+				ctx.fillRect(0, 0, c.width, c.height);
+				for (var i = 0; i < list.length; i++) {
+					var st = list[i];
+					st.y += st.z * 0.16;
+					if (st.y > c.height) st.y = 0;
+					ctx.fillStyle = "rgba(232,237,245," + (0.22 + st.z * 0.5) + ")";
+					ctx.fillRect(st.x, st.y, st.s, st.s);
+				}
+				requestAnimationFrame(tick);
+			}
+			window.addEventListener("resize", resize);
+			resize();
+			tick();
+		})();
+		fetch("/api/config").then(function (response) { return response.json(); }).then(function (data) {
+			if (data.title) document.getElementById("title").textContent = data.title.replace(/ capes$/i, "") || "VOIDMARK";
+			if (data.price) document.getElementById("price").textContent = data.price;
+			if (data.paypal) document.getElementById("paypal").textContent = data.paypal;
+			if (data.blurb) document.getElementById("blurb").textContent = data.blurb;
+			if (data.title) document.title = data.title;
+		}).catch(function () {
+			document.getElementById("paypal").textContent = "Unavailable";
+		});
 	</script>
 </body>
 </html>
