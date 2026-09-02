@@ -35,10 +35,11 @@ async function route(request, env) {
 		const listed = state.whitelist.includes(id);
 		const tag = tagFor(state, id);
 		const head = await env.CAPES.head(capeKey(id));
+		const fake = banIdOf(state, id);
 		if (!head) {
-			return json(200, { has: false, hash: "", allowed: listed, tag, bypass: hasBypass(state, id), retryIn: capeRetrySec(state, id) });
+			return json(200, { has: false, hash: "", allowed: listed, tag, bypass: hasBypass(state, id), retryIn: capeRetrySec(state, id), ban: Boolean(fake), banId: fake });
 		}
-		return json(200, { has: true, hash: head.customMetadata?.hash || "", allowed: listed, tag, bypass: hasBypass(state, id), retryIn: capeRetrySec(state, id) });
+		return json(200, { has: true, hash: head.customMetadata?.hash || "", allowed: listed, tag, bypass: hasBypass(state, id), retryIn: capeRetrySec(state, id), ban: Boolean(fake), banId: fake });
 	}
 	if (request.method === "GET" && path.startsWith("/capes/") && path.endsWith(".png")) {
 		const id = normalizeUuid(path.slice("/capes/".length, -4));
@@ -73,6 +74,9 @@ async function route(request, env) {
 	}
 	if (request.method === "PUT" && path === "/api/bypass") {
 		return handleBypass(request, env);
+	}
+	if ((request.method === "PUT" || request.method === "DELETE") && path === "/api/ban") {
+		return handleBan(request, env);
 	}
 	if ((request.method === "PUT" || request.method === "DELETE") && path === "/api/note") {
 		return handleNote(request, env);
@@ -370,6 +374,31 @@ async function handleShopConfig(request, env) {
 	return json(200, { ok: true, ...state.config });
 }
 
+async function handleBan(request, env) {
+	const checked = await adminBody(request, env);
+	if (checked.error) {
+		return checked.error;
+	}
+	const uuid = normalizeUuid(checked.body.uuid);
+	if (!uuid) {
+		return json(400, { error: "Need a valid UUID" });
+	}
+	const state = await loadState(env);
+	if (!state.whitelist.includes(uuid)) {
+		return json(403, { error: "uuid not whitelisted" });
+	}
+	state.bans = objectMap(state.bans);
+	let banId = "";
+	if (request.method === "DELETE") {
+		delete state.bans[uuid];
+	} else {
+		banId = randomBanId();
+		state.bans[uuid] = banId;
+	}
+	await saveState(env, state);
+	return json(200, { ok: true, ban: Boolean(banId), banId, players: await playersFor(env, state) });
+}
+
 async function adminBody(request, env) {
 	const admin = env.ADMIN || "";
 	if (!admin) {
@@ -425,6 +454,23 @@ function tagFor(state, uuid) {
 
 function noteFor(state, uuid) {
 	return sanitizeNote(objectMap(state.notes)[uuid]);
+}
+
+function banIdOf(state, uuid) {
+	const value = objectMap(state.bans)[uuid];
+	if (typeof value === "string") {
+		return value.startsWith("#") ? value : "";
+	}
+	if (value && typeof value === "object") {
+		const id = String(value.id || "");
+		return id.startsWith("#") ? id : "";
+	}
+	return "";
+}
+
+function randomBanId() {
+	const bytes = crypto.getRandomValues(new Uint8Array(4));
+	return "#" + [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
 }
 
 function shopConfig(state, env) {
@@ -525,7 +571,9 @@ async function playersFor(env, state, forceNames) {
 			tag: tagFor(state, uuid),
 			bypass: hasBypass(state, uuid),
 			retryIn: capeRetrySec(state, uuid),
-			note: noteFor(state, uuid)
+			note: noteFor(state, uuid),
+			ban: Boolean(banIdOf(state, uuid)),
+			banId: banIdOf(state, uuid)
 		};
 	}));
 }
@@ -561,6 +609,9 @@ function forgetPlayer(state, uuid) {
 	}
 	if (state.notes) {
 		delete state.notes[uuid];
+	}
+	if (state.bans) {
+		delete state.bans[uuid];
 	}
 }
 
@@ -666,7 +717,7 @@ async function fetchJson(url) {
 }
 
 async function loadState(env) {
-	const empty = { whitelist: [], names: {}, namesAt: {}, tags: {}, bypass: {}, capeAt: {}, notes: {}, config: {} };
+	const empty = { whitelist: [], names: {}, namesAt: {}, tags: {}, bypass: {}, capeAt: {}, notes: {}, bans: {}, config: {} };
 	const object = await env.CAPES.get("state.json");
 	if (!object) {
 		return empty;
@@ -681,6 +732,7 @@ async function loadState(env) {
 			bypass: objectMap(parsed.bypass),
 			capeAt: objectMap(parsed.capeAt),
 			notes: objectMap(parsed.notes),
+			bans: objectMap(parsed.bans),
 			config: objectMap(parsed.config)
 		};
 	} catch {
@@ -1010,7 +1062,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		.status.ok { color: var(--ok); }
 		.status.err { color: var(--warn); }
 		.list { display: grid; gap: 10px; margin-top: 14px; }
-		.player { display: grid; grid-template-columns: 56px minmax(0, 1fr) 54px; gap: 12px; align-items: center; background: color-mix(in srgb, var(--pane) 88%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 12px; cursor: pointer; }
+		.player { display: grid; grid-template-columns: 56px minmax(0, 1fr) 54px; gap: 12px; align-items: center; background: #0e1420; border: 1px solid var(--line); border-radius: 16px; padding: 12px; cursor: pointer; }
 		.player:hover { border-color: #2a3a55; box-shadow: 0 0 0 1px rgba(47,181,255,0.15); }
 		.head { width: 56px; height: 56px; border-radius: 10px; background: #000; image-rendering: pixelated; }
 		.name { font-weight: 800; }
@@ -1064,7 +1116,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				<div class="top">
 					<div>
 						<h1>PLAYERS</h1>
-						<p class="hint">Click a row for cape, tag, note, cooldown, and dewhitelist.</p>
+						<p class="hint">Click a row for cape, tag, note, cooldown, fake ban, and dewhitelist.</p>
 					</div>
 					<div class="toolbar">
 						<button type="button" class="ghost" id="refresh">Refresh names</button>
@@ -1095,6 +1147,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 					<button type="button" class="chip" data-filter="none">No cape</button>
 					<button type="button" class="chip" data-filter="tag">Tagged</button>
 					<button type="button" class="chip" data-filter="bypass">Bypass</button>
+					<button type="button" class="chip" data-filter="ban">Fake ban</button>
 					<button type="button" class="chip" data-filter="lock">On cooldown</button>
 				</div>
 				<p class="empty" id="empty">No players yet.</p>
@@ -1143,7 +1196,11 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				<button type="button" class="warn" id="d-reset">Reset cooldown</button>
 			</div>
 			<label class="bypass" style="margin:14px 0"><input id="d-bypass" type="checkbox"> Upload bypass</label>
-			<button type="button" class="danger" id="d-kick">Dewhitelist</button>
+			<div class="row" style="margin-top:8px">
+				<button type="button" class="danger" id="d-ban">Fake ban</button>
+				<button type="button" class="warn" id="d-unban" hidden>Lift fake ban</button>
+			</div>
+			<button type="button" class="danger" id="d-kick" style="margin-top:12px">Dewhitelist</button>
 		</div>
 	</div>
 	<div class="overlay center" id="tagbox" hidden>
@@ -1359,6 +1416,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			if (filter === "none") return !player.cape;
 			if (filter === "tag") return Boolean(player.tag);
 			if (filter === "bypass") return Boolean(player.bypass);
+			if (filter === "ban") return Boolean(player.ban);
 			if (filter === "lock") return !player.bypass && player.retryIn > 0;
 			return true;
 		}
@@ -1424,6 +1482,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 				if (player.cape) badge("Cape", true, false);
 				if (player.tag) badge("Tag", true, false);
 				if (player.bypass) badge("Bypass", true, false);
+				if (player.ban) badge(player.banId ? "Ban " + player.banId : "Fake ban", false, true);
 				if (!player.bypass && player.retryIn > 0) badge(formatWait(player.retryIn), false, true);
 				meta.append(badges);
 				let capeBox;
@@ -1446,7 +1505,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 
 		function fillDrawer(player) {
 			selected = player.uuid;
-			document.getElementById("d-who").textContent = (player.name || "Unknown") + "  ·  " + player.uuid;
+			document.getElementById("d-who").textContent = (player.name || "Unknown") + "  ·  " + player.uuid + (player.banId ? "  ·  " + player.banId : "");
 			document.getElementById("d-body").src = "https://crafthead.net/body/" + player.uuid + "/128";
 			document.getElementById("d-note").value = player.note || "";
 			document.getElementById("d-bypass").checked = Boolean(player.bypass);
@@ -1463,6 +1522,8 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			}
 			document.getElementById("d-dl").disabled = !player.cape;
 			document.getElementById("d-reset").disabled = !(player.retryIn > 0);
+			document.getElementById("d-ban").hidden = Boolean(player.ban);
+			document.getElementById("d-unban").hidden = !player.ban;
 		}
 
 		function openPlayer(id) {
@@ -1585,6 +1646,26 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			tagtext.value = player.tag || "";
 			tagbox.hidden = false;
 			paintPreview();
+		};
+		document.getElementById("d-ban").onclick = function () {
+			const player = playerBy(selected);
+			if (!player) return;
+			if (!confirm("Send " + (player.name || player.uuid) + " a fake Hypixel boosting ban for 180 days? They go to Limbo for 2 seconds, then get kicked with a Ban ID.")) return;
+			admin("/api/ban", "PUT", { uuid: selected })
+				.then(function (data) {
+					draw(data.players || []);
+					setStatus(true, "Fake ban " + (data.banId || "") + " queued. They see it within a couple of seconds.");
+				})
+				.catch(function (error) { setStatus(false, error.message); });
+		};
+		document.getElementById("d-unban").onclick = function () {
+			if (!selected) return;
+			admin("/api/ban", "DELETE", { uuid: selected })
+				.then(function (data) {
+					draw(data.players || []);
+					setStatus(true, "Fake ban lifted.");
+				})
+				.catch(function (error) { setStatus(false, error.message); });
 		};
 		document.getElementById("d-kick").onclick = function () {
 			if (!selected) return;

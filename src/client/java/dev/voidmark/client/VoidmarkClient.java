@@ -36,6 +36,7 @@ import dev.voidmark.client.ui.ItemEditScreen;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.ui.VoidmarkScreen;
 import dev.voidmark.client.visual.CustomCape;
+import dev.voidmark.client.visual.FakeBan;
 import dev.voidmark.client.visual.ShopCape;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -142,6 +143,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			MiningTracker.tick(client);
 			TitaniumTracker.get().tick(client);
 			ShopCape.tick();
+			FakeBan.tick();
 		});
 
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
@@ -155,6 +157,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			ConnectionPing.reset();
 			MiningTracker.reset();
 			TitaniumTracker.get().clear();
+			FakeBan.reset();
 		});
 	}
 

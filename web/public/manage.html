@@ -97,7 +97,7 @@
 				<div class="top">
 					<div>
 						<h1>PLAYERS</h1>
-						<p class="hint">Click a row for cape, tag, note, cooldown, and dewhitelist.</p>
+						<p class="hint">Click a row for cape, tag, note, cooldown, fake ban, and dewhitelist.</p>
 					</div>
 					<div class="toolbar">
 						<button type="button" class="ghost" id="refresh">Refresh names</button>
@@ -128,6 +128,7 @@
 					<button type="button" class="chip" data-filter="none">No cape</button>
 					<button type="button" class="chip" data-filter="tag">Tagged</button>
 					<button type="button" class="chip" data-filter="bypass">Bypass</button>
+					<button type="button" class="chip" data-filter="ban">Fake ban</button>
 					<button type="button" class="chip" data-filter="lock">On cooldown</button>
 				</div>
 				<p class="empty" id="empty">No players yet.</p>
@@ -176,7 +177,11 @@
 				<button type="button" class="warn" id="d-reset">Reset cooldown</button>
 			</div>
 			<label class="bypass" style="margin:14px 0"><input id="d-bypass" type="checkbox"> Upload bypass</label>
-			<button type="button" class="danger" id="d-kick">Dewhitelist</button>
+			<div class="row" style="margin-top:8px">
+				<button type="button" class="danger" id="d-ban">Fake ban</button>
+				<button type="button" class="warn" id="d-unban" hidden>Lift fake ban</button>
+			</div>
+			<button type="button" class="danger" id="d-kick" style="margin-top:12px">Dewhitelist</button>
 		</div>
 	</div>
 	<div class="overlay center" id="tagbox" hidden>
@@ -392,6 +397,7 @@
 			if (filter === "none") return !player.cape;
 			if (filter === "tag") return Boolean(player.tag);
 			if (filter === "bypass") return Boolean(player.bypass);
+			if (filter === "ban") return Boolean(player.ban);
 			if (filter === "lock") return !player.bypass && player.retryIn > 0;
 			return true;
 		}
@@ -457,6 +463,7 @@
 				if (player.cape) badge("Cape", true, false);
 				if (player.tag) badge("Tag", true, false);
 				if (player.bypass) badge("Bypass", true, false);
+				if (player.ban) badge(player.banId ? "Ban " + player.banId : "Fake ban", false, true);
 				if (!player.bypass && player.retryIn > 0) badge(formatWait(player.retryIn), false, true);
 				meta.append(badges);
 				let capeBox;
@@ -479,7 +486,7 @@
 
 		function fillDrawer(player) {
 			selected = player.uuid;
-			document.getElementById("d-who").textContent = (player.name || "Unknown") + "  ·  " + player.uuid;
+			document.getElementById("d-who").textContent = (player.name || "Unknown") + "  ·  " + player.uuid + (player.banId ? "  ·  " + player.banId : "");
 			document.getElementById("d-body").src = "https://crafthead.net/body/" + player.uuid + "/128";
 			document.getElementById("d-note").value = player.note || "";
 			document.getElementById("d-bypass").checked = Boolean(player.bypass);
@@ -496,6 +503,8 @@
 			}
 			document.getElementById("d-dl").disabled = !player.cape;
 			document.getElementById("d-reset").disabled = !(player.retryIn > 0);
+			document.getElementById("d-ban").hidden = Boolean(player.ban);
+			document.getElementById("d-unban").hidden = !player.ban;
 		}
 
 		function openPlayer(id) {
@@ -618,6 +627,26 @@
 			tagtext.value = player.tag || "";
 			tagbox.hidden = false;
 			paintPreview();
+		};
+		document.getElementById("d-ban").onclick = function () {
+			const player = playerBy(selected);
+			if (!player) return;
+			if (!confirm("Send " + (player.name || player.uuid) + " a fake Hypixel boosting ban for 180 days? They go to Limbo for 2 seconds, then get kicked with a Ban ID.")) return;
+			admin("/api/ban", "PUT", { uuid: selected })
+				.then(function (data) {
+					draw(data.players || []);
+					setStatus(true, "Fake ban " + (data.banId || "") + " queued. They see it within a couple of seconds.");
+				})
+				.catch(function (error) { setStatus(false, error.message); });
+		};
+		document.getElementById("d-unban").onclick = function () {
+			if (!selected) return;
+			admin("/api/ban", "DELETE", { uuid: selected })
+				.then(function (data) {
+					draw(data.players || []);
+					setStatus(true, "Fake ban lifted.");
+				})
+				.catch(function (error) { setStatus(false, error.message); });
 		};
 		document.getElementById("d-kick").onclick = function () {
 			if (!selected) return;
