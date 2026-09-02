@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.97", new String[]{
+			"Player preview uses inventory scale so it no longer fills the You card."
+		}),
 		new Entry("1.1.96", new String[]{
 			"Player preview fits inside the You card instead of clipping the head."
 		}),
