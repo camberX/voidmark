@@ -39,34 +39,32 @@ public final class GuiDraw {
 		if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
 			return;
 		}
-		int x0 = Math.round(x);
-		int y0 = Math.round(y);
-		int x1 = Math.round(x + w);
-		int y1 = Math.round(y + h);
-		if (x1 <= x0) {
-			x1 = x0 + 1;
+		// Tiny dots (HUD stars) can snap to pixels. Rounded chrome cannot:
+		// integer rounding leaves 1px gaps between the center fill and the corner blits.
+		if (w <= 2f && h <= 2f) {
+			int x0 = Math.round(x);
+			int y0 = Math.round(y);
+			int x1 = Math.max(x0 + 1, Math.round(x + w));
+			int y1 = Math.max(y0 + 1, Math.round(y + h));
+			graphics.fill(x0, y0, x1, y1, color);
+			return;
 		}
-		if (y1 <= y0) {
-			y1 = y0 + 1;
-		}
-		graphics.fill(x0, y0, x1, y1, color);
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x, y);
+		graphics.pose().scale(w, h);
+		graphics.fill(0, 0, 1, 1, color);
+		graphics.pose().popMatrix();
 	}
 
 	public static void fillGradient(GuiGraphicsExtractor graphics, float x, float y, float w, float h, int top, int bottom) {
 		if (w <= 0 || h <= 0) {
 			return;
 		}
-		int x0 = Math.round(x);
-		int y0 = Math.round(y);
-		int x1 = Math.round(x + w);
-		int y1 = Math.round(y + h);
-		if (x1 <= x0) {
-			x1 = x0 + 1;
-		}
-		if (y1 <= y0) {
-			y1 = y0 + 1;
-		}
-		graphics.fillGradient(x0, y0, x1, y1, top, bottom);
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x, y);
+		graphics.pose().scale(w, h);
+		graphics.fillGradient(0, 0, 1, 1, top, bottom);
+		graphics.pose().popMatrix();
 	}
 
 	/** Smooth HSV saturation/value square: 1px columns, vertical value gradient per column. */

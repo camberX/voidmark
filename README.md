@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.92.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.93.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.

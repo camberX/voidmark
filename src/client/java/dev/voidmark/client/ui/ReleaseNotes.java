@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.93", new String[]{
+			"Rounded corners no longer show black gaps from the fill fast-path."
+		}),
 		new Entry("1.1.92", new String[]{
 			"Nametags use the default Minecraft font.",
 			"HUD opacity is separate from the click-GUI pane.",
