@@ -67,7 +67,11 @@ Config is saved to `.minecraft/config/voidmark.json`, including click-GUI positi
 
 Paid custom capes ($1 via PayPal Friends and Family). The website takes a Minecraft UUID, an upload code, and a PNG. After that, Voidmark clients fetch `/capes/{uuid}.png` so everyone running the mod sees the cape. Changing the PNG in the Voidmark Cape menu (or uploading again) overwrites that file; other clients pick up the new hash within a couple of seconds.
 
+**Host it on Cloudflare (free, not a VPS):** follow **[web/CLOUDFLARE.md](web/CLOUDFLARE.md)**. That deploys a Worker + R2 bucket, stores the admin key as a secret (not in the HTML), then you put the `https://voidmark-capes.…workers.dev` URL in `capeServerUrl`.
+
 Friends and Family has no PayPal purchase protection. Capes only show for Voidmark users.
+
+Local testing only:
 
 ```bash
 node web/server.mjs
@@ -76,8 +80,7 @@ node web/server.mjs
 - Site and API: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`).
 - After a payment, open `/admin.html`, enter `VOIDMARK_CAPE_ADMIN` (default `change-me`), and send the one-time code.
 - Edit `web/data/config.json` for the PayPal address and price shown on the page.
-- Before you ship a jar, set `capeServerUrl` in `.minecraft/config/voidmark.json` to a **public** URL for that server. The default is localhost so local testing works.
-- Keep `web/data/tokens.json` and `web/data/codes.json` off the public internet.
+- Keep `web/data/tokens.json` and `web/data/codes.json` off git.
 
 Developer builds stamp a small **DEV** tag on the watermark next to VOIDMARK.
 

@@ -27,3 +27,6 @@ web/data/codes.json
 web/data/tokens.json
 web/data/capes/*.png
 !web/data/capes/.gitkeep
+web/node_modules/
+web/.wrangler/
+web/.dev.vars
