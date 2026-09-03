@@ -65,7 +65,7 @@ public final class EspCommands {
 		tell(line);
 		int learned = EspMobPrint.learned(trimmed.toLowerCase(java.util.Locale.ROOT));
 		if (learned == 0) {
-			tell(muted("Walk up to one named mob once. Voidmark copies its type and armor to glow the rest at range."));
+			tell(muted("Walk up to one named mob in this world. Voidmark copies its type and armor, then forgets the look when you change worlds."));
 		}
 		return Command.SINGLE_SUCCESS;
 	}

@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.152", new String[]{
+			"/vm esp forgets learned mob looks when you change worlds, so you have to see one named copy again. Samples stay in memory for that world only."
+		}),
 		new Entry("1.1.151", new String[]{
 			"/vm esp remembers the type and armor of the first named mob you see, then glows other copies at render distance before their nametag appears."
 		}),

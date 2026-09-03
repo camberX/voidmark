@@ -45,6 +45,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -155,7 +156,10 @@ public final class VoidmarkClient implements ClientModInitializer {
 			UiFontPack.tick(client);
 		});
 
+		ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> MobGlowRenderer.reset());
+
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			MobGlowRenderer.reset();
 			FakeBan.onJoin();
 			SkyblockProfileApi.refresh();
 			ShopCape.onJoin();

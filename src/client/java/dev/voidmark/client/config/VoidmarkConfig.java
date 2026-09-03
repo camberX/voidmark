@@ -145,7 +145,6 @@ public final class VoidmarkConfig {
 	public String mobGlowId = "";
 	public String mobGlowName = "";
 	public java.util.List<String> mobGlowIds = new java.util.ArrayList<>();
-	public java.util.List<dev.voidmark.client.render.EspMobPrint.Saved> mobGlowPrints = new java.util.ArrayList<>();
 	public float mobGlowSize = 0.48f;
 	public float mobGlowOpacity = 0.58f;
 	public int mobGlowRgb = 0x2FB5FF;
@@ -257,9 +256,6 @@ public final class VoidmarkConfig {
 				loaded.menuScale = normalizeMenuScale(loaded.menuScale);
 				if (loaded.mobGlowName == null) {
 					loaded.mobGlowName = "";
-				}
-				if (loaded.mobGlowPrints == null) {
-					loaded.mobGlowPrints = new java.util.ArrayList<>();
 				}
 				if (loaded.mobGlowIds == null) {
 					loaded.mobGlowIds = new java.util.ArrayList<>();

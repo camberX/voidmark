@@ -60,6 +60,7 @@ public final class MobGlowRenderer {
 		nameIds = Set.of();
 		remembered.clear();
 		packetLabels.clear();
+		EspMobPrint.clear();
 	}
 
 	public static void onNamePacket(int entityId, String label) {

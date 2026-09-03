@@ -1,6 +1,5 @@
 package dev.voidmark.client.render;
 
-import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.item.ItemIds;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -19,6 +18,7 @@ import java.util.Objects;
 /**
  * After {@code /vm esp} sees one named mob, remember its type and armor so
  * other copies can glow at render distance before their hologram appears.
+ * Samples stay in memory for the current world only.
  */
 public final class EspMobPrint {
 	private static final EquipmentSlot[] SLOTS = {
@@ -31,6 +31,7 @@ public final class EspMobPrint {
 	};
 	private static final int MAX_PER_NEEDLE = 8;
 	private static final int MAX_TOTAL = 64;
+	private static final List<Saved> samples = new ArrayList<>();
 
 	public static final class Saved {
 		public String needle = "";
@@ -42,23 +43,23 @@ public final class EspMobPrint {
 	private EspMobPrint() {
 	}
 
+	public static void clear() {
+		samples.clear();
+	}
+
 	public static void learn(String needle, LivingEntity entity) {
 		Saved sample = capture(needle, entity);
 		if (sample == null) {
 			return;
 		}
-		VoidmarkConfig config = VoidmarkConfig.get();
-		if (config.mobGlowPrints == null) {
-			config.mobGlowPrints = new ArrayList<>();
-		}
-		for (Saved existing : config.mobGlowPrints) {
+		for (Saved existing : samples) {
 			if (same(existing, sample)) {
 				return;
 			}
 		}
 		List<Saved> next = new ArrayList<>();
 		int forNeedle = 0;
-		for (Saved existing : config.mobGlowPrints) {
+		for (Saved existing : samples) {
 			if (needle.equals(existing.needle)) {
 				forNeedle++;
 				if (forNeedle >= MAX_PER_NEEDLE) {
@@ -71,20 +72,19 @@ public final class EspMobPrint {
 		while (next.size() > MAX_TOTAL) {
 			next.remove(0);
 		}
-		config.mobGlowPrints = next;
-		config.save();
+		samples.clear();
+		samples.addAll(next);
 	}
 
 	public static boolean matches(String needle, LivingEntity entity) {
-		VoidmarkConfig config = VoidmarkConfig.get();
-		if (config.mobGlowPrints == null || config.mobGlowPrints.isEmpty()) {
+		if (samples.isEmpty()) {
 			return false;
 		}
 		Saved candidate = capture(needle, entity);
 		if (candidate == null) {
 			return false;
 		}
-		for (Saved sample : config.mobGlowPrints) {
+		for (Saved sample : samples) {
 			if (needle.equals(sample.needle) && looksLike(sample, candidate)) {
 				return true;
 			}
@@ -93,12 +93,8 @@ public final class EspMobPrint {
 	}
 
 	public static int learned(String needle) {
-		VoidmarkConfig config = VoidmarkConfig.get();
-		if (config.mobGlowPrints == null) {
-			return 0;
-		}
 		int n = 0;
-		for (Saved sample : config.mobGlowPrints) {
+		for (Saved sample : samples) {
 			if (needle.equals(sample.needle)) {
 				n++;
 			}
