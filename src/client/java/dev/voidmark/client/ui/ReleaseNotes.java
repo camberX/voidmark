@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.151", new String[]{
+			"/vm esp remembers the type and armor of the first named mob you see, then glows other copies at render distance before their nametag appears."
+		}),
 		new Entry("1.1.150", new String[]{
 			"/vm esp <text> glows the living mob as soon as Hypixel sends the nametag in entity metadata, even if the hologram plate has not rendered yet."
 		}),

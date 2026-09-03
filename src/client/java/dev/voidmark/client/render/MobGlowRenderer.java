@@ -250,7 +250,11 @@ public final class MobGlowRenderer {
 			if (!isMob(entity) || hasVanillaGlow(entity)) {
 				continue;
 			}
-			if (nameMatches(entity, n) || nearbyHologramMatches(client, entity, n)) {
+			boolean named = nameMatches(entity, n) || nearbyHologramMatches(client, entity, n);
+			if (named && entity instanceof LivingEntity living) {
+				EspMobPrint.learn(n, living);
+			}
+			if (named || (entity instanceof LivingEntity living && EspMobPrint.matches(n, living))) {
 				ids.add(entity.getId());
 			}
 		}
