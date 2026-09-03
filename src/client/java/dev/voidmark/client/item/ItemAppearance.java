@@ -32,7 +32,7 @@ public final class ItemAppearance {
 	}
 
 	public static ItemStack visual(ItemStack stack) {
-		if (stack == null || stack.isEmpty() || Boolean.TRUE.equals(APPLYING.get())) {
+		if (stack == null || stack.isEmpty() || SKINS.isEmpty() || Boolean.TRUE.equals(APPLYING.get())) {
 			return stack;
 		}
 		Skin skin = find(stack);
@@ -46,14 +46,13 @@ public final class ItemAppearance {
 	}
 
 	public static ItemStack named(ItemStack stack) {
-		if (stack == null || stack.isEmpty() || Boolean.TRUE.equals(APPLYING.get())) {
+		if (stack == null || stack.isEmpty() || SKINS.isEmpty() || Boolean.TRUE.equals(APPLYING.get())) {
 			return stack;
 		}
 		Skin skin = find(stack);
 		if (skin == null || !skin.textOverride || skin.display.isEmpty()) {
 			return stack;
 		}
-		ItemText.untiltOn(skin.display);
 		return skin.display;
 	}
 
@@ -306,17 +305,24 @@ public final class ItemAppearance {
 		config.save();
 	}
 
+	/**
+	 * Reskins only apply to the local player's own stacks. Chest GUIs like HOTM
+	 * have huge Skyblock NBT; never copy tags or walk lore on those items.
+	 */
 	private static Skin find(ItemStack stack) {
+		if (SKINS.isEmpty()) {
+			return null;
+		}
+		Minecraft client = Minecraft.getInstance();
+		if (client.player == null || !ours(client.player, stack)) {
+			return null;
+		}
 		String uuid = ItemIds.uuidOf(stack);
 		if (uuid != null) {
 			Skin byUuid = byKey("uuid:" + uuid);
 			if (byUuid != null) {
 				return byUuid;
 			}
-		}
-		Minecraft client = Minecraft.getInstance();
-		if (client.player == null) {
-			return null;
 		}
 		Player player = client.player;
 		for (Skin skin : SKINS) {
@@ -325,13 +331,23 @@ public final class ItemAppearance {
 				return stillValid(bound, skin) ? skin : null;
 			}
 		}
-		for (Skin skin : SKINS) {
-			ItemStack bound = bound(player, skin);
-			if (!bound.isEmpty() && stillValid(bound, skin) && ItemStack.isSameItemSameComponents(bound, stack)) {
-				return skin;
+		return null;
+	}
+
+	private static boolean ours(Player player, ItemStack stack) {
+		Inventory inventory = player.getInventory();
+		int size = inventory.getContainerSize();
+		for (int i = 0; i < size; i++) {
+			if (inventory.getItem(i) == stack) {
+				return true;
 			}
 		}
-		return null;
+		for (EquipmentSlot slot : ARMOR) {
+			if (player.getItemBySlot(slot) == stack) {
+				return true;
+			}
+		}
+		return player.getOffhandItem() == stack;
 	}
 
 	private static boolean stillValid(ItemStack bound, Skin skin) {

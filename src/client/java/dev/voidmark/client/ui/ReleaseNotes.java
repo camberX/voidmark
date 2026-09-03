@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.143", new String[]{
+			"Chest GUIs like Heart of the Mountain no longer hitch. Item reskins never copy NBT or walk lore on menu stacks — only the items in your own inventory."
+		}),
 		new Entry("1.1.142", new String[]{
 			"Glow ESP renders through walls at full range — entities behind geometry are no longer culled. Music HUD is more compact; hover controls (prev/play/next) are visible again."
 		}),
