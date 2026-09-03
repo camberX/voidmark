@@ -34,8 +34,10 @@ import java.util.UUID;
 
 /**
  * Voidmark-styled player nametags that keep drawing past vanilla's 64-block cutoff.
- * Tags scale with camera distance, then by the Size slider. UUID v2 entities are
- * treated as NPCs and skipped; only v4 (and the local player) get a plate.
+ * Tags scale with camera distance, then by the Size slider. Style picks Voidmark
+ * plates or vanilla chrome; both use the same range, opacity, through-walls, and
+ * scaling. UUID v2 entities are treated as NPCs and skipped; only v4 (and the
+ * local player) get a plate.
  */
 public final class NametagRenderer {
 	private static final float TAG_H = 14f;
@@ -68,20 +70,20 @@ public final class NametagRenderer {
 		if (self && !config.nametagSelf) {
 			return true;
 		}
-		if (config.nametagCustomPlates()) {
-			return true;
-		}
 		if (config.nametagsEnabled) {
-			return false;
+			return true;
 		}
 		return hasBadge(entity.getUUID()) && (!self || config.nametagSelf);
 	}
 
 	public static boolean hidingVanillaState(EntityRenderState state) {
-		if (!VoidmarkConfig.get().nametagCustomPlates() || state.entityType == null) {
+		if (state.entityType == null) {
 			return false;
 		}
-		return state.entityType == EntityType.PLAYER || state.entityType == EntityType.MANNEQUIN;
+		if (state.entityType != EntityType.PLAYER && state.entityType != EntityType.MANNEQUIN) {
+			return false;
+		}
+		return VoidmarkConfig.get().nametagsEnabled;
 	}
 
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
@@ -90,9 +92,7 @@ public final class NametagRenderer {
 			return;
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (config.nametagsEnabled && !config.nametagCustom()) {
-			return;
-		}
+		boolean enabled = config.nametagsEnabled;
 		boolean plates = config.nametagCustomPlates();
 		boolean own = config.nametagSelf;
 		float partial = deltaTracker.getGameTimeDeltaPartialTick(true);
@@ -100,11 +100,11 @@ public final class NametagRenderer {
 		if (!camera.isInitialized()) {
 			return;
 		}
-		double maxRange = plates ? VoidmarkConfig.clamp(config.nametagRange, 64, 256) : 64;
+		double maxRange = enabled ? VoidmarkConfig.clamp(config.nametagRange, 64, 256) : 64;
 		double maxSq = maxRange * maxRange;
 		Vec3 camPos = camera.position();
 		Vector3fc forward = camera.forwardVector();
-		boolean through = plates && config.nametagThroughWalls;
+		boolean through = enabled && config.nametagThroughWalls;
 		List<Tag> tags = new ArrayList<>();
 		for (AbstractClientPlayer player : client.level.players()) {
 			boolean self = player == client.player;
@@ -114,13 +114,13 @@ public final class NametagRenderer {
 			if (self && !own) {
 				continue;
 			}
-			if (!plates && !branded && !titled) {
+			if (!enabled && !branded && !titled) {
 				continue;
 			}
 			if (!include(client, player, through, maxSq, camPos)) {
 				continue;
 			}
-			Vec3 head = player.getPosition(partial).add(0.0, player.getBbHeight() + (plates ? 0.28 : 0.50), 0.0);
+			Vec3 head = player.getPosition(partial).add(0.0, player.getBbHeight() + 0.28, 0.0);
 			Vec3 rel = head.subtract(camPos);
 			double facing = rel.x * forward.x() + rel.y * forward.y() + rel.z * forward.z();
 			if (facing <= 0.12) {
@@ -149,10 +149,11 @@ public final class NametagRenderer {
 		}
 		tags.sort(Comparator.comparingDouble((Tag tag) -> tag.dist).reversed());
 		Font font = client.font;
-		float userScale = plates ? VoidmarkConfig.clampHudScale(config.nametagScale) : 1f;
-		float opacity = plates ? VoidmarkConfig.clamp(config.nametagOpacity, 0.15f, 1f) : 1f;
+		float userScale = enabled ? VoidmarkConfig.clampHudScale(config.nametagScale) : 1f;
+		float opacity = enabled ? VoidmarkConfig.clamp(config.nametagOpacity, 0.15f, 1f) : 1f;
+		boolean showDistance = enabled && config.nametagDistance;
 		for (Tag tag : tags) {
-			drawStack(graphics, font, tag, config.nametagDistance, userScale, opacity);
+			drawStack(graphics, font, tag, showDistance, userScale, opacity);
 		}
 	}
 
@@ -249,8 +250,8 @@ public final class NametagRenderer {
 			} else {
 				drawNameText(graphics, font, name, tag, x, y, w, showDist, false, alpha);
 			}
-		} else if (tag.badge()) {
-			drawVanillaStack(graphics, font, tag, alpha);
+		} else {
+			drawVanillaStack(graphics, font, tag, showDistance, alpha);
 		}
 		graphics.pose().popMatrix();
 	}
@@ -317,19 +318,29 @@ public final class NametagRenderer {
 	}
 
 	/**
-	 * Vanilla nametag chrome for both lines, stacked with a 1px gap so the Dev
-	 * plate never sits on the name.
+	 * Vanilla nametag chrome for the name (and optional distance), with the Dev
+	 * or shop title stacked above on a 1px gap so it never sits on the name.
 	 */
-	private static void drawVanillaStack(GuiGraphicsExtractor graphics, Font font, Tag tag, float alpha) {
+	private static void drawVanillaStack(GuiGraphicsExtractor graphics, Font font, Tag tag, boolean showDistance, float alpha) {
 		int bg = Anim.fade(Minecraft.getInstance().options.getBackgroundColor(0.25f), alpha);
 		int white = Anim.fade(0xFFFFFFFF, alpha);
+		int muted = Anim.fade(0xFFAAAAAA, alpha);
 		int accent = Anim.fade(Theme.ACCENT, alpha);
 		int warn = Anim.fade(Theme.WARN, alpha);
+		boolean showDist = showDistance && !tag.self;
 		int nameW = font.width(tag.name);
-		int nx = Math.round(-nameW * 0.5f);
-		int nameTop = 0;
-		graphics.fill(nx - 1, nameTop - 1, nx + nameW + 1, nameTop + 9, bg);
+		int distW = showDist ? Math.round(distWidth(font, tag.dist)) : 0;
+		int inner = nameW + (distW > 0 ? 5 + distW : 0);
+		int nx = Math.round(-inner * 0.5f);
+		int nameTop = tag.badge() ? -22 : -11;
+		graphics.fill(nx - 1, nameTop - 1, nx + inner + 1, nameTop + 9, bg);
 		graphics.text(font, tag.name, nx, nameTop, white, false);
+		if (showDist) {
+			graphics.text(font, GuiDraw.meters(tag.dist), nx + nameW + 5, nameTop, muted, false);
+		}
+		if (!tag.badge()) {
+			return;
+		}
 		int badgeTop = nameTop - 11;
 		if (tag.titled()) {
 			int titleW = font.width(tag.title);

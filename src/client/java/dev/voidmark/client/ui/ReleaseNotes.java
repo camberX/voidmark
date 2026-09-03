@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.141", new String[]{
+			"Chams and the ESP 3D preview are gone. Vanilla nametag style still uses Voidmark range, size, opacity, through-walls, distance text, and distance scaling — only the chrome is Minecraft's."
+		}),
 		new Entry("1.1.140", new String[]{
 			"Fresh jar. Replace a truncated 1.1.139 download (zip END header not found) with this build."
 		}),

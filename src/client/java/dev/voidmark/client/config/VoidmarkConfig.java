@@ -146,11 +146,6 @@ public final class VoidmarkConfig {
 	public float mobGlowSize = 0.48f;
 	public float mobGlowOpacity = 0.58f;
 	public int mobGlowRgb = 0x2FB5FF;
-	public boolean chamsEnabled = false;
-	public boolean chamsThroughWalls = true;
-	public String chamsMode = "default";
-	public float chamsOpacity = 0.70f;
-	public int chamsRgb = 0x2FB5FF;
 	public java.util.List<ItemSkin> itemSkins = new java.util.ArrayList<>();
 	public String itemClipboardName = "";
 	public String itemClipboardItemName = "";
@@ -269,12 +264,6 @@ public final class VoidmarkConfig {
 				loaded.mobGlowRgb = loaded.mobGlowRgb & 0xFFFFFF;
 				if (loaded.mobGlowRgb == 0) {
 					loaded.mobGlowRgb = 0x2FB5FF;
-				}
-				loaded.chamsMode = normalizeChamsMode(loaded.chamsMode);
-				loaded.chamsOpacity = clamp(loaded.chamsOpacity <= 0f ? 0.70f : loaded.chamsOpacity, 0.15f, 1f);
-				loaded.chamsRgb = loaded.chamsRgb & 0xFFFFFF;
-				if (loaded.chamsRgb == 0) {
-					loaded.chamsRgb = 0x2FB5FF;
 				}
 				loaded.blockOutlineOpacity = clamp(loaded.blockOutlineOpacity <= 0f ? 0.58f : loaded.blockOutlineOpacity, 0.15f, 0.90f);
 				loaded.blockOutlineRgb = loaded.blockOutlineRgb & 0xFFFFFF;
@@ -428,33 +417,6 @@ public final class VoidmarkConfig {
 		return switch (anchor) {
 			case "top_left", "top_right", "bottom_left", "bottom_right" -> anchor;
 			default -> "bottom_right";
-		};
-	}
-
-	public static String normalizeChamsMode(String mode) {
-		if (mode == null) {
-			return "default";
-		}
-		return switch (mode.trim().toLowerCase(java.util.Locale.ROOT)) {
-			case "fill" -> "fill";
-			case "tint" -> "tint";
-			default -> "default";
-		};
-	}
-
-	public int chamsModeIndex() {
-		return switch (normalizeChamsMode(chamsMode)) {
-			case "fill" -> 0;
-			case "tint" -> 2;
-			default -> 1;
-		};
-	}
-
-	public void setChamsMode(int index) {
-		chamsMode = switch (index) {
-			case 0 -> "fill";
-			case 2 -> "tint";
-			default -> "default";
 		};
 	}
 

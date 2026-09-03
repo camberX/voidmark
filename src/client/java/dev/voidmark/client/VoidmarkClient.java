@@ -27,7 +27,6 @@ import dev.voidmark.client.render.RawmatsHudRenderer;
 import dev.voidmark.client.render.MiningHudRenderer;
 import dev.voidmark.client.render.MiningWorldRenderer;
 import dev.voidmark.client.render.BlockOutlineGlow;
-import dev.voidmark.client.render.ChamsRenderer;
 import dev.voidmark.client.render.MobGlowRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.VanillaHud;
@@ -66,7 +65,6 @@ public final class VoidmarkClient implements ClientModInitializer {
 		CustomCape.init();
 		NodeWorldRenderer.init();
 		MobGlowRenderer.init();
-		ChamsRenderer.init();
 		BlockOutlineGlow.init();
 		MiningWorldRenderer.init();
 		WatermarkRenderer.init();
