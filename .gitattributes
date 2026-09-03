@@ -7,3 +7,7 @@
 # These are Windows script files and should use crlf
 *.bat           text eol=crlf
 
+# Shipped Fabric jars at the repo root. Treat as binary so Windows checkouts
+# cannot CRLF-corrupt the zip END header.
+*.jar           binary
+

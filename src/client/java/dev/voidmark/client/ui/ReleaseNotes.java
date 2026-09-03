@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.140", new String[]{
+			"Fresh jar. Replace a truncated 1.1.139 download (zip END header not found) with this build."
+		}),
 		new Entry("1.1.139", new String[]{
 			"ESP has a 3D player preview that live-applies glow and chams. Chams has Fill (solid unlit), Default (solid with lighting), and Tint (color wash over the skin), with through-walls, opacity, and its own color."
 		}),
