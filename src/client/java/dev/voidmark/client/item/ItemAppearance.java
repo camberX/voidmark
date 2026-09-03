@@ -2,10 +2,13 @@ package dev.voidmark.client.item;
 
 import dev.voidmark.client.config.VoidmarkConfig;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.equipment.Equippable;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -57,6 +60,53 @@ public final class ItemAppearance {
 	public static String displayId(ItemStack stack) {
 		Skin skin = find(stack);
 		return skin == null ? null : skin.displayId;
+	}
+
+	public static boolean maxed(ItemStack stack) {
+		Skin skin = find(stack);
+		return skin != null && skin.maxed;
+	}
+
+	public static void setMaxed(ItemStack stack, boolean maxed) {
+		Skin skin = find(stack);
+		if (skin == null || skin.maxed == maxed) {
+			return;
+		}
+		skin.maxed = maxed;
+		persist();
+	}
+
+	/**
+	 * Stack to draw as worn armor or a skull. Uses {@link #visual}, then retargets
+	 * {@code EQUIPPABLE} to {@code slot} when the copied item has an armor asset
+	 * on the wrong slot (catalog pieces often sit on paper).
+	 */
+	public static ItemStack worn(ItemStack stack, EquipmentSlot slot) {
+		ItemStack visual = visual(stack);
+		if (visual == null || visual.isEmpty() || slot == null || slot.getType() != EquipmentSlot.Type.HUMANOID_ARMOR) {
+			return visual;
+		}
+		if (slot == EquipmentSlot.HEAD && visual.get(DataComponents.PROFILE) != null) {
+			return visual;
+		}
+		Equippable eq = visual.get(DataComponents.EQUIPPABLE);
+		if (eq == null || eq.assetId().isEmpty() || eq.slot() == slot) {
+			return visual;
+		}
+		Equippable.Builder builder = Equippable.builder(slot)
+			.setEquipSound(eq.equipSound())
+			.setDispensable(eq.dispensable())
+			.setSwappable(eq.swappable())
+			.setDamageOnHurt(eq.damageOnHurt())
+			.setEquipOnInteract(eq.equipOnInteract())
+			.setCanBeSheared(eq.canBeSheared())
+			.setShearingSound(eq.shearingSound());
+		eq.assetId().ifPresent(builder::setAsset);
+		eq.cameraOverlay().ifPresent(builder::setCameraOverlay);
+		eq.allowedEntities().ifPresent(builder::setAllowedEntities);
+		ItemStack copy = visual.copy();
+		copy.set(DataComponents.EQUIPPABLE, builder.build());
+		return copy;
 	}
 
 	public static void set(Player player, ItemStack real, ItemStack display, String displayId) {
@@ -135,6 +185,7 @@ public final class ItemAppearance {
 		text.apply(existing.display);
 		existing.textOverride = true;
 		existing.loreSource = source;
+		existing.maxed = source.endsWith("#max");
 		persist();
 		playSwap(player, offhand);
 	}
@@ -241,6 +292,7 @@ public final class ItemAppearance {
 				overlay.apply(skin.display);
 				skin.textOverride = true;
 			}
+			skin.maxed = entry.maxed;
 			SKINS.add(skin);
 		}
 	}
@@ -266,15 +318,15 @@ public final class ItemAppearance {
 		if (client.player == null) {
 			return null;
 		}
-		Inventory inventory = client.player.getInventory();
+		Player player = client.player;
 		for (Skin skin : SKINS) {
-			ItemStack bound = bound(inventory, skin);
+			ItemStack bound = bound(player, skin);
 			if (bound == stack) {
 				return stillValid(bound, skin) ? skin : null;
 			}
 		}
 		for (Skin skin : SKINS) {
-			ItemStack bound = bound(inventory, skin);
+			ItemStack bound = bound(player, skin);
 			if (!bound.isEmpty() && stillValid(bound, skin) && ItemStack.isSameItemSameComponents(bound, stack)) {
 				return skin;
 			}
@@ -293,14 +345,30 @@ public final class ItemAppearance {
 		return skin.originalId.isEmpty() || skin.originalId.equalsIgnoreCase(ItemIds.idOf(bound));
 	}
 
-	private static ItemStack bound(Inventory inventory, Skin skin) {
+	private static final EquipmentSlot[] ARMOR = {
+		EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET
+	};
+
+	private static ItemStack bound(Player player, Skin skin) {
+		Inventory inventory = player.getInventory();
+		ItemStack held;
 		if (skin.offhand) {
-			return inventory.getItem(Inventory.SLOT_OFFHAND);
+			held = inventory.getItem(Inventory.SLOT_OFFHAND);
+		} else if (skin.slot >= 0 && skin.slot <= 8) {
+			held = inventory.getItem(skin.slot);
+		} else {
+			held = ItemStack.EMPTY;
 		}
-		if (skin.slot < 0 || skin.slot > 8) {
-			return ItemStack.EMPTY;
+		if (!held.isEmpty() && stillValid(held, skin)) {
+			return held;
 		}
-		return inventory.getItem(skin.slot);
+		for (EquipmentSlot slot : ARMOR) {
+			ItemStack worn = player.getItemBySlot(slot);
+			if (!worn.isEmpty() && stillValid(worn, skin)) {
+				return worn;
+			}
+		}
+		return held;
 	}
 
 	private static boolean isOffhand(Player player, ItemStack real) {
@@ -346,6 +414,7 @@ public final class ItemAppearance {
 			entry.originalId = skin.originalId;
 			entry.slot = skin.slot;
 			entry.offhand = skin.offhand;
+			entry.maxed = skin.maxed;
 			if (skin.textOverride && !skin.display.isEmpty()) {
 				ItemText overlay = ItemText.capture(skin.display);
 				entry.nameJson = overlay.nameJson();
@@ -376,6 +445,7 @@ public final class ItemAppearance {
 		int slot;
 		boolean offhand;
 		boolean textOverride;
+		boolean maxed;
 		String loreSource = "";
 		ItemStack display = ItemStack.EMPTY;
 	}

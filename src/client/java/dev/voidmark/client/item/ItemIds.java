@@ -12,6 +12,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -85,6 +86,10 @@ public final class ItemIds {
 		for (int i = 0; i < size; i++) {
 			remember(inventory.getItem(i));
 		}
+		remember(player.getItemBySlot(EquipmentSlot.HEAD));
+		remember(player.getItemBySlot(EquipmentSlot.CHEST));
+		remember(player.getItemBySlot(EquipmentSlot.LEGS));
+		remember(player.getItemBySlot(EquipmentSlot.FEET));
 	}
 
 	public static void remember(ItemStack stack) {

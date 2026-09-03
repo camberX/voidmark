@@ -32,13 +32,35 @@ public final class SkyblockLore {
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.connectTimeout(Duration.ofSeconds(8))
 		.build();
-	private static final Map<String, ItemText> READY = new ConcurrentHashMap<>();
+	private static final Map<String, Snapshot> READY = new ConcurrentHashMap<>();
 	private static final Map<String, Boolean> PENDING = new ConcurrentHashMap<>();
+
+	public record Snapshot(String name, List<String> lore) {
+		boolean present() {
+			return (name != null && !name.isBlank()) || (lore != null && !lore.isEmpty());
+		}
+
+		ItemText text(boolean maxed) {
+			if (!present()) {
+				return ItemText.empty();
+			}
+			return maxed ? SkyblockMaxed.apply(name, lore) : ItemText.fromLegacy(name, lore);
+		}
+	}
 
 	private SkyblockLore() {
 	}
 
 	public static ItemText get(String id) {
+		return get(id, false);
+	}
+
+	public static ItemText get(String id, boolean maxed) {
+		Snapshot snapshot = snapshot(id);
+		return snapshot == null ? null : snapshot.text(maxed);
+	}
+
+	public static Snapshot snapshot(String id) {
 		if (id == null || id.isBlank()) {
 			return null;
 		}
@@ -54,8 +76,8 @@ public final class SkyblockLore {
 	}
 
 	public static boolean failed(String id) {
-		ItemText text = get(id);
-		return text != null && !text.present();
+		Snapshot snapshot = snapshot(id);
+		return snapshot != null && !snapshot.present();
 	}
 
 	public static void request(String id) {
@@ -72,22 +94,22 @@ public final class SkyblockLore {
 	private static void fetch(String id) {
 		try {
 			for (String template : URLS) {
-				ItemText text = download(template.formatted(id));
-				if (text != null && text.present()) {
-					READY.put(id, text);
+				Snapshot snapshot = download(template.formatted(id));
+				if (snapshot != null && snapshot.present()) {
+					READY.put(id, snapshot);
 					return;
 				}
 			}
-			READY.put(id, ItemText.empty());
+			READY.put(id, new Snapshot("", List.of()));
 		} catch (Exception exception) {
-			READY.put(id, ItemText.empty());
+			READY.put(id, new Snapshot("", List.of()));
 			Voidmark.LOGGER.warn("Skyblock lore lookup failed for {}", id, exception);
 		} finally {
 			PENDING.remove(id);
 		}
 	}
 
-	private static ItemText download(String url) throws Exception {
+	private static Snapshot download(String url) throws Exception {
 		HttpRequest request = HttpRequest.newBuilder(URI.create(url))
 			.timeout(Duration.ofSeconds(12))
 			.header("User-Agent", "Voidmark/" + Voidmark.MOD_ID)
@@ -113,7 +135,7 @@ public final class SkyblockLore {
 				lines.add(element.getAsString());
 			}
 		}
-		return ItemText.fromLegacy(name, lines);
+		return new Snapshot(name, lines);
 	}
 
 	private static String string(JsonObject root, String key) {

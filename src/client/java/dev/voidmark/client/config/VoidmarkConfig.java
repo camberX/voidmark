@@ -510,5 +510,6 @@ public final class VoidmarkConfig {
 		public String nameJson = "";
 		public String itemNameJson = "";
 		public String loreJson = "";
+		public boolean maxed = false;
 	}
 }

@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.136", new String[]{
+			"/vm edit has a Maxed toggle: copied lore gets recomb, dungeon stars, master stars, gem slots, hot-potato stats, and max enchants — only the pieces that item already has. Copied armor also uses its worn 3D model, including dragon helmets."
+		}),
 		new Entry("1.1.135", new String[]{
 			"Copied Skyblock lore is no longer forced italic. Hypixel tooltip lines stay upright."
 		}),
