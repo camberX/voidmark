@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.163", new String[]{
+			"The click GUI, title screen, and other menus use the old smooth fills again. HUD panes keep the cheaper integer path while you are in a world."
+		}),
 		new Entry("1.1.162", new String[]{
 			"HUD panes no longer re-read the tab list, scoreboard, and inventory every frame to decide what to show. Mining commissions update a few times a second, and a pane that is off does not keep scanning."
 		}),

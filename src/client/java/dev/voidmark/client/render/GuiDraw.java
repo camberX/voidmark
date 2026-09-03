@@ -3,8 +3,12 @@ package dev.voidmark.client.render;
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.ui.MenuFont;
 import dev.voidmark.client.visual.WorldTint;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -39,13 +43,41 @@ public final class GuiDraw {
 		if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
 			return;
 		}
-		// Integer quads stay in one GUI batch. The old translate+scale(w,h)+fill(0,0,1,1)
-		// path changed the pose on every rect, which is what made a full HUD set hitch.
+		if (menuSmooth()) {
+			graphics.pose().pushMatrix();
+			graphics.pose().translate(x, y);
+			graphics.pose().scale(w, h);
+			graphics.fill(0, 0, 1, 1, color);
+			graphics.pose().popMatrix();
+			return;
+		}
+		// Integer quads stay in one GUI batch. Pose scale on every rect is what
+		// made a full HUD set hitch; menus still use the smooth path above.
 		int x0 = (int) Math.floor(x);
 		int y0 = (int) Math.floor(y);
 		int x1 = Math.max(x0 + 1, (int) Math.ceil(x + w));
 		int y1 = Math.max(y0 + 1, (int) Math.ceil(y + h));
 		graphics.fill(x0, y0, x1, y1, color);
+	}
+
+	/**
+	 * Click GUI / title / pause / options: the old translate+scale fill so
+	 * rounded chrome meets under 90%/75% menu scale. Inventory and chat keep
+	 * the cheap HUD path.
+	 */
+	private static boolean menuSmooth() {
+		Minecraft client = Minecraft.getInstance();
+		if (client == null) {
+			return false;
+		}
+		Screen screen = client.screen;
+		if (screen == null) {
+			return false;
+		}
+		if (screen.isInGameUi() || screen instanceof ChatScreen || screen instanceof AbstractContainerScreen) {
+			return false;
+		}
+		return true;
 	}
 
 	/** 18px item well: 1px outline, flat fill. Rounded panels are too expensive per slot. */
@@ -196,8 +228,13 @@ public final class GuiDraw {
 			return;
 		}
 		fill(graphics, x + r, y, w - 2f * r, h, color);
-		sideStrip(graphics, x, y, w, h, r, color, true);
-		sideStrip(graphics, x, y, w, h, r, color, false);
+		if (menuSmooth()) {
+			fill(graphics, x, y + r, r, h - 2f * r, color);
+			fill(graphics, x + w - r, y + r, r, h - 2f * r, color);
+		} else {
+			sideStrip(graphics, x, y, w, h, r, color, true);
+			sideStrip(graphics, x, y, w, h, r, color, false);
+		}
 		corner(graphics, x, y, r, 0f, 0f, color);
 		corner(graphics, x + w - r, y, r, CIRCLE_HALF, 0f, color);
 		corner(graphics, x, y + h - r, r, 0f, CIRCLE_HALF, color);
@@ -207,7 +244,11 @@ public final class GuiDraw {
 	public static void roundLeft(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
 		float r = Math.min(radius, Math.min(w, h) / 2f);
 		fill(graphics, x + r, y, w - r, h, color);
-		sideStrip(graphics, x, y, w, h, r, color, true);
+		if (menuSmooth()) {
+			fill(graphics, x, y + r, r, h - 2f * r, color);
+		} else {
+			sideStrip(graphics, x, y, w, h, r, color, true);
+		}
 		corner(graphics, x, y, r, 0f, 0f, color);
 		corner(graphics, x, y + h - r, r, 0f, CIRCLE_HALF, color);
 	}
@@ -215,7 +256,11 @@ public final class GuiDraw {
 	public static void roundRight(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
 		float r = Math.min(radius, Math.min(w, h) / 2f);
 		fill(graphics, x, y, w - r, h, color);
-		sideStrip(graphics, x, y, w, h, r, color, false);
+		if (menuSmooth()) {
+			fill(graphics, x + w - r, y + r, r, h - 2f * r, color);
+		} else {
+			sideStrip(graphics, x, y, w, h, r, color, false);
+		}
 		corner(graphics, x + w - r, y, r, CIRCLE_HALF, 0f, color);
 		corner(graphics, x + w - r, y + h - r, r, CIRCLE_HALF, CIRCLE_HALF, color);
 	}
