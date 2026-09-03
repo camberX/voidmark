@@ -21,7 +21,7 @@ public final class HudChrome {
 	) {
 		boolean right = accentTowardRight(graphics, x, y, w);
 		GuiDraw.panel(graphics, x, y, w, h, radius, Theme.HUD_WINDOW, Theme.HUD_LINE, accent, right);
-		if (VoidmarkConfig.get().hudStarfield && w >= 12f && h >= 12f) {
+		if (VoidmarkConfig.get().hudStarfield && w >= 72f && h >= 22f) {
 			Starfield.drawHud(graphics, x, y, w, h, radius);
 		}
 	}

@@ -47,6 +47,11 @@ public final class MenuFont {
 	public static final String HUD = "\uE871";
 	public static final String MOB = "\uE91D";
 
+	private static final int LABEL_CACHE = 128;
+	private static final String[] LABEL_TEXT = new String[LABEL_CACHE];
+	private static final Style[] LABEL_STYLE = new Style[LABEL_CACHE];
+	private static final Component[] LABEL_COMPONENT = new Component[LABEL_CACHE];
+
 	private MenuFont() {
 	}
 
@@ -121,7 +126,53 @@ public final class MenuFont {
 	}
 
 	private static Component withFallback(String value, Style custom) {
-		return applyLegacy(value, custom);
+		if (value == null || value.isEmpty()) {
+			return Component.empty().withStyle(custom);
+		}
+		Component cached = labelCacheGet(value, custom);
+		if (cached != null) {
+			return cached;
+		}
+		Component made = ascii(value)
+			? Component.literal(value).withStyle(custom)
+			: applyLegacy(value, custom);
+		labelCachePut(value, custom, made);
+		return made;
+	}
+
+	private static boolean ascii(String value) {
+		for (int i = 0; i < value.length(); i++) {
+			char c = value.charAt(i);
+			if (c == '§' || c > 0x7F) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static Component labelCacheGet(String value, Style style) {
+		if (value.length() > 48) {
+			return null;
+		}
+		int slot = labelSlot(value, style);
+		if (value.equals(LABEL_TEXT[slot]) && LABEL_STYLE[slot] == style) {
+			return LABEL_COMPONENT[slot];
+		}
+		return null;
+	}
+
+	private static void labelCachePut(String value, Style style, Component component) {
+		if (value.length() > 48) {
+			return;
+		}
+		int slot = labelSlot(value, style);
+		LABEL_TEXT[slot] = value;
+		LABEL_STYLE[slot] = style;
+		LABEL_COMPONENT[slot] = component;
+	}
+
+	private static int labelSlot(String value, Style style) {
+		return (value.hashCode() * 31 + System.identityHashCode(style)) & (LABEL_CACHE - 1);
 	}
 
 	private static Component withFallback(Component value, Style custom) {

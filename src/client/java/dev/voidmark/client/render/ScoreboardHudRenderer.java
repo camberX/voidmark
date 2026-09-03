@@ -27,6 +27,8 @@ public final class ScoreboardHudRenderer {
 	private static final float MIN_W = 88;
 	private static final float MAX_W = 180;
 	private static final float EMPTY_H = PAD + HEAD + ROW + PAD;
+	private static int layoutTick = Integer.MIN_VALUE;
+	private static Layout layoutCache;
 
 	private ScoreboardHudRenderer() {
 	}
@@ -52,19 +54,30 @@ public final class ScoreboardHudRenderer {
 	private static void draw(GuiGraphicsExtractor graphics, Font font, Layout layout, float x, float y) {
 		HudChrome.panel(graphics, x, y, layout.w, layout.h, 6, Theme.WINDOW, Theme.LINE);
 		GuiDraw.small(graphics, font, "SCOREBOARD", x + PAD + 4, y + PAD - 1, Theme.ACCENT);
-		GuiDraw.hud(graphics, font, layout.title, x + PAD + 4, y + PAD + 8, 0xFFFFFFFF);
+		GuiDraw.text(graphics, font, layout.title, x + PAD + 4, y + PAD + 8, 0xFFFFFFFF, false);
 		float ly = y + PAD + HEAD + 2;
 		for (Line line : layout.lines) {
-			GuiDraw.hud(graphics, font, line.name, x + PAD + 4, ly, 0xFFFFFFFF);
+			GuiDraw.text(graphics, font, line.name, x + PAD + 4, ly, 0xFFFFFFFF, false);
 			if (line.score != null && font.width(line.score) > 0 && !line.score.getString().isBlank()) {
-				float sx = x + layout.w - PAD - GuiDraw.hudWidth(font, line.score);
-				GuiDraw.hud(graphics, font, line.score, sx, ly, 0xFFFFFFFF);
+				float sx = x + layout.w - PAD - font.width(line.score);
+				GuiDraw.text(graphics, font, line.score, sx, ly, 0xFFFFFFFF, false);
 			}
 			ly += ROW;
 		}
 	}
 
 	private static Layout layout(Font font) {
+		Minecraft client = Minecraft.getInstance();
+		int tick = client.player == null ? -1 : client.player.tickCount;
+		if (layoutCache != null && tick == layoutTick) {
+			return layoutCache;
+		}
+		layoutTick = tick;
+		layoutCache = rebuild(font);
+		return layoutCache;
+	}
+
+	private static Layout rebuild(Font font) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.level == null || client.player == null) {
 			return new Layout(Component.literal("Skyblock"), List.of(), MIN_W, EMPTY_H);

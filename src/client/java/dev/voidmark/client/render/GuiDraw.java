@@ -39,21 +39,22 @@ public final class GuiDraw {
 		if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
 			return;
 		}
-		// Tiny dots (HUD stars) can snap to pixels. Rounded chrome cannot:
-		// integer rounding leaves 1px gaps between the center fill and the corner blits.
-		if (w <= 2f && h <= 2f) {
-			int x0 = Math.round(x);
-			int y0 = Math.round(y);
-			int x1 = Math.max(x0 + 1, Math.round(x + w));
-			int y1 = Math.max(y0 + 1, Math.round(y + h));
-			graphics.fill(x0, y0, x1, y1, color);
+		// Integer quads stay in one GUI batch. The old translate+scale(w,h)+fill(0,0,1,1)
+		// path changed the pose on every rect, which is what made a full HUD set hitch.
+		int x0 = (int) Math.floor(x);
+		int y0 = (int) Math.floor(y);
+		int x1 = Math.max(x0 + 1, (int) Math.ceil(x + w));
+		int y1 = Math.max(y0 + 1, (int) Math.ceil(y + h));
+		graphics.fill(x0, y0, x1, y1, color);
+	}
+
+	/** 18px item well: 1px outline, flat fill. Rounded panels are too expensive per slot. */
+	public static void well(GuiGraphicsExtractor graphics, float x, float y, float size, int fill, int outline) {
+		if (size <= 2f) {
 			return;
 		}
-		graphics.pose().pushMatrix();
-		graphics.pose().translate(x, y);
-		graphics.pose().scale(w, h);
-		graphics.fill(0, 0, 1, 1, color);
-		graphics.pose().popMatrix();
+		fill(graphics, x, y, size, size, outline);
+		fill(graphics, x + 1f, y + 1f, size - 2f, size - 2f, fill);
 	}
 
 	public static void fillGradient(GuiGraphicsExtractor graphics, float x, float y, float w, float h, int top, int bottom) {
@@ -398,7 +399,7 @@ public final class GuiDraw {
 	}
 
 	public static void text(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color, boolean shadow) {
-		text(graphics, font, Component.literal(value), x, y, color, shadow);
+		graphics.text(font, value, Math.round(x), Math.round(y), color, shadow);
 	}
 
 	public static void text(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, float scale, int color, boolean shadow) {
@@ -412,10 +413,7 @@ public final class GuiDraw {
 	}
 
 	public static void text(GuiGraphicsExtractor graphics, Font font, Component value, float x, float y, int color, boolean shadow) {
-		graphics.pose().pushMatrix();
-		graphics.pose().translate(x, y);
-		graphics.text(font, value, 0, 0, color, shadow);
-		graphics.pose().popMatrix();
+		graphics.text(font, value, Math.round(x), Math.round(y), color, shadow);
 	}
 
 	public static void menu(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {

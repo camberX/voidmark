@@ -165,7 +165,7 @@ public final class InventoryHudRenderer {
 	) {
 		int fill = selected ? Theme.HUD_CARD_HOVER : Theme.HUD_TRACK;
 		int outline = selected ? Theme.ACCENT : Theme.HUD_LINE;
-		GuiDraw.panel(graphics, x, y, SLOT, SLOT, 3, fill, outline);
+		GuiDraw.well(graphics, x, y, SLOT, fill, outline);
 		if (stack == null || stack.isEmpty()) {
 			if (emptyMark != null) {
 				GuiDraw.small(

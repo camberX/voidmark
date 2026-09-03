@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.160", new String[]{
+			"HUD chrome is cheaper with every pane on. Item wells are flat instead of rounded, fills no longer break the GUI batch, and raw mats / scoreboard stop rebuilding several times a frame. HUD stars skip the tiny bars."
+		}),
 		new Entry("1.1.159", new String[]{
 			"Only the watermark keeps the accent rail. The other HUD panes are outline and fill."
 		}),

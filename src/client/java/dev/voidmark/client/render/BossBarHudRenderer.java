@@ -20,6 +20,8 @@ public final class BossBarHudRenderer {
 	private static final float BAR_H = 16;
 	private static final float GAP = 4;
 	private static final int MAX = 5;
+	private static int eventsTick = Integer.MIN_VALUE;
+	private static List<LerpingBossEvent> eventsCache = List.of();
 
 	private BossBarHudRenderer() {
 	}
@@ -59,14 +61,21 @@ public final class BossBarHudRenderer {
 
 	private static List<LerpingBossEvent> events() {
 		Minecraft client = Minecraft.getInstance();
-		List<LerpingBossEvent> out = new ArrayList<>();
+		int tick = client.player == null ? -1 : client.player.tickCount;
+		if (tick == eventsTick) {
+			return eventsCache;
+		}
+		eventsTick = tick;
 		if (client.gui == null) {
-			return out;
+			eventsCache = List.of();
+			return eventsCache;
 		}
 		var map = ((BossHealthOverlayAccessor) client.gui.getBossOverlay()).voidmark$events();
-		if (map == null) {
-			return out;
+		if (map == null || map.isEmpty()) {
+			eventsCache = List.of();
+			return eventsCache;
 		}
+		List<LerpingBossEvent> out = new ArrayList<>(Math.min(MAX, map.size()));
 		int n = 0;
 		for (LerpingBossEvent event : map.values()) {
 			out.add(event);
@@ -75,7 +84,8 @@ public final class BossBarHudRenderer {
 				break;
 			}
 		}
-		return out;
+		eventsCache = out;
+		return eventsCache;
 	}
 
 	private static void drawEmpty(GuiGraphicsExtractor graphics, Font font, float x, float y) {

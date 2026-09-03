@@ -102,11 +102,32 @@ public final class RawmatsTracker {
 		return id;
 	}
 
+	private static int snapTick = Integer.MIN_VALUE;
+	private static boolean snapEnchanted;
+	private static String snapId = "";
+	private static Snapshot snapCache = Snapshot.none();
+
 	public static Snapshot snapshot() {
 		String id = SkyblockRecipes.normalize(VoidmarkConfig.get().rawmatsItemId);
 		if (id.isBlank()) {
-			return Snapshot.none();
+			snapTick = Integer.MIN_VALUE;
+			snapCache = Snapshot.none();
+			return snapCache;
 		}
+		Minecraft client = Minecraft.getInstance();
+		int tick = client.player == null ? -1 : client.player.tickCount;
+		boolean enchanted = VoidmarkConfig.get().rawmatsEnchanted;
+		if (tick == snapTick && enchanted == snapEnchanted && id.equals(snapId)) {
+			return snapCache;
+		}
+		snapTick = tick;
+		snapEnchanted = enchanted;
+		snapId = id;
+		snapCache = compute(id);
+		return snapCache;
+	}
+
+	private static Snapshot compute(String id) {
 		SkyblockRecipes.load();
 		SkyblockRecipes.Expand expand = VoidmarkConfig.get().rawmatsEnchanted
 			? SkyblockRecipes.Expand.ENCHANTED
