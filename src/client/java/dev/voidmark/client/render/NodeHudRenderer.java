@@ -79,7 +79,7 @@ public final class NodeHudRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		HudChrome.panel(graphics, 0, 0, width, height, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		HudChrome.panel(graphics, 0, 0, width, height, 6, Theme.WINDOW, Theme.LINE);
 
 		GuiDraw.small(graphics, font, "NODES", 10, 5, Theme.ACCENT);
 		String headline = count == 0 ? "No nodes in range" : count == 1 ? "1 ender node" : count + " ender nodes";

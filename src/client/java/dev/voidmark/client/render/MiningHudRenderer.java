@@ -77,7 +77,7 @@ public final class MiningHudRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		HudChrome.panel(graphics, 0, 0, WIDTH, h, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		HudChrome.panel(graphics, 0, 0, WIDTH, h, 5, Theme.WINDOW, Theme.LINE);
 		String ability = clip(font, snap.ability(), WIDTH - PAD * 2 - 36);
 		GuiDraw.small(graphics, font, ability, PAD + 2, PAD, Theme.TEXT);
 		int readyColor = snap.abilityReady() ? Theme.ACCENT : Theme.MUTED;

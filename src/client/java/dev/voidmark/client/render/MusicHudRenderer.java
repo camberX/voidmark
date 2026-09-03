@@ -160,7 +160,7 @@ public final class MusicHudRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		HudChrome.panel(graphics, 0, 0, WIDTH, h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		HudChrome.panel(graphics, 0, 0, WIDTH, h, 6, Theme.WINDOW, Theme.LINE);
 		float cover = drawCover(graphics, font, track, live, body);
 		float textX = COVER_PAD + cover + 6;
 

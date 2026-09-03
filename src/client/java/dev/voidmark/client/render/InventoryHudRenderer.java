@@ -98,7 +98,7 @@ public final class InventoryHudRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		HudChrome.panel(graphics, 0, 0, layout.panelW, layout.panelH, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		HudChrome.panel(graphics, 0, 0, layout.panelW, layout.panelH, 6, Theme.WINDOW, Theme.LINE);
 		GuiDraw.small(graphics, font, "INVENTORY", PAD + 4, PAD + 1, Theme.ACCENT);
 		if (config.inventoryHudCount) {
 			String filled = filledLabel(player, inventory);

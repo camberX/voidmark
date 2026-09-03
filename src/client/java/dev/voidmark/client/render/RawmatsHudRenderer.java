@@ -102,7 +102,7 @@ public final class RawmatsHudRenderer {
 			graphics.pose().scale(scale, scale);
 		}
 
-		HudChrome.panel(graphics, 0, 0, WIDTH, h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		HudChrome.panel(graphics, 0, 0, WIDTH, h, 6, Theme.WINDOW, Theme.LINE);
 		GuiDraw.small(graphics, font, "RAW MATS", PAD + 4, PAD + 1, Theme.ACCENT);
 		boolean chat = client.screen instanceof ChatScreen;
 		String mode = VoidmarkConfig.get().rawmatsModeLabel();

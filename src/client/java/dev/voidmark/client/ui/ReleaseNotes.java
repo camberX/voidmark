@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.159", new String[]{
+			"Only the watermark keeps the accent rail. The other HUD panes are outline and fill."
+		}),
 		new Entry("1.1.158", new String[]{
 			"Theme Font includes Minecraft next to Nunito and your installed fonts. The dropdown rows are spaced like the rest of the menu. Nametag ESP lives only on the ESP tab. Raw mats notes say Used in instead of Uses."
 		}),
