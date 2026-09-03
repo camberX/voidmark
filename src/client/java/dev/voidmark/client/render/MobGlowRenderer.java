@@ -37,8 +37,9 @@ import java.util.regex.Pattern;
 public final class MobGlowRenderer {
 	private static final double MAX_RANGE = 96.0;
 	private static final double MAX_RANGE_SQ = MAX_RANGE * MAX_RANGE;
-	private static final double HOLOGRAM_XZ = 4.0;
-	private static final double HOLOGRAM_UP = 10.0;
+	private static final double HOLOGRAM_XZ = 1.25;
+	private static final double HOLOGRAM_XZ_SQ = HOLOGRAM_XZ * HOLOGRAM_XZ;
+	private static final double HOLOGRAM_UP = 8.0;
 	private static final Pattern STRIP = Pattern.compile("§.");
 	private static List<String> cachedIds;
 	private static Set<EntityType<?>> cachedTypes = Set.of();
@@ -237,25 +238,41 @@ public final class MobGlowRenderer {
 		String n = needle.toLowerCase(Locale.ROOT);
 		Set<Integer> ids = new HashSet<>();
 		Set<UUID> seen = new HashSet<>();
+		Map<UUID, String> plates = new HashMap<>();
 		for (Entity entity : allEntities(client)) {
 			if (entity == null || entity == client.player) {
 				continue;
 			}
 			seen.add(entity.getUUID());
-			String live = labelOf(entity);
-			if (!live.isEmpty()) {
-				remembered.put(entity.getUUID(), live);
-				packetLabels.put(entity.getId(), live);
+			if (!isHologram(entity)) {
+				continue;
 			}
-			attachName(client, entity, live);
+			String live = labelOf(entity);
+			if (live.isEmpty()) {
+				continue;
+			}
+			Entity owner = ownerOf(client, entity);
+			if (owner == null) {
+				continue;
+			}
+			plates.merge(owner.getUUID(), live, MobGlowRenderer::joinLabels);
+			remembered.put(owner.getUUID(), plates.get(owner.getUUID()));
+		}
+		for (Entity entity : allEntities(client)) {
 			if (!isMob(entity) || hasVanillaGlow(entity)) {
 				continue;
 			}
-			boolean named = nameMatches(entity, n) || nearbyHologramMatches(client, entity, n);
-			if (named && entity instanceof LivingEntity living) {
+			String plate = plates.getOrDefault(entity.getUUID(), "");
+			boolean named = textHasNeedle(plate, n) || nameMatches(entity, n);
+			boolean otherName = hasOtherName(plate, n);
+			if (otherName && entity instanceof LivingEntity living) {
+				EspMobPrint.forget(n, living);
+			}
+			if (named && !otherName && entity instanceof LivingEntity living) {
 				EspMobPrint.learn(n, living);
 			}
-			if (named || (entity instanceof LivingEntity living && EspMobPrint.matches(n, living))) {
+			boolean copy = !otherName && entity instanceof LivingEntity living && EspMobPrint.matches(n, living);
+			if (named || copy) {
 				ids.add(entity.getId());
 			}
 		}
@@ -265,33 +282,53 @@ public final class MobGlowRenderer {
 
 	private static void attachName(Minecraft client, Entity named, String live) {
 		String label = live == null || live.isEmpty() ? labelOf(named) : live;
-		if (label.isEmpty() || !isHologram(named)) {
-			if (!label.isEmpty() && isMob(named)) {
-				remembered.put(named.getUUID(), label);
-			}
+		if (label.isEmpty()) {
 			return;
 		}
-		AABB box = named.getBoundingBox().inflate(HOLOGRAM_XZ, HOLOGRAM_UP, HOLOGRAM_XZ).move(0, -2.0, 0);
-		for (Entity other : client.level.getEntities(named, box)) {
-			if (isMob(other) && !hasVanillaGlow(other)) {
-				remembered.put(other.getUUID(), label);
-				packetLabels.put(other.getId(), label);
-			}
+		if (isMob(named)) {
+			remembered.put(named.getUUID(), label);
+			return;
 		}
+		if (!isHologram(named)) {
+			return;
+		}
+		Entity owner = ownerOf(client, named);
+		if (owner == null) {
+			return;
+		}
+		remembered.merge(owner.getUUID(), label, MobGlowRenderer::joinLabels);
 	}
 
-	private static boolean nearbyHologramMatches(Minecraft client, Entity mob, String needle) {
-		AABB box = mob.getBoundingBox().inflate(HOLOGRAM_XZ, 0, HOLOGRAM_XZ).expandTowards(0, HOLOGRAM_UP, 0);
-		for (Entity other : client.level.getEntities(mob, box)) {
-			if (!isHologram(other)) {
+	private static Entity ownerOf(Minecraft client, Entity hologram) {
+		Entity vehicle = hologram.getVehicle();
+		if (vehicle != null && isMob(vehicle)) {
+			return vehicle;
+		}
+		AABB box = hologram.getBoundingBox()
+			.inflate(HOLOGRAM_XZ, 0, HOLOGRAM_XZ)
+			.expandTowards(0, -HOLOGRAM_UP, 0)
+			.expandTowards(0, 0.75, 0);
+		Entity best = null;
+		double bestScore = Double.MAX_VALUE;
+		for (Entity other : client.level.getEntities(hologram, box)) {
+			if (!isMob(other) || hasVanillaGlow(other) || other.getY() > hologram.getY() + 0.5) {
 				continue;
 			}
-			if (labelContains(other, needle)) {
-				remembered.put(mob.getUUID(), labelOf(other));
-				return true;
+			double xz = xzDistSq(hologram, other);
+			if (xz > HOLOGRAM_XZ_SQ) {
+				continue;
+			}
+			double dy = hologram.getY() - other.getY();
+			if (dy < -0.25 || dy > HOLOGRAM_UP) {
+				continue;
+			}
+			double score = xz * 8.0 + Math.abs(dy - 2.0) * 0.02;
+			if (score < bestScore) {
+				bestScore = score;
+				best = other;
 			}
 		}
-		return false;
+		return best;
 	}
 
 	private static boolean nameMatches(Entity entity, String needle) {
@@ -304,20 +341,73 @@ public final class MobGlowRenderer {
 			}
 		}
 		Entity vehicle = entity.getVehicle();
-		if (vehicle != null && labelContains(vehicle, needle)) {
-			return true;
+		return vehicle != null && labelContains(vehicle, needle);
+	}
+
+	private static boolean hasOtherName(String plate, String needle) {
+		return plate != null && !plate.isEmpty() && looksLikeNameplate(plate) && !textHasNeedle(plate, needle);
+	}
+
+	private static boolean looksLikeNameplate(String text) {
+		String trimmed = text == null ? "" : text.trim();
+		if (trimmed.length() < 3) {
+			return false;
 		}
-		String cached = remembered.get(entity.getUUID());
-		if (cached != null && cached.contains(needle)) {
-			return true;
+		int letters = 0;
+		for (int i = 0; i < trimmed.length(); i++) {
+			if (Character.isLetter(trimmed.charAt(i))) {
+				letters++;
+			}
 		}
-		String packet = packetLabels.get(entity.getId());
-		return packet != null && packet.contains(needle);
+		return letters >= 3;
 	}
 
 	private static boolean labelContains(Entity entity, String needle) {
-		String live = labelOf(entity);
-		return !live.isEmpty() && live.contains(needle);
+		return textHasNeedle(labelOf(entity), needle);
+	}
+
+	private static boolean textHasNeedle(String text, String needle) {
+		if (text == null || needle == null || text.isEmpty() || needle.isEmpty()) {
+			return false;
+		}
+		int from = 0;
+		while (from <= text.length() - needle.length()) {
+			int at = text.indexOf(needle, from);
+			if (at < 0) {
+				return false;
+			}
+			boolean before = at == 0 || !isWordChar(text.charAt(at - 1));
+			int end = at + needle.length();
+			boolean after = end >= text.length() || !isWordChar(text.charAt(end));
+			if (before && after) {
+				return true;
+			}
+			from = at + 1;
+		}
+		return false;
+	}
+
+	private static boolean isWordChar(char c) {
+		return Character.isLetterOrDigit(c) || c == '_';
+	}
+
+	private static String joinLabels(String left, String right) {
+		if (left == null || left.isEmpty()) {
+			return right == null ? "" : right;
+		}
+		if (right == null || right.isEmpty() || left.contains(right)) {
+			return left;
+		}
+		if (right.contains(left)) {
+			return right;
+		}
+		return left + " " + right;
+	}
+
+	private static double xzDistSq(Entity a, Entity b) {
+		double dx = a.getX() - b.getX();
+		double dz = a.getZ() - b.getZ();
+		return dx * dx + dz * dz;
 	}
 
 	private static String labelOf(Entity entity) {

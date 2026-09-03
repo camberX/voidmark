@@ -92,6 +92,14 @@ public final class EspMobPrint {
 		return false;
 	}
 
+	public static void forget(String needle, LivingEntity entity) {
+		Saved candidate = capture(needle, entity);
+		if (candidate == null || samples.isEmpty()) {
+			return;
+		}
+		samples.removeIf(sample -> needle.equals(sample.needle) && looksLike(sample, candidate));
+	}
+
 	public static int learned(String needle) {
 		int n = 0;
 		for (Saved sample : samples) {

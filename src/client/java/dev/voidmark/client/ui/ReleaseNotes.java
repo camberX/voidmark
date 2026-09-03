@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.153", new String[]{
+			"/vm esp seer no longer glows Obsidian Defenders. Nametags bind to the mob under them, not every nearby mob, and a known different plate is never treated as a copy."
+		}),
 		new Entry("1.1.152", new String[]{
 			"/vm esp forgets learned mob looks when you change worlds, so you have to see one named copy again. Samples stay in memory for that world only."
 		}),
