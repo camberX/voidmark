@@ -111,11 +111,12 @@ public final class CoverArt {
 	private static void load(int gen, String spec, String title, String artist, String album) {
 		try {
 			boolean direct = spec != null && (spec.startsWith("http://") || spec.startsWith("https://") || spec.startsWith("data:"));
-			if (!direct) {
+			boolean catalog = !direct && !NowPlaying.placeholder(artist);
+			if (catalog) {
 				TrackLookup.ensure(title, artist, album);
 			}
 			byte[] bytes = readSpec(spec);
-			if (!looksLikeImage(bytes) && !direct) {
+			if (!looksLikeImage(bytes) && catalog) {
 				TrackLookup.Hit hit = TrackLookup.peek(title, artist, album);
 				if (hit.usable() && hit.cover() != null && !hit.cover().isBlank()) {
 					bytes = readSpec(hit.cover());

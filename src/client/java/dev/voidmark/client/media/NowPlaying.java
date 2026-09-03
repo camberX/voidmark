@@ -177,6 +177,13 @@ public record NowPlaying(
 	}
 
 	public NowPlaying carryTime(NowPlaying previous) {
+		if (companionSource(source) && (previous == null || !companionSource(previous.source))) {
+			long start = sourcePositionMs >= 0L ? sourcePositionMs : Math.max(0L, positionMs);
+			return withTimeline(start, durationMs, System.nanoTime(), sourcePositionMs);
+		}
+		if (sourcePositionMs < 0L && !companionSource(source)) {
+			return withTimeline(0L, 0L, System.nanoTime(), -1L);
+		}
 		if (previous == null || !previous.present() || !titlesClose(title, previous.title)) {
 			long start = sourcePositionMs > 0L ? sourcePositionMs : Math.max(0L, positionMs);
 			return withTimeline(start, durationMs, System.nanoTime(), sourcePositionMs);

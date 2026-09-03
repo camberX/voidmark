@@ -17,7 +17,8 @@ import java.util.Set;
 
 final class CompanionNowPlaying {
 	private static final HttpClient CLIENT = HttpClient.newBuilder()
-		.connectTimeout(Duration.ofMillis(250))
+		.version(HttpClient.Version.HTTP_1_1)
+		.connectTimeout(Duration.ofMillis(800))
 		.build();
 	private static final String AUTH_ID = "voidmark";
 	private static final long AUTH_COOLDOWN_MS = 45_000L;
@@ -26,6 +27,7 @@ final class CompanionNowPlaying {
 	private String kind;
 	private long quietUntil;
 	private volatile boolean awaitingAuth;
+	private volatile boolean reachable;
 	private volatile long lastAuthAskMs;
 	private volatile boolean authInFlight;
 
@@ -33,11 +35,18 @@ final class CompanionNowPlaying {
 		return awaitingAuth;
 	}
 
+	boolean reachable() {
+		return reachable || awaitingAuth || live != null;
+	}
+
 	String statusHint() {
 		if (awaitingAuth) {
 			return "Allow Voidmark in YouTube Music";
 		}
-		return "YOUTUBE MUSIC";
+		if (reachable) {
+			return "YOUTUBE MUSIC";
+		}
+		return "YouTube Music API not connected";
 	}
 
 	NowPlaying snapshot() {
@@ -69,7 +78,8 @@ final class CompanionNowPlaying {
 				return NowPlaying.none();
 			}
 		}
-		quietUntil = now + 2500L;
+		quietUntil = now + 1500L;
+		reachable = false;
 		return NowPlaying.none();
 	}
 
@@ -101,9 +111,10 @@ final class CompanionNowPlaying {
 
 	private Fetch fetch(String endpoint) {
 		try {
-			HttpResponse<String> response = sendGet(endpoint, ytmSong(endpoint) ? 4_000L : 600L);
+			HttpResponse<String> response = sendGet(endpoint, ytmSong(endpoint) ? 8_000L : 600L);
 			int code = response.statusCode();
-			if (code == 401 && ytmSong(endpoint)) {
+			reachable = true;
+			if (ytmSong(endpoint) && (code == 400 || code == 401 || code == 403)) {
 				awaitingAuth = true;
 				VoidmarkConfig config = VoidmarkConfig.get();
 				if (config.musicApiToken != null && !config.musicApiToken.isBlank()) {
@@ -133,7 +144,9 @@ final class CompanionNowPlaying {
 
 	private HttpResponse<String> sendGet(String endpoint, long timeoutMs) throws Exception {
 		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(endpoint))
+			.version(HttpClient.Version.HTTP_1_1)
 			.timeout(Duration.ofMillis(timeoutMs))
+			.header("Accept", "application/json")
 			.GET();
 		authorize(builder);
 		return CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofString());
@@ -159,6 +172,7 @@ final class CompanionNowPlaying {
 		Thread thread = new Thread(() -> {
 			try {
 				HttpRequest request = HttpRequest.newBuilder(URI.create(origin + "/auth/" + AUTH_ID))
+					.version(HttpClient.Version.HTTP_1_1)
 					.timeout(Duration.ofSeconds(90))
 					.POST(HttpRequest.BodyPublishers.noBody())
 					.build();
@@ -215,7 +229,10 @@ final class CompanionNowPlaying {
 	}
 
 	private static void addYtm(Set<String> out, int port) {
-		out.add("http://127.0.0.1:" + port + "/api/v1/song");
+		for (String host : new String[]{"127.0.0.1", "[::1]", "localhost"}) {
+			out.add("http://" + host + ":" + port + "/api/v1/song");
+			out.add("http://" + host + ":" + port + "/api/v1/song-info");
+		}
 	}
 
 	private static boolean ytmSong(String endpoint) {
@@ -231,6 +248,9 @@ final class CompanionNowPlaying {
 				return "";
 			}
 			if (port > 0) {
+				if (host.contains(":")) {
+					return uri.getScheme() + "://[" + host + "]:" + port;
+				}
 				return uri.getScheme() + "://" + host + ":" + port;
 			}
 			return uri.getScheme() + "://" + host;
@@ -252,7 +272,7 @@ final class CompanionNowPlaying {
 			if (!rootEl.isJsonObject()) {
 				return NowPlaying.none();
 			}
-			JsonObject root = rootEl.getAsJsonObject();
+			JsonObject root = unwrapSong(rootEl.getAsJsonObject());
 			if (ytmSong(endpoint)) {
 				return parseYtmSong(root, endpoint);
 			}
@@ -303,8 +323,24 @@ final class CompanionNowPlaying {
 		}
 	}
 
+	private static JsonObject unwrapSong(JsonObject root) {
+		if (root == null) {
+			return new JsonObject();
+		}
+		if (!text(root, "title").isBlank()) {
+			return root;
+		}
+		for (String key : new String[]{"song", "data", "info", "track", "payload"}) {
+			JsonObject nested = object(root, key);
+			if (!text(nested, "title").isBlank()) {
+				return nested;
+			}
+		}
+		return root;
+	}
+
 	private static NowPlaying parseYtmSong(JsonObject root, String endpoint) {
-		String title = text(root, "title");
+		String title = firstNonBlank(text(root, "title"), text(root, "alternativeTitle"));
 		if (title.isBlank()) {
 			return NowPlaying.none();
 		}
@@ -348,6 +384,7 @@ final class CompanionNowPlaying {
 	private boolean getOk(URI uri) {
 		try {
 			HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+				.version(HttpClient.Version.HTTP_1_1)
 				.timeout(Duration.ofMillis(800))
 				.GET();
 			authorize(builder);
@@ -361,6 +398,7 @@ final class CompanionNowPlaying {
 	private boolean post(String uri, String json) {
 		try {
 			HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(uri))
+				.version(HttpClient.Version.HTTP_1_1)
 				.timeout(Duration.ofMillis(800))
 				.header("Content-Type", "application/json")
 				.POST(HttpRequest.BodyPublishers.ofString(json));

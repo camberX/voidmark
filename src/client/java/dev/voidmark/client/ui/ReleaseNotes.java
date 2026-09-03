@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.129", new String[]{
+			"YouTube Music HUD no longer guesses a different song from the window title. Artist, cover, and the progress bar come from the API Server on 26538."
+		}),
 		new Entry("1.1.128", new String[]{
 			"Server list and world list keep a single Voidmark separator. The extra vanilla bar is gone."
 		}),

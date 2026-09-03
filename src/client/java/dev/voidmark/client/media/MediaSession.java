@@ -84,22 +84,25 @@ public final class MediaSession {
 	private static NowPlaying pick() {
 		NowPlaying companion = COMPANION.snapshot();
 		if (companion.present()) {
-			NowPlaying out = TrackLookup.enrich(companion.cleaned()).carryTime(current);
+			NowPlaying out = companion.cleaned().carryTime(current);
 			route = companion.source();
 			hint = out.sourceLabel();
 			return out;
 		}
-		if (COMPANION.awaitingAuth()) {
+		if (COMPANION.reachable() || COMPANION.awaitingAuth()) {
 			route = "ytm";
 			hint = COMPANION.statusHint();
 			return NowPlaying.none();
 		}
 		NowPlaying titled = TITLES.snapshot();
 		if (titled.present()) {
-			NowPlaying out = TrackLookup.enrich(titled.cleaned());
+			NowPlaying out = titled.cleaned();
+			if (!out.youtubeMusic()) {
+				out = TrackLookup.enrich(out);
+			}
 			out = out.carryTime(current);
 			route = "window";
-			hint = out.sourceLabel();
+			hint = out.youtubeMusic() ? "YouTube Music API not connected" : out.sourceLabel();
 			return out;
 		}
 		NowPlaying linux = LINUX.snapshot();

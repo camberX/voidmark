@@ -43,11 +43,13 @@ final class TrackLookup {
 		if (track == null || !track.present()) {
 			return track == null ? NowPlaying.none() : track;
 		}
-		boolean companion = NowPlaying.companionSource(track.source());
+		if (NowPlaying.companionSource(track.source()) || track.youtubeMusic()) {
+			return track;
+		}
 		boolean needArtist = NowPlaying.placeholder(track.artist())
-			|| (!companion && NowPlaying.sameName(track.artist(), track.album()));
+			|| NowPlaying.sameName(track.artist(), track.album());
 		boolean needCover = !track.hasCover();
-		boolean needDuration = !companion && track.durationMs() <= 0L;
+		boolean needDuration = track.durationMs() <= 0L;
 		if (!needArtist && !needCover && !needDuration) {
 			return track;
 		}
