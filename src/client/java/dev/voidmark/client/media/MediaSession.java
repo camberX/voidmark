@@ -1,10 +1,8 @@
 package dev.voidmark.client.media;
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.minecraft.client.Minecraft;
 
 public final class MediaSession {
-	private static final WindowsNowPlaying WINDOWS = new WindowsNowPlaying();
 	private static final WindowTitleNowPlaying TITLES = new WindowTitleNowPlaying();
 	private static final CompanionNowPlaying COMPANION = new CompanionNowPlaying();
 	private static final LinuxNowPlaying LINUX = new LinuxNowPlaying();
@@ -14,18 +12,14 @@ public final class MediaSession {
 	private static volatile String hint = "Play a track in Spotify or YouTube Music";
 	private static volatile String lastAnnounced = "";
 	private static volatile String pendingAnnounce = "";
-	private static long lastRestartNs;
 
 	private MediaSession() {
 	}
 
 	public static void init() {
-		WINDOWS.start();
-		lastRestartNs = System.nanoTime();
 		Thread thread = new Thread(MediaSession::loop, "voidmark-media");
 		thread.setDaemon(true);
 		thread.start();
-		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> WINDOWS.stop());
 	}
 
 	public static NowPlaying current() {
@@ -73,10 +67,6 @@ public final class MediaSession {
 	private static void loop() {
 		while (true) {
 			try {
-				if (MediaKeys.windows() && !WINDOWS.alive() && System.nanoTime() - lastRestartNs > 3_000_000_000L) {
-					lastRestartNs = System.nanoTime();
-					WINDOWS.start();
-				}
 				NowPlaying next = pick();
 				announceIfChanged(next);
 				current = next;
@@ -92,18 +82,7 @@ public final class MediaSession {
 	}
 
 	private static NowPlaying pick() {
-		NowPlaying windows = WINDOWS.snapshot();
 		NowPlaying companion = COMPANION.snapshot();
-		if (windows.present()) {
-			NowPlaying out = windows.cleaned();
-			if (companion.present() && (NowPlaying.related(out, companion) || out.youtubeMusic())) {
-				out = out.overlay(companion, current);
-			}
-			out = TrackLookup.enrich(out).carryTime(current);
-			route = NowPlaying.companionSource(out.source()) ? companion.source() : "windows";
-			hint = out.sourceLabel();
-			return out;
-		}
 		if (companion.present()) {
 			NowPlaying out = TrackLookup.enrich(companion.cleaned()).carryTime(current);
 			route = companion.source();
@@ -113,9 +92,6 @@ public final class MediaSession {
 		NowPlaying titled = TITLES.snapshot();
 		if (titled.present()) {
 			NowPlaying out = TrackLookup.enrich(titled.cleaned());
-			if (companion.present() && (NowPlaying.related(out, companion) || out.youtubeMusic())) {
-				out = out.overlay(companion, current);
-			}
 			out = out.carryTime(current);
 			route = "window";
 			hint = out.sourceLabel();
@@ -129,12 +105,7 @@ public final class MediaSession {
 			return out;
 		}
 		route = "";
-		String err = WINDOWS.error();
-		if (err != null && !err.isBlank() && !"no-session".equals(err) && !"empty-title".equals(err)) {
-			hint = "No media session";
-		} else {
-			hint = "Play a track in Spotify or YouTube Music";
-		}
+		hint = "Play a track in Spotify or YouTube Music";
 		return NowPlaying.none();
 	}
 

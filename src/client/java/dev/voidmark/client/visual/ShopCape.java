@@ -10,6 +10,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.PlayerSkin;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -219,7 +221,7 @@ public final class ShopCape {
 					.timeout(Duration.ofSeconds(12))
 					.header("User-Agent", "Voidmark")
 					.header("X-UUID", uuid.toString())
-					.PUT(HttpRequest.BodyPublishers.ofByteArray(png))
+					.PUT(HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(png)))
 					.build();
 				HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
 				Minecraft.getInstance().execute(() -> {
@@ -333,12 +335,16 @@ public final class ShopCape {
 				.header("User-Agent", "Voidmark")
 				.GET()
 				.build();
-			HttpResponse<byte[]> response = HTTP.send(png, HttpResponse.BodyHandlers.ofByteArray());
-			if (response.statusCode() != 200 || !isPng(response.body())) {
+			HttpResponse<InputStream> response = HTTP.send(png, HttpResponse.BodyHandlers.ofInputStream());
+			byte[] body;
+			try (InputStream in = response.body()) {
+				body = in == null ? new byte[0] : in.readAllBytes();
+			}
+			if (response.statusCode() != 200 || !isPng(body)) {
 				failKeep(slot);
 				return;
 			}
-			register(uuid, slot, response.body(), hash);
+			register(uuid, slot, body, hash);
 		} catch (Exception exception) {
 			failKeep(slot);
 		}

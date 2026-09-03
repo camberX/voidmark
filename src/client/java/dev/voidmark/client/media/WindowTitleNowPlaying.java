@@ -13,7 +13,7 @@ import java.util.Locale;
 final class WindowTitleNowPlaying {
 	private static final int PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 	private static final String[] IDLE = {
-		"spotify", "spotify premium", "spotify free", "spotify.exe",
+		"spotify", "spotify premium", "spotify free",
 		"youtube music", "youtube music desktop app", "youtube",
 		"microsoft text input application", "windows input experience"
 	};

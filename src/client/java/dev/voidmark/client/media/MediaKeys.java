@@ -37,7 +37,7 @@ public final class MediaKeys {
 		}
 		User32Keys api = api();
 		if (api == null) {
-			return powershellTap(vk);
+			return false;
 		}
 		try {
 			api.keybd_event(vk, (byte) 0, 0, 0);
@@ -45,7 +45,7 @@ public final class MediaKeys {
 			return true;
 		} catch (Throwable throwable) {
 			Voidmark.LOGGER.debug("Media key tap failed", throwable);
-			return powershellTap(vk);
+			return false;
 		}
 	}
 
@@ -63,20 +63,6 @@ public final class MediaKeys {
 			Voidmark.LOGGER.debug("Could not load user32 for media keys", throwable);
 			return null;
 		}
-	}
-
-	private static boolean powershellTap(byte vk) {
-		int code = vk & 0xFF;
-		return MediaProcesses.run(
-			new String[]{
-				"powershell.exe",
-				"-NoProfile",
-				"-NonInteractive",
-				"-Command",
-				"Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class K{[DllImport(\"user32.dll\")]public static extern void keybd_event(byte v,byte s,uint f,int x);}';[K]::keybd_event(" + code + ",0,0,0);[K]::keybd_event(" + code + ",0,2,0)"
-			},
-			400
-		) != null;
 	}
 
 	private static boolean runPlayerctl(String verb) {

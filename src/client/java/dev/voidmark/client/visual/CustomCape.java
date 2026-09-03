@@ -16,6 +16,7 @@ import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import java.awt.FileDialog;
 import java.awt.Frame;
 import java.util.concurrent.atomic.AtomicReference;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -257,12 +258,16 @@ public final class CustomCape {
 					.header("User-Agent", "Voidmark/1.1")
 					.GET()
 					.build();
-				HttpResponse<byte[]> response = HTTP.send(request, HttpResponse.BodyHandlers.ofByteArray());
+				HttpResponse<InputStream> response = HTTP.send(request, HttpResponse.BodyHandlers.ofInputStream());
 				if (response.statusCode() < 200 || response.statusCode() >= 300) {
 					failOn(gen, "HTTP " + response.statusCode());
 					return;
 				}
-				register(gen, response.body(), save);
+				byte[] body;
+				try (InputStream in = response.body()) {
+					body = in == null ? new byte[0] : in.readAllBytes();
+				}
+				register(gen, body, save);
 			} catch (IllegalArgumentException exception) {
 				failOn(gen, "Invalid URL");
 			} catch (Exception exception) {

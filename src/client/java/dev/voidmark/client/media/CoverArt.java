@@ -12,6 +12,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -339,11 +340,14 @@ public final class CoverArt {
 	}
 
 	private static byte[] getBytes(String url) throws Exception {
-		HttpResponse<byte[]> response = HTTP.send(imageRequest(url), HttpResponse.BodyHandlers.ofByteArray());
+		HttpResponse<InputStream> response = HTTP.send(imageRequest(url), HttpResponse.BodyHandlers.ofInputStream());
 		if (response.statusCode() < 200 || response.statusCode() >= 300) {
 			throw new IllegalStateException("HTTP " + response.statusCode());
 		}
-		byte[] body = response.body();
+		byte[] body;
+		try (InputStream in = response.body()) {
+			body = in == null ? new byte[0] : in.readAllBytes();
+		}
 		if (body.length > MAX_BYTES) {
 			throw new IllegalStateException("Cover too large");
 		}
