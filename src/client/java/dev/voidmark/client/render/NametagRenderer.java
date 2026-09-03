@@ -68,14 +68,17 @@ public final class NametagRenderer {
 		if (self && !config.nametagSelf) {
 			return true;
 		}
-		if (config.nametagsEnabled) {
+		if (config.nametagCustomPlates()) {
 			return true;
+		}
+		if (config.nametagsEnabled) {
+			return false;
 		}
 		return hasBadge(entity.getUUID()) && (!self || config.nametagSelf);
 	}
 
 	public static boolean hidingVanillaState(EntityRenderState state) {
-		if (!VoidmarkConfig.get().nametagsEnabled || state.entityType == null) {
+		if (!VoidmarkConfig.get().nametagCustomPlates() || state.entityType == null) {
 			return false;
 		}
 		return state.entityType == EntityType.PLAYER || state.entityType == EntityType.MANNEQUIN;
@@ -87,7 +90,10 @@ public final class NametagRenderer {
 			return;
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
-		boolean plates = config.nametagsEnabled;
+		if (config.nametagsEnabled && !config.nametagCustom()) {
+			return;
+		}
+		boolean plates = config.nametagCustomPlates();
 		boolean own = config.nametagSelf;
 		float partial = deltaTracker.getGameTimeDeltaPartialTick(true);
 		Camera camera = client.gameRenderer.getMainCamera();

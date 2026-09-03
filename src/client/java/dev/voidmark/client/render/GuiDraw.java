@@ -224,10 +224,29 @@ public final class GuiDraw {
 	}
 
 	public static void panel(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int fill, int outline, int accent) {
+		panel(graphics, x, y, w, h, radius, fill, outline, accent, false);
+	}
+
+	public static void panel(
+		GuiGraphicsExtractor graphics,
+		float x,
+		float y,
+		float w,
+		float h,
+		float radius,
+		int fill,
+		int outline,
+		int accent,
+		boolean accentRight
+	) {
 		rounded(graphics, x, y, w, h, radius, outline);
 		rounded(graphics, x + 1, y + 1, w - 2, h - 2, Math.max(0.5f, radius - 1f), fill);
 		if ((accent & 0xFF000000) != 0) {
-			accentLeft(graphics, x, y, h, radius, 3f, accent);
+			if (accentRight) {
+				accentRight(graphics, x, y, w, h, radius, 3f, accent);
+			} else {
+				accentLeft(graphics, x, y, h, radius, 3f, accent);
+			}
 		}
 	}
 
@@ -309,6 +328,37 @@ public final class GuiDraw {
 		}
 		cornerBand(graphics, x, y, r, strip, 0f, 0f, accent);
 		cornerBand(graphics, x, y + h - r, r, strip, 0f, CIRCLE_HALF, accent);
+	}
+
+	/**
+	 * Vertical right rail of the panel's full height. Mirrors {@link #accentLeft} so a HUD
+	 * pane on the right edge can keep its rail against the screen.
+	 */
+	public static void accentRight(
+		GuiGraphicsExtractor graphics,
+		float x,
+		float y,
+		float w,
+		float h,
+		float radius,
+		float thickness,
+		int accent
+	) {
+		float t = Math.max(1.5f, thickness);
+		float r = Math.min(radius, h * 0.5f);
+		if (r < 0.75f) {
+			fill(graphics, x + w - t, y, t, h, accent);
+			return;
+		}
+		float strip = Math.min(t, Math.max(1f, r - 0.35f));
+		float mid = h - 2f * r;
+		if (mid > 0.5f) {
+			fill(graphics, x + w - strip, y + r, strip, mid, accent);
+		}
+		int regionU = Math.max(1, Math.round((strip / r) * CIRCLE_HALF));
+		float u = CIRCLE_TEX - regionU;
+		cornerBand(graphics, x + w - strip, y, r, strip, u, 0f, accent);
+		cornerBand(graphics, x + w - strip, y + h - r, r, strip, u, CIRCLE_HALF, accent);
 	}
 
 	/** Left {@code thickness} pixels of a quarter-circle so the rail follows the arc without wrapping. */

@@ -19,7 +19,8 @@ public final class HudChrome {
 		int outline,
 		int accent
 	) {
-		GuiDraw.panel(graphics, x, y, w, h, radius, Theme.HUD_WINDOW, Theme.HUD_LINE, accent);
+		boolean right = accentTowardRight(graphics, x, y, w);
+		GuiDraw.panel(graphics, x, y, w, h, radius, Theme.HUD_WINDOW, Theme.HUD_LINE, accent, right);
 		if (VoidmarkConfig.get().hudStarfield && w >= 12f && h >= 12f) {
 			Starfield.drawHud(graphics, x, y, w, h, radius);
 		}
@@ -36,5 +37,13 @@ public final class HudChrome {
 		int outline
 	) {
 		panel(graphics, x, y, w, h, radius, fill, outline, 0);
+	}
+
+	/** Rail sits on the side closer to the screen edge. */
+	private static boolean accentTowardRight(GuiGraphicsExtractor graphics, float x, float y, float w) {
+		var pose = graphics.pose();
+		float left = pose.m00() * x + pose.m10() * y + pose.m20();
+		float right = pose.m00() * (x + w) + pose.m10() * y + pose.m20();
+		return (left + right) * 0.5f > graphics.guiWidth() * 0.5f;
 	}
 }

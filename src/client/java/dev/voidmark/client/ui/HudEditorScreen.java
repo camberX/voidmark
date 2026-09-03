@@ -108,7 +108,7 @@ public class HudEditorScreen extends Screen {
 		float h = 20;
 		float x = (guiW - BAR_W) * 0.5f;
 		float y = 6;
-		GuiDraw.panel(graphics, x, y, BAR_W, h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		GuiDraw.panel(graphics, x, y, BAR_W, h, 6, Theme.WINDOW, Theme.LINE);
 		GuiDraw.small(graphics, font, "HUD EDITOR", x + 8, y + 5, Theme.ACCENT);
 		boolean free = minecraft.hasShiftDown();
 		GuiDraw.small(graphics, font, free ? "Free move" : "Snap · scroll to scale", x + 78, y + 5, Theme.MUTED);

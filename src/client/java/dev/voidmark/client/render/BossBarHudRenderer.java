@@ -78,14 +78,14 @@ public final class BossBarHudRenderer {
 	}
 
 	private static void drawEmpty(GuiGraphicsExtractor graphics, Font font, float x, float y) {
-		HudChrome.panel(graphics, x, y, BAR_W, BAR_H, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		HudChrome.panel(graphics, x, y, BAR_W, BAR_H, 5, Theme.WINDOW, Theme.LINE);
 		GuiDraw.small(graphics, font, "BOSS", x + 8, y + 4, Theme.MUTED);
 	}
 
 	private static void draw(GuiGraphicsExtractor graphics, Font font, float x, float y, LerpingBossEvent event) {
 		float t = Mth.clamp(event.getProgress(), 0f, 1f);
 		int fill = barColor(event);
-		GuiDraw.panel(graphics, x, y, BAR_W, BAR_H, 5, Theme.HUD_WINDOW, Theme.HUD_LINE, fill);
+		GuiDraw.panel(graphics, x, y, BAR_W, BAR_H, 5, Theme.HUD_WINDOW, Theme.HUD_LINE);
 		if (t > 0.01f) {
 			GuiDraw.rounded(graphics, x + 8, y + BAR_H - 4, Math.max(2f, (BAR_W - 16f) * t), 2.5f, 1.2f, fill);
 		}

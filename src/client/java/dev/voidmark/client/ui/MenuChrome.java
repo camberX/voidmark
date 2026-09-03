@@ -77,7 +77,6 @@ public final class MenuChrome {
 		int fillRgb = Theme.mix(Theme.CARD, Theme.CARD_HOVER, hover ? 1f : 0f);
 		int fill = Theme.withAlpha(fillRgb, Math.round((((Theme.CARD >>> 24) & 0xFF) + (hover ? 18 : 0)) * alpha));
 		int outline = fade(hover ? Theme.ACCENT : Theme.LINE, alpha);
-		int accent = !compact && widget.active ? fade(Theme.ACCENT, alpha) : 0;
 		GuiDraw.panel(
 			graphics,
 			widget.getX(),
@@ -86,8 +85,7 @@ public final class MenuChrome {
 			widget.getHeight(),
 			radius,
 			fill,
-			outline,
-			accent
+			outline
 		);
 	}
 
@@ -104,8 +102,7 @@ public final class MenuChrome {
 			widget.getHeight(),
 			5f,
 			fill,
-			outline,
-			focus ? fade(Theme.ACCENT, alpha) : 0
+			outline
 		);
 	}
 
@@ -159,7 +156,6 @@ public final class MenuChrome {
 			h,
 			5f,
 			Theme.withAlpha(Theme.CARD_HOVER, 210),
-			Theme.ACCENT,
 			Theme.ACCENT
 		);
 	}

@@ -40,7 +40,7 @@ public final class HotbarHudRenderer {
 		boolean showOffhand = !offhand.isEmpty();
 
 		HudLayout.apply(graphics, font, HudLayout.Id.HOTBAR, () -> {
-			HudChrome.panel(graphics, 0, 0, WIDTH, HEIGHT, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+			HudChrome.panel(graphics, 0, 0, WIDTH, HEIGHT, 5, Theme.WINDOW, Theme.LINE);
 			for (int col = 0; col < COLS; col++) {
 				slot(graphics, font, player, inventory.getItem(col), PAD + col * (SLOT + GAP), PAD, col, col == selected);
 			}

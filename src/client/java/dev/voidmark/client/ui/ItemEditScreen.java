@@ -86,7 +86,7 @@ public class ItemEditScreen extends Screen {
 		refresh();
 
 		GuiDraw.fill(graphics, 0, 0, width, height, 0x14000000);
-		GuiDraw.panel(graphics, windowX, windowY, windowW, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+		GuiDraw.panel(graphics, windowX, windowY, windowW, windowH, Theme.WINDOW_RADIUS, Theme.WINDOW, Theme.LINE);
 		GuiDraw.title(graphics, font, "ITEM", windowX + 12, windowY + 8, Theme.TEXT);
 		GuiDraw.small(graphics, font, "ID", windowX + 12 + GuiDraw.titleWidth(font, "ITEM") + 4, windowY + 10, Theme.ACCENT);
 		hits.add(new Hit(windowX, windowY, windowW, 22, mx -> startDrag()));

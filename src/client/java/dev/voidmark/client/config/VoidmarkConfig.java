@@ -130,6 +130,7 @@ public final class VoidmarkConfig {
 	public boolean nametagSelf = true;
 	public boolean nametagThroughWalls = false;
 	public boolean nametagDistance = true;
+	public String nametagStyle = "custom";
 	public int nametagRange = 128;
 	public float nametagScale = 1.0f;
 	public float nametagOpacity = 1.0f;
@@ -246,6 +247,7 @@ public final class VoidmarkConfig {
 				loaded.nametagRange = clamp(loaded.nametagRange <= 0 ? 128 : loaded.nametagRange, 64, 256);
 				loaded.nametagScale = clampHudScale(loaded.nametagScale);
 				loaded.nametagOpacity = loaded.nametagOpacity <= 0f ? 1.0f : clamp(loaded.nametagOpacity, 0.15f, 1f);
+				loaded.nametagStyle = normalizeNametagStyle(loaded.nametagStyle);
 				loaded.menuScale = normalizeMenuScale(loaded.menuScale);
 				if (loaded.mobGlowIds == null) {
 					loaded.mobGlowIds = new java.util.ArrayList<>();
@@ -356,6 +358,26 @@ public final class VoidmarkConfig {
 
 	public String rawmatsModeLabel() {
 		return rawmatsEnchanted ? "Enchanted" : "Raw";
+	}
+
+	public boolean nametagCustomPlates() {
+		return nametagsEnabled && nametagCustom();
+	}
+
+	public boolean nametagCustom() {
+		return !"vanilla".equalsIgnoreCase(nametagStyle);
+	}
+
+	public void cycleNametagStyle() {
+		nametagStyle = nametagCustom() ? "vanilla" : "custom";
+	}
+
+	public String nametagStyleLabel() {
+		return nametagCustom() ? "Voidmark" : "Vanilla";
+	}
+
+	public static String normalizeNametagStyle(String style) {
+		return "vanilla".equalsIgnoreCase(style) ? "vanilla" : "custom";
 	}
 
 	public void cycleInventoryHudAnchor() {

@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.131", new String[]{
+			"Nametags cog picks Voidmark plates or vanilla tags. Menu buttons, fields, list rows, and compact HUD pieces no longer draw a left accent rail. Remaining HUD rails flip to the side closer to the screen edge."
+		}),
 		new Entry("1.1.130", new String[]{
 			"Node ESP sits on the Nodes tab without the extra caption text. Server list and world list no longer have dark bands over the header and footer."
 		}),

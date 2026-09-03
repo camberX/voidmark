@@ -11,7 +11,6 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffect;
-import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
 
 import java.util.ArrayList;
@@ -38,7 +37,7 @@ public final class EffectsHudRenderer {
 		float boxW = drawWidth(font);
 		HudLayout.apply(graphics, font, HudLayout.Id.EFFECTS, () -> {
 			if (effects.isEmpty()) {
-				HudChrome.panel(graphics, 0, 0, boxW, CHIP_H, 5, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
+				HudChrome.panel(graphics, 0, 0, boxW, CHIP_H, 5, Theme.WINDOW, Theme.LINE);
 				GuiDraw.small(graphics, font, "EFFECTS", 8, 4, Theme.MUTED);
 				return;
 			}
@@ -109,8 +108,7 @@ public final class EffectsHudRenderer {
 		MobEffect effect = instance.getEffect().value();
 		Component name = effect.getDisplayName();
 		String extra = extra(instance);
-		int outline = effect.getCategory() == MobEffectCategory.HARMFUL ? Theme.DANGER : Theme.ACCENT;
-		HudChrome.panel(graphics, x, y, w, CHIP_H, 5, Theme.WINDOW, Theme.LINE, outline);
+		HudChrome.panel(graphics, x, y, w, CHIP_H, 5, Theme.WINDOW, Theme.LINE);
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(x + 6, y + 2);
 		graphics.pose().scale(ICON / 18f, ICON / 18f);
