@@ -26,6 +26,7 @@ public final class RawmatsHudRenderer {
 	private static final float PAD = 7;
 	private static final float HEAD = 28;
 	private static final float ROW = 18;
+	private static final float ROW_NOTE = 26;
 	private static final float ICON = 16;
 	private static final int MAX_ROWS = 10;
 	private static Rect modeHit = Rect.EMPTY;
@@ -135,8 +136,9 @@ public final class RawmatsHudRenderer {
 		int shown = Math.min(MAX_ROWS, lines.size());
 		float rowY = HEAD;
 		for (int i = 0; i < shown; i++) {
-			row(graphics, font, player, lines.get(i), PAD, rowY, i);
-			rowY += ROW;
+			RawmatsTracker.Line line = lines.get(i);
+			row(graphics, font, player, line, PAD, rowY, i);
+			rowY += rowHeight(line);
 		}
 		if (lines.size() > MAX_ROWS) {
 			GuiDraw.small(graphics, font, "+" + (lines.size() - MAX_ROWS) + " more", PAD + 4, rowY + 1, Theme.MUTED);
@@ -159,20 +161,27 @@ public final class RawmatsHudRenderer {
 		int seed
 	) {
 		ItemStack stack = line.icon();
-		GuiDraw.rounded(graphics, x, y + 1, ICON, ICON, 3, Theme.HUD_TRACK);
+		boolean note = line.hasNote();
+		float iconY = note ? y + 5 : y + 1;
+		GuiDraw.rounded(graphics, x, iconY, ICON, ICON, 3, Theme.HUD_TRACK);
 		if (stack != null && !stack.isEmpty() && player != null) {
-			graphics.item(player, stack, Math.round(x), Math.round(y + 1), 200 + seed);
+			graphics.item(player, stack, Math.round(x), Math.round(iconY), 200 + seed);
 		}
 		float textX = x + ICON + 4;
 		String amount = format(line.have()) + "/" + format(line.need());
 		float amountW = GuiDraw.smallWidth(font, amount);
-		String name = ellipsize(font, line.name(), WIDTH - textX - amountW - PAD - 8, true);
+		float nameW = WIDTH - textX - amountW - PAD - 8;
+		String name = ellipsize(font, line.name(), nameW, true);
 		int nameColor = line.done() ? Theme.ACCENT : Theme.TEXT;
 		GuiDraw.small(graphics, font, name, textX, y + 1, nameColor);
 		GuiDraw.small(graphics, font, amount, WIDTH - PAD - amountW, y + 1, line.done() ? Theme.ACCENT : Theme.MUTED);
+		if (note) {
+			String used = ellipsize(font, line.note(), WIDTH - textX - PAD - 4, true);
+			GuiDraw.small(graphics, font, used, textX, y + 10, Theme.MUTED);
+		}
 		float barX = textX;
 		float barW = WIDTH - textX - PAD;
-		float barY = y + 12;
+		float barY = note ? y + 20 : y + 12;
 		GuiDraw.rounded(graphics, barX, barY, barW, 2.5f, 1.2f, Theme.HUD_TRACK);
 		float filled = Math.max(line.have() > 0L ? 2f : 0f, barW * line.progress());
 		GuiDraw.rounded(graphics, barX, barY, filled, 2.5f, 1.2f, line.done() ? Theme.ACCENT : Theme.ACCENT_DIM);
@@ -182,10 +191,23 @@ public final class RawmatsHudRenderer {
 		if (!snap.present()) {
 			return 44;
 		}
-		int rows = Math.min(MAX_ROWS, Math.max(1, snap.lines().size()));
-		boolean extra = snap.lines().size() > MAX_ROWS;
+		List<RawmatsTracker.Line> lines = snap.lines();
+		int shown = Math.min(MAX_ROWS, Math.max(1, lines.size()));
+		float rows = 0f;
+		if (lines.isEmpty()) {
+			rows = ROW;
+		} else {
+			for (int i = 0; i < shown; i++) {
+				rows += rowHeight(lines.get(i));
+			}
+		}
+		boolean extra = lines.size() > MAX_ROWS;
 		boolean hint = storageHint(snap) != null;
-		return HEAD + PAD + rows * ROW + (extra ? 12 : 0) + (hint ? 12 : 0) + PAD;
+		return HEAD + PAD + rows + (extra ? 12 : 0) + (hint ? 12 : 0) + PAD;
+	}
+
+	private static float rowHeight(RawmatsTracker.Line line) {
+		return line.hasNote() ? ROW_NOTE : ROW;
 	}
 
 	private static String storageHint(RawmatsTracker.Snapshot snap) {

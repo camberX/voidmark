@@ -130,6 +130,9 @@ public final class RawmatsCommands {
 			}
 			String mark = row.done() ? "done" : row.have() + "/" + row.need();
 			tell(Component.literal("  " + row.name() + "  " + mark).withStyle(style(row.done() ? Theme.ACCENT : Theme.TEXT)));
+			if (row.hasNote()) {
+				tell(muted("    " + row.note()));
+			}
 			shown++;
 		}
 		if (!ItemStorage.hasApiStorage() && (!snap.sawEnder() || !snap.sawBackpack())) {

@@ -9,16 +9,22 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public final class RawmatsTracker {
 	private static final String[] CRIMSON = {"HOT_", "BURNING_", "FIERY_", "INFERNAL_"};
 
-	public record Line(String id, String name, ItemStack icon, long have, long need) {
+	public record Line(String id, String name, ItemStack icon, long have, long need, String note) {
 		public boolean done() {
 			return have >= need && need > 0L;
+		}
+
+		public boolean hasNote() {
+			return note != null && !note.isBlank();
 		}
 
 		public float progress() {
@@ -114,7 +120,9 @@ public final class RawmatsTracker {
 		Minecraft client = Minecraft.getInstance();
 		Player player = client.player;
 		Map<String, Long> owned = player == null ? Map.of() : ItemStorage.counts(player);
-		Map<String, Long> have = credit(id, need, owned, expand);
+		Map<String, LinkedHashSet<String>> converted = new LinkedHashMap<>();
+		Map<String, Long> have = credit(id, need, owned, expand, converted);
+		Map<String, List<String>> used = recipeMaterials(id, need, expand);
 		List<Line> lines = new ArrayList<>();
 		for (Map.Entry<String, Long> entry : need.entrySet()) {
 			long required = entry.getValue();
@@ -122,7 +130,14 @@ public final class RawmatsTracker {
 				continue;
 			}
 			String leaf = entry.getKey();
-			lines.add(new Line(leaf, nameOf(leaf), iconOf(leaf), have.getOrDefault(leaf, 0L), required));
+			lines.add(new Line(
+				leaf,
+				nameOf(leaf),
+				iconOf(leaf),
+				have.getOrDefault(leaf, 0L),
+				required,
+				noteOf(leaf, used.get(leaf), converted.get(leaf))
+			));
 		}
 		lines.sort(Comparator
 			.comparing((Line line) -> line.done())
@@ -151,7 +166,8 @@ public final class RawmatsTracker {
 		String target,
 		Map<String, Long> need,
 		Map<String, Long> owned,
-		SkyblockRecipes.Expand expand
+		SkyblockRecipes.Expand expand,
+		Map<String, LinkedHashSet<String>> converted
 	) {
 		Map<String, Long> have = new HashMap<>();
 		Map<String, Long> leftover = new HashMap<>();
@@ -181,14 +197,95 @@ public final class RawmatsTracker {
 			Map.Entry<String, Long> leaf = leaves.entrySet().iterator().next();
 			if (need.containsKey(leaf.getKey())) {
 				have.merge(leaf.getKey(), leaf.getValue(), Long::sum);
+				markConverted(converted, leaf.getKey(), id);
 			} else if (expand == SkyblockRecipes.Expand.ENCHANTED && ingredientOfNeed(leaf.getKey(), need)) {
 				leftover.merge(leaf.getKey(), leaf.getValue(), Long::sum);
 			}
 		}
 		if (expand == SkyblockRecipes.Expand.ENCHANTED) {
-			craftUp(need, leftover, have);
+			craftUp(need, leftover, have, converted);
 		}
 		return have;
+	}
+
+	/** Direct recipe ingredients that expand into a displayed leaf, e.g. Refined Mithril → Enchanted Mithril. */
+	private static Map<String, List<String>> recipeMaterials(
+		String target,
+		Map<String, Long> need,
+		SkyblockRecipes.Expand expand
+	) {
+		SkyblockRecipes.Recipe recipe = SkyblockRecipes.get(target);
+		if (recipe == null || recipe.ingredients().isEmpty()) {
+			return Map.of();
+		}
+		Map<String, LinkedHashSet<String>> used = new LinkedHashMap<>();
+		for (String ingredient : recipe.ingredients().keySet()) {
+			if (need.containsKey(ingredient)) {
+				continue;
+			}
+			Map<String, Long> leaves = SkyblockRecipes.expand(ingredient, 1L, expand);
+			for (String leaf : leaves.keySet()) {
+				if (need.containsKey(leaf) && !leaf.equals(ingredient)) {
+					used.computeIfAbsent(leaf, key -> new LinkedHashSet<>()).add(ingredient);
+				}
+			}
+		}
+		if (used.isEmpty()) {
+			return Map.of();
+		}
+		Map<String, List<String>> out = new LinkedHashMap<>();
+		for (Map.Entry<String, LinkedHashSet<String>> entry : used.entrySet()) {
+			out.put(entry.getKey(), List.copyOf(entry.getValue()));
+		}
+		return out;
+	}
+
+	private static String noteOf(String leaf, List<String> used, Set<String> converted) {
+		List<String> recipe = distinctOthers(leaf, used);
+		if (!recipe.isEmpty()) {
+			return "Uses " + joinNames(recipe);
+		}
+		List<String> from = distinctOthers(leaf, converted);
+		if (!from.isEmpty()) {
+			return "from " + joinNames(from);
+		}
+		return "";
+	}
+
+	private static List<String> distinctOthers(String leaf, Iterable<String> ids) {
+		if (ids == null) {
+			return List.of();
+		}
+		List<String> out = new ArrayList<>();
+		for (String id : ids) {
+			if (id == null || id.isBlank() || sameItem(id, leaf) || out.contains(id)) {
+				continue;
+			}
+			out.add(id);
+		}
+		return out;
+	}
+
+	private static String joinNames(List<String> ids) {
+		int shown = Math.min(ids.size(), 2);
+		StringBuilder out = new StringBuilder();
+		for (int i = 0; i < shown; i++) {
+			if (i > 0) {
+				out.append(", ");
+			}
+			out.append(nameOf(ids.get(i)));
+		}
+		if (ids.size() > shown) {
+			out.append(" +").append(ids.size() - shown);
+		}
+		return out.toString();
+	}
+
+	private static void markConverted(Map<String, LinkedHashSet<String>> converted, String leaf, String source) {
+		if (converted == null || source == null || sameItem(source, leaf)) {
+			return;
+		}
+		converted.computeIfAbsent(leaf, key -> new LinkedHashSet<>()).add(source);
 	}
 
 	/** True when {@code id} is a raw ingredient of a needed compact, e.g. cobble → enchanted cobble. */
@@ -205,7 +302,12 @@ public final class RawmatsTracker {
 		return false;
 	}
 
-	private static void craftUp(Map<String, Long> need, Map<String, Long> leftover, Map<String, Long> have) {
+	private static void craftUp(
+		Map<String, Long> need,
+		Map<String, Long> leftover,
+		Map<String, Long> have,
+		Map<String, LinkedHashSet<String>> converted
+	) {
 		for (String leaf : need.keySet()) {
 			SkyblockRecipes.Recipe recipe = SkyblockRecipes.get(leaf);
 			if (recipe == null || recipe.ingredients().isEmpty()) {
@@ -226,6 +328,7 @@ public final class RawmatsTracker {
 			have.merge(leaf, crafts * recipe.output(), Long::sum);
 			for (Map.Entry<String, Long> ingredient : recipe.ingredients().entrySet()) {
 				leftover.merge(ingredient.getKey(), -crafts * ingredient.getValue(), Long::sum);
+				markConverted(converted, leaf, ingredient.getKey());
 			}
 		}
 	}

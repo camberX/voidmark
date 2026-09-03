@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.156", new String[]{
+			"Raw mats still counts Refined Mithril (and other compact forms) toward Enchanted Mithril, and each row shows Uses plus the ingredient the recipe actually wants."
+		}),
 		new Entry("1.1.155", new String[]{
 			"Glow ESP has a Radius slider for how far the halo reaches. The blur no longer fades to a black vignette at the edge."
 		}),
