@@ -2,6 +2,7 @@ package dev.voidmark.client.ui;
 
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
@@ -86,7 +87,7 @@ public final class MenuFont {
 	}
 
 	public static Component vanilla(String value) {
-		return Component.literal(value == null ? "" : value).withStyle(VANILLA);
+		return withFallback(value == null ? "" : value, VANILLA);
 	}
 
 	public static Component vanilla(Component value) {
@@ -102,7 +103,7 @@ public final class MenuFont {
 	}
 
 	private static Component withFallback(String value, Style custom) {
-		return splitUnicode(value, custom);
+		return applyLegacy(value, custom);
 	}
 
 	private static Component withFallback(Component value, Style custom) {
@@ -111,11 +112,62 @@ public final class MenuFont {
 		text.visit((style, string) -> {
 			if (string != null && !string.isEmpty()) {
 				Style run = style.withFont(custom.getFont());
-				out.append(splitUnicode(string, run));
+				out.append(applyLegacy(string, run));
 			}
 			return Optional.empty();
 		}, Style.EMPTY);
 		return out;
+	}
+
+	/**
+	 * Hypixel nametags are often one literal with {@code §8[level] §bname §7♲}.
+	 * Component drawing does not parse those codes, and {@link #splitUnicode}
+	 * used to peel {@code §} (U+00A7) onto its own run so {@code 8}, {@code b},
+	 * and {@code 7} drew as letters.
+	 */
+	private static Component applyLegacy(String value, Style base) {
+		if (value == null || value.isEmpty()) {
+			return Component.empty().withStyle(base);
+		}
+		if (value.indexOf('§') < 0) {
+			return splitUnicode(value, base);
+		}
+		MutableComponent root = Component.empty();
+		Style style = base;
+		StringBuilder buf = new StringBuilder();
+		int i = 0;
+		while (i < value.length()) {
+			char c = value.charAt(i);
+			if (c == '§' && i + 1 < value.length()) {
+				char next = value.charAt(i + 1);
+				if (next == '§') {
+					buf.append('§');
+					i += 2;
+					continue;
+				}
+				ChatFormatting fmt = ChatFormatting.getByCode(Character.toLowerCase(next));
+				if (fmt != null) {
+					flushLegacy(root, buf, style);
+					style = fmt == ChatFormatting.RESET
+						? Style.EMPTY.withFont(base.getFont())
+						: style.applyFormat(fmt);
+					i += 2;
+					continue;
+				}
+			}
+			buf.append(c);
+			i++;
+		}
+		flushLegacy(root, buf, style);
+		return root;
+	}
+
+	private static void flushLegacy(MutableComponent root, StringBuilder buf, Style style) {
+		if (buf.isEmpty()) {
+			return;
+		}
+		root.append(splitUnicode(buf.toString(), style));
+		buf.setLength(0);
 	}
 
 	private static Component splitUnicode(String value, Style custom) {
@@ -126,15 +178,20 @@ public final class MenuFont {
 		MutableComponent out = null;
 		int i = 0;
 		while (i < value.length()) {
-			boolean unicode = value.codePointAt(i) > 0x7F;
+			boolean unicode = unicodeGlyph(value.codePointAt(i));
 			int start = i;
 			i += Character.charCount(value.codePointAt(start));
-			while (i < value.length() && (value.codePointAt(i) > 0x7F) == unicode) {
+			while (i < value.length() && unicodeGlyph(value.codePointAt(i)) == unicode) {
 				i += Character.charCount(value.codePointAt(i));
 			}
 			MutableComponent piece = Component.literal(value.substring(start, i)).withStyle(unicode ? fallback : custom);
 			out = out == null ? piece : out.append(piece);
 		}
 		return out == null ? Component.empty().withStyle(custom) : out;
+	}
+
+	/** Section sign is a format prefix, not a glyph that needs the vanilla fallback font. */
+	private static boolean unicodeGlyph(int cp) {
+		return cp > 0x7F && cp != 0xA7;
 	}
 }

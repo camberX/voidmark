@@ -94,7 +94,7 @@ public final class NickHider {
 		StringBuilder buffer = new StringBuilder();
 		for (int i = 0; i < raw.length(); i++) {
 			char current = raw.charAt(i);
-			if (current == '&' && i + 1 < raw.length()) {
+			if ((current == '&' || current == '§') && i + 1 < raw.length()) {
 				char code = Character.toLowerCase(raw.charAt(i + 1));
 				ChatFormatting formatting = ChatFormatting.getByCode(code);
 				if (formatting != null) {
@@ -103,8 +103,8 @@ public final class NickHider {
 					i++;
 					continue;
 				}
-				if (raw.charAt(i + 1) == '&') {
-					buffer.append('&');
+				if (raw.charAt(i + 1) == current) {
+					buffer.append(current);
 					i++;
 					continue;
 				}

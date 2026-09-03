@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.157", new String[]{
+			"Hypixel nametags keep their colors. Ironman plates no longer show leftover 8 / b / 7 from §8 §b §7."
+		}),
 		new Entry("1.1.156", new String[]{
 			"Raw mats still counts Refined Mithril (and other compact forms) toward Enchanted Mithril, and each row shows Uses plus the ingredient the recipe actually wants."
 		}),
