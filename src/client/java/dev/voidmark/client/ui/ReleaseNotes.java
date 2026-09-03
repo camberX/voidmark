@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.127", new String[]{
+			"YouTube Music now reads the API Server on 26538, asks for access when the plugin requires it, and uses the album cover and artist the API actually returns."
+		}),
 		new Entry("1.1.126", new String[]{
 			"Fake boosting bans last 360 days instead of 180."
 		}),

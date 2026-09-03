@@ -110,9 +110,12 @@ public final class CoverArt {
 
 	private static void load(int gen, String spec, String title, String artist, String album) {
 		try {
-			TrackLookup.ensure(title, artist, album);
+			boolean direct = spec != null && (spec.startsWith("http://") || spec.startsWith("https://") || spec.startsWith("data:"));
+			if (!direct) {
+				TrackLookup.ensure(title, artist, album);
+			}
 			byte[] bytes = readSpec(spec);
-			if (!looksLikeImage(bytes)) {
+			if (!looksLikeImage(bytes) && !direct) {
 				TrackLookup.Hit hit = TrackLookup.peek(title, artist, album);
 				if (hit.usable() && hit.cover() != null && !hit.cover().isBlank()) {
 					bytes = readSpec(hit.cover());
@@ -379,7 +382,12 @@ public final class CoverArt {
 	}
 
 	private static String expand(String url) {
-		return url.replace("{w}", "300").replace("{h}", "300").replace("{c}", "ffffff");
+		String value = url.replace("{w}", "300").replace("{h}", "300").replace("{c}", "ffffff");
+		if (value.contains("googleusercontent") || value.contains("ggpht")) {
+			value = value.replace("-rw", "-rj").replace(".webp", ".jpg");
+			value = value.replaceAll("=w\\d+-h\\d+", "=w300-h300");
+		}
+		return value;
 	}
 
 	private static long stamp(String spec) {

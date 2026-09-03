@@ -4,38 +4,51 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import dev.voidmark.client.config.VoidmarkConfig;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 final class CompanionNowPlaying {
 	private static final HttpClient CLIENT = HttpClient.newBuilder()
-		.connectTimeout(Duration.ofMillis(120))
+		.connectTimeout(Duration.ofMillis(250))
 		.build();
-	private static final List<String> ENDPOINTS = List.of(
-		"http://127.0.0.1:26558/api/v1/song",
-		"http://127.0.0.1:26559/api/v1/song",
-		"http://127.0.0.1:9863/query",
-		"http://127.0.0.1:10767/api/v1/playback/now-playing",
-		"http://127.0.0.1:26558/api/v1/now-playing",
-		"http://127.0.0.1:31333/api/v1/song",
-		"http://127.0.0.1:1870/api/v1/song"
-	);
+	private static final String AUTH_ID = "voidmark";
+	private static final long AUTH_COOLDOWN_MS = 45_000L;
 
 	private String live;
 	private String kind;
 	private long quietUntil;
+	private volatile boolean awaitingAuth;
+	private volatile long lastAuthAskMs;
+	private volatile boolean authInFlight;
+
+	boolean awaitingAuth() {
+		return awaitingAuth;
+	}
+
+	String statusHint() {
+		if (awaitingAuth) {
+			return "Allow Voidmark in YouTube Music";
+		}
+		return "YOUTUBE MUSIC";
+	}
 
 	NowPlaying snapshot() {
 		long now = System.currentTimeMillis();
 		if (live != null) {
-			NowPlaying track = fetch(live);
-			if (track.present()) {
-				return track;
+			Fetch result = fetch(live);
+			if (result.track().present()) {
+				return result.track();
+			}
+			if (result.reached()) {
+				return NowPlaying.none();
 			}
 			live = null;
 			kind = null;
@@ -43,12 +56,17 @@ final class CompanionNowPlaying {
 		if (now < quietUntil) {
 			return NowPlaying.none();
 		}
-		for (String endpoint : ENDPOINTS) {
-			NowPlaying track = fetch(endpoint);
-			if (track.present()) {
+		for (String endpoint : endpoints()) {
+			Fetch result = fetch(endpoint);
+			if (result.track().present()) {
 				live = endpoint;
 				kind = kindOf(endpoint);
-				return track;
+				return result.track();
+			}
+			if (result.reached()) {
+				live = endpoint;
+				kind = kindOf(endpoint);
+				return NowPlaying.none();
 			}
 		}
 		quietUntil = now + 2500L;
@@ -81,19 +99,143 @@ final class CompanionNowPlaying {
 		}
 	}
 
-	private NowPlaying fetch(String endpoint) {
+	private Fetch fetch(String endpoint) {
 		try {
-			HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
-				.timeout(Duration.ofMillis(500))
-				.GET()
-				.build();
-			HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-			if (response.statusCode() < 200 || response.statusCode() >= 300) {
-				return NowPlaying.none();
+			HttpResponse<String> response = sendGet(endpoint, ytmSong(endpoint) ? 4_000L : 600L);
+			int code = response.statusCode();
+			if (code == 401 && ytmSong(endpoint)) {
+				awaitingAuth = true;
+				VoidmarkConfig config = VoidmarkConfig.get();
+				if (config.musicApiToken != null && !config.musicApiToken.isBlank()) {
+					config.musicApiToken = "";
+					config.save();
+				}
+				askAuth(originOf(endpoint));
+				return Fetch.idle();
 			}
-			return parse(response.body(), endpoint);
+			if (code == 204) {
+				awaitingAuth = false;
+				return Fetch.idle();
+			}
+			if (code < 200 || code >= 300) {
+				return Fetch.miss();
+			}
+			awaitingAuth = false;
+			NowPlaying track = parse(response.body(), endpoint);
+			if (!track.present()) {
+				return Fetch.idle();
+			}
+			return Fetch.ok(track);
 		} catch (Exception exception) {
-			return NowPlaying.none();
+			return Fetch.miss();
+		}
+	}
+
+	private HttpResponse<String> sendGet(String endpoint, long timeoutMs) throws Exception {
+		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(endpoint))
+			.timeout(Duration.ofMillis(timeoutMs))
+			.GET();
+		authorize(builder);
+		return CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+	}
+
+	private void authorize(HttpRequest.Builder builder) {
+		String token = VoidmarkConfig.get().musicApiToken;
+		if (token != null && !token.isBlank()) {
+			builder.header("Authorization", "Bearer " + token.trim());
+		}
+	}
+
+	private void askAuth(String origin) {
+		if (origin == null || origin.isBlank() || authInFlight) {
+			return;
+		}
+		long now = System.currentTimeMillis();
+		if (now - lastAuthAskMs < AUTH_COOLDOWN_MS && (VoidmarkConfig.get().musicApiToken == null || VoidmarkConfig.get().musicApiToken.isBlank())) {
+			return;
+		}
+		lastAuthAskMs = now;
+		authInFlight = true;
+		Thread thread = new Thread(() -> {
+			try {
+				HttpRequest request = HttpRequest.newBuilder(URI.create(origin + "/auth/" + AUTH_ID))
+					.timeout(Duration.ofSeconds(90))
+					.POST(HttpRequest.BodyPublishers.noBody())
+					.build();
+				HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+				if (response.statusCode() < 200 || response.statusCode() >= 300) {
+					return;
+				}
+				String token = accessToken(response.body());
+				if (token.isBlank()) {
+					return;
+				}
+				VoidmarkConfig config = VoidmarkConfig.get();
+				config.musicApiToken = token;
+				config.save();
+			} catch (Exception ignored) {
+			} finally {
+				authInFlight = false;
+			}
+		}, "voidmark-ytm-auth");
+		thread.setDaemon(true);
+		thread.start();
+	}
+
+	private static String accessToken(String body) {
+		if (body == null || body.isBlank()) {
+			return "";
+		}
+		try {
+			JsonElement root = JsonParser.parseString(body);
+			if (!root.isJsonObject()) {
+				return "";
+			}
+			JsonObject json = root.getAsJsonObject();
+			return firstNonBlank(text(json, "accessToken"), text(json, "token"), text(json, "access_token"));
+		} catch (Exception exception) {
+			return "";
+		}
+	}
+
+	private static List<String> endpoints() {
+		LinkedHashSet<String> out = new LinkedHashSet<>();
+		int custom = VoidmarkConfig.get().musicApiPort;
+		if (custom > 0 && custom <= 65535) {
+			addYtm(out, custom);
+		}
+		addYtm(out, 26538);
+		addYtm(out, 26558);
+		addYtm(out, 26559);
+		out.add("http://127.0.0.1:9863/query");
+		out.add("http://127.0.0.1:10767/api/v1/playback/now-playing");
+		out.add("http://127.0.0.1:31333/api/v1/song");
+		out.add("http://127.0.0.1:1870/api/v1/song");
+		return List.copyOf(out);
+	}
+
+	private static void addYtm(Set<String> out, int port) {
+		out.add("http://127.0.0.1:" + port + "/api/v1/song");
+	}
+
+	private static boolean ytmSong(String endpoint) {
+		return endpoint != null && endpoint.contains("/api/v1/song") && !endpoint.contains(":10767");
+	}
+
+	private static String originOf(String endpoint) {
+		try {
+			URI uri = URI.create(endpoint);
+			int port = uri.getPort();
+			String host = uri.getHost();
+			if (host == null || host.isBlank()) {
+				return "";
+			}
+			if (port > 0) {
+				return uri.getScheme() + "://" + host + ":" + port;
+			}
+			return uri.getScheme() + "://" + host;
+		} catch (Exception exception) {
+			return "";
 		}
 	}
 
@@ -111,6 +253,9 @@ final class CompanionNowPlaying {
 				return NowPlaying.none();
 			}
 			JsonObject root = rootEl.getAsJsonObject();
+			if (ytmSong(endpoint)) {
+				return parseYtmSong(root, endpoint);
+			}
 			JsonObject player = object(root, "player");
 			JsonObject track = object(root, "track");
 			JsonObject info = object(root, "info");
@@ -128,10 +273,10 @@ final class CompanionNowPlaying {
 				return NowPlaying.none();
 			}
 			String artist = firstNonBlank(
-				join(track, "author", "artist", "artists", "artistsName", "artistName"),
-				join(root, "author", "artist", "artists", "artistsName", "artistName"),
+				join(track, "artist", "artists", "artistsName", "artistName", "author"),
+				join(root, "artist", "artists", "artistsName", "artistName", "author"),
 				join(info, "artistName", "artist", "artists"),
-				join(video, "author", "artist", "artists")
+				join(video, "artist", "artists", "author")
 			);
 			boolean paused = paused(player, root);
 			String app = kindOf(endpoint).equals("ytmd") ? "YouTube Music Desktop" : "YouTube Music";
@@ -158,6 +303,38 @@ final class CompanionNowPlaying {
 		}
 	}
 
+	private static NowPlaying parseYtmSong(JsonObject root, String endpoint) {
+		String title = text(root, "title");
+		if (title.isBlank()) {
+			return NowPlaying.none();
+		}
+		String artist = firstNonBlank(text(root, "artist"), join(root, "artists", "author"));
+		String album = text(root, "album");
+		String videoId = firstNonBlank(text(root, "videoId"), videoIdFromUrl(text(root, "url")));
+		String imageSrc = preferJpeg(text(root, "imageSrc"));
+		boolean paused = bool(root, "isPaused", false);
+		long position = positionMs(new JsonObject(), root);
+		long duration = durationMs(new JsonObject(), new JsonObject(), root);
+		String art = firstNonBlank(
+			imageSrc,
+			preferJpeg(join(root, "thumbnailUrl", "thumbnail", "cover", "albumArt", "artworkUrl")),
+			artworkUrl(root),
+			thumbnailUrl(root),
+			ytimg(videoId)
+		);
+		return NowPlaying.sampled(
+			title,
+			artist,
+			album,
+			"YouTube Music",
+			kindOf(endpoint),
+			art,
+			!paused,
+			position,
+			duration
+		);
+	}
+
 	private static String kindOf(String endpoint) {
 		if (endpoint.contains(":9863")) {
 			return "ytmd";
@@ -168,27 +345,27 @@ final class CompanionNowPlaying {
 		return "ytm";
 	}
 
-	private static boolean getOk(URI uri) {
+	private boolean getOk(URI uri) {
 		try {
-			HttpRequest request = HttpRequest.newBuilder(uri)
-				.timeout(Duration.ofMillis(250))
-				.GET()
-				.build();
-			HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+			HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+				.timeout(Duration.ofMillis(800))
+				.GET();
+			authorize(builder);
+			HttpResponse<String> response = CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofString());
 			return response.statusCode() >= 200 && response.statusCode() < 300;
 		} catch (Exception exception) {
 			return false;
 		}
 	}
 
-	private static boolean post(String uri, String json) {
+	private boolean post(String uri, String json) {
 		try {
-			HttpRequest request = HttpRequest.newBuilder(URI.create(uri))
-				.timeout(Duration.ofMillis(250))
+			HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(uri))
+				.timeout(Duration.ofMillis(800))
 				.header("Content-Type", "application/json")
-				.POST(HttpRequest.BodyPublishers.ofString(json))
-				.build();
-			HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+				.POST(HttpRequest.BodyPublishers.ofString(json));
+			authorize(builder);
+			HttpResponse<String> response = CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofString());
 			return response.statusCode() >= 200 && response.statusCode() < 300;
 		} catch (Exception exception) {
 			return false;
@@ -361,13 +538,6 @@ final class CompanionNowPlaying {
 		return value > 0d ? Math.round(value) : 0L;
 	}
 
-	private static String artists(JsonObject json) {
-		if (json == null) {
-			return "";
-		}
-		return join(json, "artists", "author");
-	}
-
 	private static String join(JsonObject json, String... keys) {
 		if (json == null) {
 			return "";
@@ -496,19 +666,30 @@ final class CompanionNowPlaying {
 
 	private static String cover(JsonObject track, JsonObject root, JsonObject info, JsonObject video, String videoId) {
 		return firstNonBlank(
-			ytimg(videoId),
-			join(track, "imageSrc", "thumbnailUrl", "thumbnail", "cover", "albumArt", "image", "albumCover", "coverUrl", "artworkUrl"),
-			join(root, "imageSrc", "thumbnailUrl", "thumbnail", "cover", "albumArt", "image", "albumCover", "coverUrl", "artworkUrl"),
-			join(info, "artworkUrl", "cover", "imageSrc", "thumbnailUrl"),
-			join(video, "imageSrc", "thumbnailUrl", "cover"),
-			artworkUrl(track),
-			artworkUrl(root),
-			artworkUrl(info),
-			thumbnailUrl(track),
-			thumbnailUrl(root),
-			thumbnailUrl(video),
+			preferJpeg(join(track, "imageSrc", "thumbnailUrl", "thumbnail", "cover", "albumArt", "image", "albumCover", "coverUrl", "artworkUrl")),
+			preferJpeg(join(root, "imageSrc", "thumbnailUrl", "thumbnail", "cover", "albumArt", "image", "albumCover", "coverUrl", "artworkUrl")),
+			preferJpeg(join(info, "artworkUrl", "cover", "imageSrc", "thumbnailUrl")),
+			preferJpeg(join(video, "imageSrc", "thumbnailUrl", "cover")),
+			preferJpeg(artworkUrl(track)),
+			preferJpeg(artworkUrl(root)),
+			preferJpeg(artworkUrl(info)),
+			preferJpeg(thumbnailUrl(track)),
+			preferJpeg(thumbnailUrl(root)),
+			preferJpeg(thumbnailUrl(video)),
 			ytimg(videoId)
 		);
+	}
+
+	private static String preferJpeg(String url) {
+		if (url == null || url.isBlank()) {
+			return "";
+		}
+		String value = url.trim();
+		if (value.contains("googleusercontent") || value.contains("ggpht")) {
+			value = value.replace("-rw", "-rj").replace(".webp", ".jpg");
+			value = value.replaceAll("=w\\d+-h\\d+", "=w300-h300");
+		}
+		return value;
 	}
 
 	private static String thumbnailUrl(JsonObject json) {
@@ -592,5 +773,19 @@ final class CompanionNowPlaying {
 		} catch (Exception ignored) {
 		}
 		return "";
+	}
+
+	private record Fetch(NowPlaying track, boolean reached) {
+		static Fetch miss() {
+			return new Fetch(NowPlaying.none(), false);
+		}
+
+		static Fetch idle() {
+			return new Fetch(NowPlaying.none(), true);
+		}
+
+		static Fetch ok(NowPlaying track) {
+			return new Fetch(track, true);
+		}
 	}
 }

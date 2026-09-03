@@ -43,9 +43,11 @@ final class TrackLookup {
 		if (track == null || !track.present()) {
 			return track == null ? NowPlaying.none() : track;
 		}
-		boolean needArtist = NowPlaying.placeholder(track.artist()) || NowPlaying.sameName(track.artist(), track.album());
+		boolean companion = NowPlaying.companionSource(track.source());
+		boolean needArtist = NowPlaying.placeholder(track.artist())
+			|| (!companion && NowPlaying.sameName(track.artist(), track.album()));
 		boolean needCover = !track.hasCover();
-		boolean needDuration = track.durationMs() <= 0L;
+		boolean needDuration = !companion && track.durationMs() <= 0L;
 		if (!needArtist && !needCover && !needDuration) {
 			return track;
 		}

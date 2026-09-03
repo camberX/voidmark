@@ -89,6 +89,11 @@ public final class MediaSession {
 			hint = out.sourceLabel();
 			return out;
 		}
+		if (COMPANION.awaitingAuth()) {
+			route = "ytm";
+			hint = COMPANION.statusHint();
+			return NowPlaying.none();
+		}
 		NowPlaying titled = TITLES.snapshot();
 		if (titled.present()) {
 			NowPlaying out = TrackLookup.enrich(titled.cleaned());

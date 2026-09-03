@@ -58,6 +58,8 @@ public final class VoidmarkConfig {
 	public boolean watermarkName = false;
 	public boolean musicHudEnabled = true;
 	public boolean musicHideIdle = false;
+	public int musicApiPort = 0;
+	public String musicApiToken = "";
 	public boolean rawmatsHudEnabled = true;
 	public boolean miningHudEnabled = true;
 	public boolean miningAbilityAlert = true;
@@ -274,6 +276,12 @@ public final class VoidmarkConfig {
 				if (loaded.rawmatsItemId == null) {
 					loaded.rawmatsItemId = "";
 				}
+				if (loaded.musicApiToken == null) {
+					loaded.musicApiToken = "";
+				}
+				loaded.musicApiPort = loaded.musicApiPort < 0 || loaded.musicApiPort > 65535
+					? 0
+					: loaded.musicApiPort;
 				loaded.menuTab = normalizeMenuTab(loaded.menuTab);
 				loaded.inventoryHudAnchor = normalizeInventoryHudAnchor(loaded.inventoryHudAnchor);
 				loaded.inventoryHudScale = clampHudScale(loaded.inventoryHudScale);

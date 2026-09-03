@@ -30,9 +30,26 @@ public record NowPlaying(
 	}
 
 	public NowPlaying cleaned() {
+		String cleanedAlbum = placeholder(album) ? "" : nullToEmpty(album);
+		if (companionSource(source) && !placeholder(title)) {
+			String cleanedArtist = placeholder(artist) ? Split.of(title).artist : artist.trim();
+			String cleanedTitle = placeholder(artist) ? Split.of(title).title : title.trim();
+			return new NowPlaying(
+				cleanedTitle,
+				cleanedArtist,
+				cleanedAlbum,
+				nullToEmpty(app),
+				nullToEmpty(source),
+				nullToEmpty(cover),
+				playing,
+				positionMs,
+				durationMs,
+				sampledAtNanos,
+				sourcePositionMs
+			);
+		}
 		Split split = Split.of(title);
 		String cleanedTitle = split.title;
-		String cleanedAlbum = placeholder(album) ? "" : nullToEmpty(album);
 		String cleanedArtist = preferArtist(cleanedAlbum, artist, split.artist);
 		if (sameName(cleanedArtist, cleanedAlbum)) {
 			cleanedArtist = "";
@@ -242,9 +259,6 @@ public record NowPlaying(
 
 	public String artistLine() {
 		if (placeholder(artist)) {
-			return "";
-		}
-		if (!placeholder(album) && sameName(artist, album)) {
 			return "";
 		}
 		return artist.trim();
