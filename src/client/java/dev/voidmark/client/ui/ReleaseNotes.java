@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.135", new String[]{
+			"Copied Skyblock lore is no longer forced italic. Hypixel tooltip lines stay upright."
+		}),
 		new Entry("1.1.134", new String[]{
 			"/vm edit: type a Skyblock item name (Hyperion) to reskin and copy that item's Hypixel name and lore, color codes included."
 		}),

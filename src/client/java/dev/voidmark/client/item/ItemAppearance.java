@@ -50,6 +50,7 @@ public final class ItemAppearance {
 		if (skin == null || !skin.textOverride || skin.display.isEmpty()) {
 			return stack;
 		}
+		ItemText.untiltOn(skin.display);
 		return skin.display;
 	}
 

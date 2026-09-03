@@ -77,7 +77,7 @@ public final class ItemText {
 				lines.add(line == null || line.isEmpty() ? Component.empty() : styled(line, false));
 			}
 		}
-		ItemLore lore = lines.isEmpty() ? ItemLore.EMPTY : new ItemLore(lines);
+		ItemLore lore = lines.isEmpty() ? ItemLore.EMPTY : hypixelLore(lines);
 		if (name == null && lore.lines().isEmpty()) {
 			return empty();
 		}
@@ -97,15 +97,48 @@ public final class ItemText {
 		}
 	}
 
+	public static void untiltOn(ItemStack stack) {
+		if (stack == null || stack.isEmpty()) {
+			return;
+		}
+		boolean prior = ItemAppearance.suppress();
+		try {
+			ItemLore lore = stack.get(DataComponents.LORE);
+			if (lore == null || lore.lines().isEmpty() || !italic(lore)) {
+				return;
+			}
+			stack.set(DataComponents.LORE, untiltLore(lore));
+		} finally {
+			ItemAppearance.resume(prior);
+		}
+	}
+
 	public static Component styled(String raw, boolean itemName) {
 		if (raw == null || raw.isEmpty()) {
 			return Component.empty();
 		}
-		Component parsed = NickHider.parseLegacy(raw.replace('§', '&'));
-		if (itemName && parsed instanceof MutableComponent mutable) {
-			return mutable.withStyle(style -> style.withItalic(false));
+		return untilt(NickHider.parseLegacy(raw.replace('§', '&')));
+	}
+
+	/** Vanilla ItemLore italicizes tooltip lines. Hypixel lore is upright. */
+	private static ItemLore hypixelLore(List<Component> lines) {
+		List<Component> upright = new ArrayList<>(lines.size());
+		for (Component line : lines) {
+			upright.add(untilt(line));
 		}
-		return parsed;
+		List<Component> frozen = List.copyOf(upright);
+		return new ItemLore(frozen, frozen);
+	}
+
+	private static Component untilt(Component component) {
+		if (component == null) {
+			return Component.empty();
+		}
+		MutableComponent out = component.plainCopy().setStyle(component.getStyle().withItalic(false));
+		for (Component sibling : component.getSiblings()) {
+			out.append(untilt(sibling));
+		}
+		return out;
 	}
 
 	public boolean present() {
@@ -149,7 +182,7 @@ public final class ItemText {
 		if (itemName != null) {
 			stack.set(DataComponents.ITEM_NAME, itemName);
 		}
-		stack.set(DataComponents.LORE, lore == null ? ItemLore.EMPTY : lore);
+		stack.set(DataComponents.LORE, lore == null || lore.lines().isEmpty() ? ItemLore.EMPTY : untiltLore(lore));
 	}
 
 	public String nameJson() {
@@ -187,6 +220,37 @@ public final class ItemText {
 		}
 	}
 
+	private static boolean italic(ItemLore lore) {
+		for (Component line : lore.styledLines()) {
+			if (italic(line)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean italic(Component component) {
+		if (component == null) {
+			return false;
+		}
+		if (Boolean.TRUE.equals(component.getStyle().isItalic())) {
+			return true;
+		}
+		for (Component sibling : component.getSiblings()) {
+			if (italic(sibling)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static ItemLore untiltLore(ItemLore lore) {
+		if (lore == null || lore.lines().isEmpty()) {
+			return lore == null ? ItemLore.EMPTY : lore;
+		}
+		return hypixelLore(lore.lines());
+	}
+
 	private static String encodeLore(ItemLore lore) {
 		if (lore == null || lore.lines().isEmpty()) {
 			return "";
@@ -204,7 +268,7 @@ public final class ItemText {
 		}
 		try {
 			JsonElement element = JsonParser.parseString(json);
-			return ItemLore.CODEC.parse(JsonOps.INSTANCE, element).result().orElse(ItemLore.EMPTY);
+			return ItemLore.CODEC.parse(JsonOps.INSTANCE, element).result().map(ItemText::untiltLore).orElse(ItemLore.EMPTY);
 		} catch (RuntimeException ignored) {
 			return ItemLore.EMPTY;
 		}
