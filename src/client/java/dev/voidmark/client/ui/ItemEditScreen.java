@@ -3,9 +3,7 @@ package dev.voidmark.client.ui;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.voidmark.client.item.ItemAppearance;
 import dev.voidmark.client.item.ItemIds;
-import dev.voidmark.client.item.ItemText;
 import dev.voidmark.client.item.SkyblockItems;
-import dev.voidmark.client.item.SkyblockLore;
 import dev.voidmark.client.render.GuiDraw;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -16,7 +14,6 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -24,10 +21,9 @@ import java.util.List;
 
 public class ItemEditScreen extends Screen {
 	private static final float MENU_W = 268;
-	private static final float MENU_H = 228;
+	private static final float MENU_H = 200;
 	private static final float SLOT = 52;
 	private static final float FIELD_H = 18;
-	private static final float TOGGLE_H = 18;
 	private static final int SUGGESTIONS = 6;
 
 	private final ItemStack original;
@@ -51,7 +47,6 @@ public class ItemEditScreen extends Screen {
 	private List<String> suggestions = List.of();
 	private long blinkAt = System.currentTimeMillis();
 	private String status = "";
-	private boolean maxed;
 
 	public ItemEditScreen() {
 		super(Component.literal("Item"));
@@ -62,7 +57,6 @@ public class ItemEditScreen extends Screen {
 		String shown = ItemAppearance.displayId(held);
 		this.query = shown == null || shown.isBlank() ? originalId : shown;
 		this.cursor = query.length();
-		this.maxed = ItemAppearance.maxed(held);
 	}
 
 	@Override
@@ -188,9 +182,6 @@ public class ItemEditScreen extends Screen {
 
 		float statusY = windowY + windowH - 16;
 		float listY = fieldY + FIELD_H + 6;
-		if (preview.kind() == ItemIds.Kind.SKYBLOCK) {
-			listY = drawMaxedToggle(graphics, font, mouseX, mouseY, listY);
-		}
 		float listBottom = statusY - 4;
 		for (int i = 0; i < suggestions.size(); i++) {
 			if (listY + 14 > listBottom) {
@@ -212,36 +203,8 @@ public class ItemEditScreen extends Screen {
 			GuiDraw.small(graphics, font, "Type Hyperion, sb:HYPERION, or minecraft:stone", fieldX, listY, Theme.OFF);
 		}
 
-		String line = status.isBlank() ? loreHint() : status;
+		String line = status.isBlank() ? "Looks like this on your client only" : status;
 		GuiDraw.small(graphics, font, clip(font, line, (int) fieldW - 4), fieldX, statusY, Theme.MUTED);
-	}
-
-	private float drawMaxedToggle(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY, float y) {
-		boolean hover = GuiDraw.hovered(mouseX, mouseY, fieldX, y, fieldW, TOGGLE_H);
-		if (hover) {
-			GuiDraw.rounded(graphics, fieldX, y, fieldW, TOGGLE_H, 5, 0x14FFFFFF);
-		}
-		GuiDraw.menu(graphics, font, "Maxed", fieldX + 2, GuiDraw.middle(y, TOGGLE_H), Theme.TEXT);
-		float trackW = 22;
-		float trackH = 11;
-		float tx = fieldX + fieldW - trackW - 2;
-		float ty = y + (TOGGLE_H - trackH) / 2f;
-		GuiDraw.pill(graphics, tx, ty, trackW, trackH, maxed ? Theme.ACCENT : Theme.TRACK);
-		float knob = tx + (maxed ? trackW - 6 : 6);
-		GuiDraw.circle(graphics, knob, ty + trackH / 2f, 4.6f, maxed ? Theme.TEXT : Theme.OFF);
-		hits.add(new Hit(fieldX, y, fieldW, TOGGLE_H, mx -> toggleMaxed()));
-		return y + TOGGLE_H + 4;
-	}
-
-	private void toggleMaxed() {
-		maxed = !maxed;
-		focused = false;
-		Minecraft client = Minecraft.getInstance();
-		if (client.player != null) {
-			ItemAppearance.setMaxed(ItemIds.held(client.player), maxed);
-		}
-		status = "";
-		refresh();
 	}
 
 	private static String suggestionLabel(String id) {
@@ -252,27 +215,6 @@ public class ItemEditScreen extends Screen {
 			}
 		}
 		return id;
-	}
-
-	private String loreHint() {
-		if (preview.kind() == ItemIds.Kind.SKYBLOCK) {
-			if (SkyblockLore.loading(preview.canonical())) {
-				return "Loading " + preview.title() + " lore…";
-			}
-			ItemText fetched = SkyblockLore.get(preview.canonical(), maxed);
-			if (fetched != null && fetched.present()) {
-				return maxed
-					? "Maxed " + preview.title() + " — recomb, stars, gems, enchants"
-					: "Using " + preview.title() + " name and lore";
-			}
-			if (ItemText.hasLore(previewStack()) && !maxed) {
-				return "Using " + preview.title() + " name and lore";
-			}
-			if (SkyblockLore.failed(preview.canonical())) {
-				return "No lore for " + preview.title();
-			}
-		}
-		return "Type a Skyblock item name to copy its lore";
 	}
 
 	private ItemStack previewStack() {
@@ -325,49 +267,13 @@ public class ItemEditScreen extends Screen {
 		}
 		boolean sameItem = preview.canonical().equalsIgnoreCase(originalId)
 			|| query.trim().equalsIgnoreCase(originalId);
-		if (sameItem && (!maxed || preview.kind() != ItemIds.Kind.SKYBLOCK)) {
+		if (sameItem) {
 			ItemAppearance.revertModel(client.player, live);
 			return;
 		}
 		if (preview.kind() == ItemIds.Kind.VANILLA || preview.kind() == ItemIds.Kind.SKYBLOCK) {
-			if (!sameItem) {
-				ItemAppearance.set(client.player, live, preview.stack(), preview.canonical());
-			} else {
-				ItemAppearance.revertModel(client.player, live);
-			}
-			if (preview.kind() == ItemIds.Kind.SKYBLOCK) {
-				applySkyblockLore(client.player, live);
-			}
-		}
-	}
-
-	private void applySkyblockLore(Player player, ItemStack live) {
-		String sourceId = preview.canonical() + (maxed ? "#max" : "#base");
-		SkyblockLore.request(preview.canonical());
-		ItemText fetched = SkyblockLore.get(preview.canonical(), maxed);
-		if (fetched != null && fetched.present()) {
-			ItemAppearance.applyText(player, live, fetched, sourceId);
-			status = maxed
-				? "Maxed " + preview.title()
-				: "Using " + preview.title() + " name and lore";
-			return;
-		}
-		if (SkyblockLore.loading(preview.canonical())) {
-			status = "Loading " + preview.title() + " lore…";
-			return;
-		}
-		if (!maxed) {
-			ItemStack source = preview.stack();
-			if (ItemText.hasLore(source)) {
-				ItemAppearance.applyText(player, live, ItemText.capture(source), sourceId);
-				status = "Using " + preview.title() + " name and lore";
-				return;
-			}
-		}
-		if (SkyblockLore.failed(preview.canonical())) {
-			status = maxed
-				? "No lore to max for " + preview.title()
-				: "No lore for " + preview.title();
+			ItemAppearance.set(client.player, live, preview.stack(), preview.canonical());
+			status = "Showing " + preview.title();
 		}
 	}
 

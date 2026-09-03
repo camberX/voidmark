@@ -20,7 +20,6 @@
 		"FogRendererMixin",
 		"FontMixin",
 		"GuiGraphicsExtractorMixin",
-		"HumanoidMobRendererMixin",
 		"ItemModelResolverMixin",
 		"ItemStackMixin",
 		"LightmapRenderStateExtractorMixin",

@@ -2,13 +2,11 @@ package dev.voidmark.client.item;
 
 import dev.voidmark.client.config.VoidmarkConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.equipment.Equippable;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -46,66 +44,12 @@ public final class ItemAppearance {
 	}
 
 	public static ItemStack named(ItemStack stack) {
-		if (stack == null || stack.isEmpty() || SKINS.isEmpty() || Boolean.TRUE.equals(APPLYING.get())) {
-			return stack;
-		}
-		Skin skin = find(stack);
-		if (skin == null || !skin.textOverride || skin.display.isEmpty()) {
-			return stack;
-		}
-		return skin.display;
+		return stack;
 	}
 
 	public static String displayId(ItemStack stack) {
 		Skin skin = find(stack);
 		return skin == null ? null : skin.displayId;
-	}
-
-	public static boolean maxed(ItemStack stack) {
-		Skin skin = find(stack);
-		return skin != null && skin.maxed;
-	}
-
-	public static void setMaxed(ItemStack stack, boolean maxed) {
-		Skin skin = find(stack);
-		if (skin == null || skin.maxed == maxed) {
-			return;
-		}
-		skin.maxed = maxed;
-		persist();
-	}
-
-	/**
-	 * Stack to draw as worn armor or a skull. Uses {@link #visual}, then retargets
-	 * {@code EQUIPPABLE} to {@code slot} when the copied item has an armor asset
-	 * on the wrong slot (catalog pieces often sit on paper).
-	 */
-	public static ItemStack worn(ItemStack stack, EquipmentSlot slot) {
-		ItemStack visual = visual(stack);
-		if (visual == null || visual.isEmpty() || slot == null || slot.getType() != EquipmentSlot.Type.HUMANOID_ARMOR) {
-			return visual;
-		}
-		if (slot == EquipmentSlot.HEAD && visual.get(DataComponents.PROFILE) != null) {
-			return visual;
-		}
-		Equippable eq = visual.get(DataComponents.EQUIPPABLE);
-		if (eq == null || eq.assetId().isEmpty() || eq.slot() == slot) {
-			return visual;
-		}
-		Equippable.Builder builder = Equippable.builder(slot)
-			.setEquipSound(eq.equipSound())
-			.setDispensable(eq.dispensable())
-			.setSwappable(eq.swappable())
-			.setDamageOnHurt(eq.damageOnHurt())
-			.setEquipOnInteract(eq.equipOnInteract())
-			.setCanBeSheared(eq.canBeSheared())
-			.setShearingSound(eq.shearingSound());
-		eq.assetId().ifPresent(builder::setAsset);
-		eq.cameraOverlay().ifPresent(builder::setCameraOverlay);
-		eq.allowedEntities().ifPresent(builder::setAllowedEntities);
-		ItemStack copy = visual.copy();
-		copy.set(DataComponents.EQUIPPABLE, builder.build());
-		return copy;
 	}
 
 	public static void set(Player player, ItemStack real, ItemStack display, String displayId) {
@@ -129,62 +73,12 @@ public final class ItemAppearance {
 			existing = new Skin();
 			SKINS.add(existing);
 		}
-		ItemText overlay = existing.textOverride ? ItemText.capture(existing.display) : ItemText.empty();
 		existing.key = key;
 		existing.originalId = ItemIds.idOf(real);
 		existing.displayId = canonical;
 		existing.slot = slot;
 		existing.offhand = offhand;
 		existing.display = display.copy();
-		existing.loreSource = "";
-		if (overlay.present() && !canonical.toLowerCase(java.util.Locale.ROOT).startsWith("sb:")) {
-			overlay.apply(existing.display);
-			existing.textOverride = true;
-		} else {
-			existing.textOverride = false;
-		}
-		persist();
-		playSwap(player, offhand);
-	}
-
-	public static void applyText(Player player, ItemStack real, ItemText text) {
-		applyText(player, real, text, "");
-	}
-
-	public static void applyText(Player player, ItemStack real, ItemText text, String sourceId) {
-		if (player == null || real == null || real.isEmpty() || text == null || !text.present()) {
-			return;
-		}
-		boolean offhand = isOffhand(player, real);
-		int slot = offhand ? Inventory.SLOT_OFFHAND : player.getInventory().getSelectedSlot();
-		String key = keyOf(real, offhand, slot);
-		Skin existing = byKey(key);
-		if (existing == null) {
-			existing = find(real);
-		}
-		String source = sourceId == null ? "" : sourceId;
-		if (existing != null && existing.textOverride && !source.isEmpty() && source.equals(existing.loreSource)) {
-			return;
-		}
-		if (existing == null) {
-			existing = new Skin();
-			existing.key = key;
-			existing.originalId = ItemIds.idOf(real);
-			existing.displayId = ItemIds.idOf(real);
-			existing.slot = slot;
-			existing.offhand = offhand;
-			existing.display = real.copy();
-			SKINS.add(existing);
-		} else if (existing.display == null || existing.display.isEmpty()) {
-			existing.display = real.copy();
-		}
-		existing.slot = slot;
-		existing.offhand = offhand;
-		existing.key = key;
-		text.apply(existing.display);
-		existing.textOverride = true;
-		existing.loreSource = source;
-		existing.maxed = source.endsWith("#max");
 		persist();
 		playSwap(player, offhand);
 	}
@@ -209,49 +103,12 @@ public final class ItemAppearance {
 	}
 
 	public static void revertModel(Player player, ItemStack real) {
-		if (real == null || real.isEmpty()) {
-			return;
-		}
-		Skin skin = find(real);
-		if (skin == null) {
-			return;
-		}
-		if (!skin.textOverride) {
-			clear(player, real);
-			return;
-		}
-		String original = ItemIds.idOf(real);
-		if (original.equalsIgnoreCase(skin.displayId)) {
-			return;
-		}
-		ItemText overlay = ItemText.capture(skin.display);
-		skin.display = real.copy();
-		overlay.apply(skin.display);
-		skin.displayId = original;
-		skin.originalId = original;
-		persist();
-		if (player != null) {
-			playSwap(player, isOffhand(player, real));
-		}
+		clear(player, real);
 	}
 
 	public static void reload() {
 		SKINS.clear();
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (config.itemClipboardName == null) {
-			config.itemClipboardName = "";
-		}
-		if (config.itemClipboardItemName == null) {
-			config.itemClipboardItemName = "";
-		}
-		if (config.itemClipboardLore == null) {
-			config.itemClipboardLore = "";
-		}
-		ItemText.setClipboard(ItemText.fromJson(
-			config.itemClipboardName,
-			config.itemClipboardItemName,
-			config.itemClipboardLore
-		));
 		if (config.itemSkins == null) {
 			config.itemSkins = new ArrayList<>();
 			return;
@@ -282,27 +139,8 @@ public final class ItemAppearance {
 			skin.slot = entry.slot;
 			skin.offhand = entry.offhand;
 			skin.display = display;
-			ItemText overlay = ItemText.fromJson(
-				entry.nameJson == null ? "" : entry.nameJson,
-				entry.itemNameJson == null ? "" : entry.itemNameJson,
-				entry.loreJson == null ? "" : entry.loreJson
-			);
-			if (overlay.present()) {
-				overlay.apply(skin.display);
-				skin.textOverride = true;
-			}
-			skin.maxed = entry.maxed;
 			SKINS.add(skin);
 		}
-	}
-
-	public static void persistClipboard() {
-		VoidmarkConfig config = VoidmarkConfig.get();
-		ItemText text = ItemText.clipboard();
-		config.itemClipboardName = text.nameJson();
-		config.itemClipboardItemName = text.itemNameJson();
-		config.itemClipboardLore = text.loreJson();
-		config.save();
 	}
 
 	/**
@@ -430,13 +268,6 @@ public final class ItemAppearance {
 			entry.originalId = skin.originalId;
 			entry.slot = skin.slot;
 			entry.offhand = skin.offhand;
-			entry.maxed = skin.maxed;
-			if (skin.textOverride && !skin.display.isEmpty()) {
-				ItemText overlay = ItemText.capture(skin.display);
-				entry.nameJson = overlay.nameJson();
-				entry.itemNameJson = overlay.itemNameJson();
-				entry.loreJson = overlay.loreJson();
-			}
 			out.add(entry);
 		}
 		config.itemSkins = out;
@@ -460,9 +291,6 @@ public final class ItemAppearance {
 		String displayId = "";
 		int slot;
 		boolean offhand;
-		boolean textOverride;
-		boolean maxed;
-		String loreSource = "";
 		ItemStack display = ItemStack.EMPTY;
 	}
 }

@@ -19,6 +19,10 @@ public class LivingEntityRendererMixin {
 		)
 	)
 	private ItemStack voidmark$visualEquip(LivingEntity entity, EquipmentSlot slot) {
-		return ItemAppearance.worn(entity.getItemBySlot(slot), slot);
+		ItemStack stack = entity.getItemBySlot(slot);
+		if (slot.getType() == EquipmentSlot.Type.HUMANOID_ARMOR) {
+			return stack;
+		}
+		return ItemAppearance.visual(stack);
 	}
 }

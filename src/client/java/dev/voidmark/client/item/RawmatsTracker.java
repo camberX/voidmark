@@ -172,28 +172,37 @@ public final class RawmatsTracker {
 			if (direct) {
 				continue;
 			}
-			boolean used = false;
-			if (SkyblockRecipes.has(id)) {
-				for (Map.Entry<String, Long> leaf : SkyblockRecipes.expand(id, count, expand).entrySet()) {
-					if (need.containsKey(leaf.getKey()) && !leaf.getKey().equals(id)) {
-						have.merge(leaf.getKey(), leaf.getValue(), Long::sum);
-						used = true;
-					}
-				}
-			}
-			if (used) {
+			Map<String, Long> leaves = SkyblockRecipes.has(id)
+				? SkyblockRecipes.expand(id, count, expand)
+				: Map.of(id, count);
+			if (leaves.size() != 1) {
 				continue;
 			}
-			if (expand == SkyblockRecipes.Expand.ENCHANTED) {
-				for (Map.Entry<String, Long> leaf : SkyblockRecipes.expand(id, count, SkyblockRecipes.Expand.RAW).entrySet()) {
-					leftover.merge(leaf.getKey(), leaf.getValue(), Long::sum);
-				}
+			Map.Entry<String, Long> leaf = leaves.entrySet().iterator().next();
+			if (need.containsKey(leaf.getKey())) {
+				have.merge(leaf.getKey(), leaf.getValue(), Long::sum);
+			} else if (expand == SkyblockRecipes.Expand.ENCHANTED && ingredientOfNeed(leaf.getKey(), need)) {
+				leftover.merge(leaf.getKey(), leaf.getValue(), Long::sum);
 			}
 		}
 		if (expand == SkyblockRecipes.Expand.ENCHANTED) {
 			craftUp(need, leftover, have);
 		}
 		return have;
+	}
+
+	/** True when {@code id} is a raw ingredient of a needed compact, e.g. cobble → enchanted cobble. */
+	private static boolean ingredientOfNeed(String id, Map<String, Long> need) {
+		for (String leaf : need.keySet()) {
+			SkyblockRecipes.Recipe recipe = SkyblockRecipes.get(leaf);
+			if (recipe == null) {
+				continue;
+			}
+			if (recipe.ingredients().size() == 1 && recipe.ingredients().containsKey(id)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static void craftUp(Map<String, Long> need, Map<String, Long> leftover, Map<String, Long> have) {

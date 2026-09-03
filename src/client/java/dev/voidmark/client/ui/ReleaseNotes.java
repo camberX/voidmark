@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.145", new String[]{
+			"/vm edit is a visual reskin again — no lore, no Maxed, no worn armor models. Raw mats only counts the materials you actually have, not cobble locked inside minions and other crafts."
+		}),
 		new Entry("1.1.144", new String[]{
 			"Raw mats no longer double-counts items you pull out of a backpack or Ender Chest after the API snapshot. Storage moves while the bag is open are tracked; armor is counted once."
 		}),
