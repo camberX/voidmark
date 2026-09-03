@@ -5,6 +5,7 @@ import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.render.MobGlowRenderer;
 import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.visual.NickHider;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -18,6 +19,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(EntityRenderer.class)
 public class EntityRendererMixin {
+	/**
+	 * Bypass frustum culling for entities that should glow through walls,
+	 * so the outline renders even when the entity is behind geometry.
+	 */
+	@Inject(method = "affectedByCulling", at = @At("HEAD"), cancellable = true)
+	private void voidmark$disableCulling(Entity entity, CallbackInfoReturnable<Boolean> cir) {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		if (config.mobGlowEnabled && config.mobGlowThroughWalls && MobGlowRenderer.listed(entity.getType())) {
+			Minecraft client = Minecraft.getInstance();
+			if (client.player != null && entity != client.player) {
+				cir.setReturnValue(false);
+			}
+		}
+	}
+
 	@Inject(
 		method = "extractRenderState(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/client/renderer/entity/state/EntityRenderState;F)V",
 		at = @At("RETURN")

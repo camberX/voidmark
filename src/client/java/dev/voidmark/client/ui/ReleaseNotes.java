@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.142", new String[]{
+			"Glow ESP renders through walls at full range — entities behind geometry are no longer culled. Music HUD is more compact; hover controls (prev/play/next) are visible again."
+		}),
 		new Entry("1.1.141", new String[]{
 			"Chams and the ESP 3D preview are gone. Vanilla nametag style still uses Voidmark range, size, opacity, through-walls, distance text, and distance scaling — only the chrome is Minecraft's."
 		}),

@@ -19,11 +19,11 @@ import net.minecraft.client.input.MouseButtonEvent;
 
 public final class MusicHudRenderer {
 	public static final float WIDTH = 248;
-	public static final float HEIGHT = 54;
+	public static final float HEIGHT = 46;
 	public static final float HEIGHT_IDLE = 36;
-	private static final float CONTROL_H = 16;
-	private static final float COVER = 42;
-	private static final float COVER_PAD = 6;
+	private static final float CONTROL_H = 18;
+	private static final float COVER = 36;
+	private static final float COVER_PAD = 5;
 
 	private static final String ICON = "\uE405";
 	private static final String PREV = "\uE045";
@@ -165,8 +165,8 @@ public final class MusicHudRenderer {
 		float textX = COVER_PAD + cover + 6;
 
 		if (!live) {
-			GuiDraw.menu(graphics, font, HudLayout.editorOpen() ? "Music" : "Nothing playing", textX, 8, Theme.TEXT);
-			GuiDraw.small(graphics, font, ellipsize(font, MediaSession.hint(), WIDTH - textX - 12, true), textX, 20, Theme.MUTED);
+			GuiDraw.menu(graphics, font, HudLayout.editorOpen() ? "Music" : "Nothing playing", textX, 7, Theme.TEXT);
+			GuiDraw.small(graphics, font, ellipsize(font, MediaSession.hint(), WIDTH - textX - 12, true), textX, 18, Theme.MUTED);
 			clearHits();
 			graphics.pose().popMatrix();
 			return;
@@ -177,9 +177,9 @@ public final class MusicHudRenderer {
 		float titleMax = WIDTH - textX - sourceW - 16;
 		String title = ellipsize(font, track.title(), titleMax, false);
 		String artist = ellipsize(font, track.artistLine(), WIDTH - textX - 12, true);
-		GuiDraw.menu(graphics, font, title, textX, 6, Theme.TEXT);
-		GuiDraw.small(graphics, font, artist, textX, 16, Theme.MUTED);
-		GuiDraw.small(graphics, font, source, WIDTH - 8 - sourceW, 6, Theme.ACCENT);
+		GuiDraw.menu(graphics, font, title, textX, 5, Theme.TEXT);
+		GuiDraw.small(graphics, font, artist, textX, 15, Theme.MUTED);
+		GuiDraw.small(graphics, font, source, WIDTH - 8 - sourceW, 5, Theme.ACCENT);
 
 		String clock = track.clockLine();
 		float clockW = GuiDraw.smallWidth(font, clock);
@@ -188,7 +188,7 @@ public final class MusicHudRenderer {
 		}
 		float barX = textX;
 		float barW = Math.max(24f, WIDTH - textX - clockW - 14);
-		float barY = 30;
+		float barY = 28;
 		GuiDraw.rounded(graphics, barX, barY, barW, 3, 1.5f, Theme.HUD_TRACK);
 		float filled = Math.max(live ? 2f : 0f, barW * track.progress());
 		GuiDraw.rounded(graphics, barX, barY, filled, 3, 1.5f, Theme.ACCENT);
@@ -204,30 +204,20 @@ public final class MusicHudRenderer {
 			return;
 		}
 
-		float cy = HEIGHT + 3;
-		float playX = (WIDTH - 14) * 0.5f;
-		float prevX = playX - 28;
-		float nextX = playX + 28;
+		float cy = HEIGHT + (CONTROL_H - 10) * 0.5f;
+		float playX = (WIDTH - 10) * 0.5f;
+		float prevX = playX - 26;
+		float nextX = playX + 26;
 		int control = Anim.fade(Theme.TEXT, reveal);
 		int active = Anim.fade(Theme.ACCENT, reveal);
-		boolean clip = GuiDraw.scissor(
-			graphics,
-			x,
-			y + HEIGHT * scale,
-			WIDTH * scale,
-			CONTROL_H * reveal * scale
-		);
 		GuiDraw.icon(graphics, font, PREV, prevX, cy, control);
 		GuiDraw.icon(graphics, font, track.playing() ? PAUSE : PLAY, playX, cy, active);
 		GuiDraw.icon(graphics, font, NEXT, nextX, cy, control);
-		if (clip) {
-			GuiDraw.disableScissor(graphics);
-		}
 
 		if (reveal >= 0.85f && (chat || editor)) {
-			prevHit = screenRect(x, y, scale, prevX - 4, cy - 2, 18, 14);
-			playHit = screenRect(x, y, scale, playX - 4, cy - 2, 18, 14);
-			nextHit = screenRect(x, y, scale, nextX - 4, cy - 2, 18, 14);
+			prevHit = screenRect(x, y, scale, prevX - 4, cy - 2, 18, 16);
+			playHit = screenRect(x, y, scale, playX - 4, cy - 2, 18, 16);
+			nextHit = screenRect(x, y, scale, nextX - 4, cy - 2, 18, 16);
 		} else {
 			clearHits();
 		}
