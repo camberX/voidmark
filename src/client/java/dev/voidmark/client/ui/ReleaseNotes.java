@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.137", new String[]{
+			"Titanium ESP uses SkyHanni's Dwarven Mines area nodes, so named jobs like Rampart's Quarry Titanium only mark ore in that zone. Neighbouring rooms (Forge, Village, Far Reserve, corridors) no longer steal those veins."
+		}),
 		new Entry("1.1.136", new String[]{
 			"/vm edit has a Maxed toggle: copied lore gets recomb, dungeon stars, master stars, gem slots, hot-potato stats, and max enchants — only the pieces that item already has. Copied armor also uses its worn 3D model, including dragon helmets."
 		}),

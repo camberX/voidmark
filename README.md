@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.136.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.137.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -48,7 +48,7 @@ Markers only run in Skyblock by default. Enable **Force enable** on the Nodes co
 
 ### Skyblock → Mining
 
-Commission lines come from the Skyblock tab list (`Commissions:` widget) in the Dwarven Mines, Crystal Hollows, Glacite, and the other mining islands. Turn on Player List Info in SkyBlock Menu → Settings → Personal → User Interface if the widget is missing. The compact HUD lists each job with a progress bar and percent, plus the pickaxe ability timer. Ability ready uses the Hypixel chat lines `Pickobulus is now available!` and `Mining Speed Boost is now available!`. Titanium ESP uses that same widget: if a job name contains Titanium and is not Done, polished diorite in range is outlined, and neighboring ores merge into one box. Location jobs (`Lava Springs Titanium`, `Cliffside Veins Titanium`, `Rampart's Quarry Titanium`, `Upper Mines Titanium`, `Royal Mines Titanium`) only outline veins in that region. `Titanium Miner` outlines every vein in range.
+Commission lines come from the Skyblock tab list (`Commissions:` widget) in the Dwarven Mines, Crystal Hollows, Glacite, and the other mining islands. Turn on Player List Info in SkyBlock Menu → Settings → Personal → User Interface if the widget is missing. The compact HUD lists each job with a progress bar and percent, plus the pickaxe ability timer. Ability ready uses the Hypixel chat lines `Pickobulus is now available!` and `Mining Speed Boost is now available!`. Titanium ESP uses that same widget: if a job name contains Titanium and is not Done, polished diorite in range is outlined, and neighboring ores merge into one box. Location jobs (`Lava Springs Titanium`, `Cliffside Veins Titanium`, `Rampart's Quarry Titanium`, `Upper Mines Titanium`, `Royal Mines Titanium`) only outline veins in that SkyHanni-mapped region. Neighbouring zones (Far Reserve, Goblin Burrows, The Mist, the Village, the Forge) are excluded so they cannot steal an adjacent job. `Titanium Miner` outlines every vein in range.
 
 ## Settings
 
