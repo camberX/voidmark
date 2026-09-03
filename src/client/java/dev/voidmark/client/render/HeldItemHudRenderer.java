@@ -1,5 +1,6 @@
 package dev.voidmark.client.render;
 
+import dev.voidmark.client.ui.MenuFont;
 import dev.voidmark.client.ui.Theme;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -23,9 +24,9 @@ public final class HeldItemHudRenderer {
 			return;
 		}
 		Font font = Minecraft.getInstance().font;
-		Component name = stack == null || stack.isEmpty()
+		Component name = MenuFont.applyBody(stack == null || stack.isEmpty()
 			? Component.literal("Held item")
-			: stack.getStyledHoverName();
+			: stack.getStyledHoverName());
 		float w = Math.max(MIN_W, font.width(name) + 16);
 		HudLayout.apply(graphics, font, HudLayout.Id.HELD_ITEM, () -> {
 			HudChrome.panel(graphics, 0, 0, w, HEIGHT, 5, Theme.WINDOW, Theme.LINE);
@@ -38,6 +39,6 @@ public final class HeldItemHudRenderer {
 		if (player == null || player.getInventory().getSelectedItem().isEmpty()) {
 			return MIN_W;
 		}
-		return Math.max(MIN_W, font.width(player.getInventory().getSelectedItem().getStyledHoverName()) + 16);
+		return Math.max(MIN_W, GuiDraw.hudWidth(font, player.getInventory().getSelectedItem().getStyledHoverName()) + 16);
 	}
 }

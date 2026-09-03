@@ -1,6 +1,7 @@
 package dev.voidmark.client.render;
 
 import dev.voidmark.client.mixin.BossHealthOverlayAccessor;
+import dev.voidmark.client.ui.MenuFont;
 import dev.voidmark.client.ui.Theme;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.DeltaTracker;
@@ -89,7 +90,7 @@ public final class BossBarHudRenderer {
 		if (t > 0.01f) {
 			GuiDraw.rounded(graphics, x + 8, y + BAR_H - 4, Math.max(2f, (BAR_W - 16f) * t), 2.5f, 1.2f, fill);
 		}
-		Component name = event.getName();
+		Component name = MenuFont.applyBody(event.getName());
 		float nx = x + (BAR_W - font.width(name)) * 0.5f;
 		GuiDraw.text(graphics, font, name, nx, y + 2, 0xFFFFFFFF, false);
 	}

@@ -136,6 +136,7 @@ public final class VoidmarkConfig {
 	public float nametagOpacity = 1.0f;
 	public float menuScale = 1.0f;
 	public boolean hudStarfield = false;
+	public String uiFont = "";
 	public boolean mobGlowEnabled = false;
 	public boolean mobGlowThroughWalls = true;
 	public boolean blockOutlineGlow = true;
@@ -292,6 +293,9 @@ public final class VoidmarkConfig {
 				}
 				if (loaded.musicApiToken == null) {
 					loaded.musicApiToken = "";
+				}
+				if (loaded.uiFont == null) {
+					loaded.uiFont = "";
 				}
 				loaded.musicApiPort = loaded.musicApiPort < 0 || loaded.musicApiPort > 65535
 					? 0

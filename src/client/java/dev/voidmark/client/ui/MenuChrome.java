@@ -61,12 +61,12 @@ public final class MenuChrome {
 	public static Component bodyLabel(Component message, boolean active) {
 		Theme.refresh();
 		int color = (active ? Theme.TEXT : Theme.MUTED) & 0xFFFFFF;
-		return message.copy().withStyle(MenuFont.BODY.withColor(color));
+		return message.copy().withStyle(MenuFont.bodyStyle().withColor(color));
 	}
 
 	public static Component titleLabel(Component message) {
 		Theme.refresh();
-		return message.copy().withStyle(MenuFont.BODY.withColor(Theme.HEADER & 0xFFFFFF));
+		return message.copy().withStyle(MenuFont.bodyStyle().withColor(Theme.HEADER & 0xFFFFFF));
 	}
 
 	public static void button(GuiGraphicsExtractor graphics, AbstractWidget widget) {

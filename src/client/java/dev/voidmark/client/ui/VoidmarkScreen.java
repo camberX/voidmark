@@ -53,7 +53,10 @@ public class VoidmarkScreen extends Screen {
 	private static final float PICKER_H = 122;
 	private static final float PANEL_W = 168;
 	private static final float FEATURE_W = 176;
-	private static final float SETTINGS_H = 264;
+	private static final float SETTINGS_H = 292;
+	private static final float FONT_LIST_H = 96;
+	private static final float FONT_ROW = 13;
+	private static final int FONT_VISIBLE = 6;
 	private static final float COG_W = 14;
 
 	private enum Group {
@@ -172,6 +175,8 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Inventory HUD", Tab.OVERLAY, "Overlay"),
 		new SearchEntry("Item count", Tab.OVERLAY, "Overlay"),
 		new SearchEntry("Pane opacity", Tab.OVERLAY, "Theme"),
+		new SearchEntry("Font", Tab.OVERLAY, "Theme"),
+		new SearchEntry("UI font", Tab.OVERLAY, "Theme"),
 		new SearchEntry("FPS", Tab.NODES, "Status"),
 		new SearchEntry("Ping", Tab.NODES, "Status"),
 		new SearchEntry("Hypixel", Tab.NODES, "Status"),
@@ -251,6 +256,14 @@ public class VoidmarkScreen extends Screen {
 	private float previewY;
 	private float previewW;
 	private float previewH;
+	private boolean fontPickerOpen;
+	private boolean fontSearchFocused;
+	private String fontQuery = "";
+	private float fontScroll;
+	private float fontListX;
+	private float fontListY;
+	private float fontListW;
+	private float fontListH;
 
 	private float windowX;
 	private float windowY;
@@ -870,12 +883,18 @@ public class VoidmarkScreen extends Screen {
 			notesOpen = false;
 			searchOpen = false;
 			featureOpen = false;
+			if (!settingsOpen) {
+				fontPickerOpen = false;
+				fontSearchFocused = false;
+			}
 		});
 		drawIconButton(graphics, font, mouseX, mouseY, iconX + ICON_SLOT, y, MenuFont.BELL, notesOpen, () -> {
 			notesOpen = !notesOpen;
 			settingsOpen = false;
 			searchOpen = false;
 			featureOpen = false;
+			fontPickerOpen = false;
+			fontSearchFocused = false;
 			if (notesOpen) {
 				ReleaseNotes.markSeen();
 			}
@@ -888,6 +907,8 @@ public class VoidmarkScreen extends Screen {
 			settingsOpen = false;
 			notesOpen = false;
 			featureOpen = false;
+			fontPickerOpen = false;
+			fontSearchFocused = false;
 			if (!searchOpen) {
 				searchQuery = "";
 			}
@@ -957,7 +978,7 @@ public class VoidmarkScreen extends Screen {
 	private void drawSettings(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		settingsX = contentX() + contentW() - PANEL_W;
 		settingsY = windowY + TOOLBAR_H + 2;
-		GuiDraw.sheet(graphics, settingsX, settingsY, PANEL_W, SETTINGS_H * Math.max(0.2f, settingsT), 8, Anim.fade(Theme.SHEET, settingsT), Anim.fade(Theme.ACCENT, settingsT));
+		GuiDraw.sheet(graphics, settingsX, settingsY, PANEL_W, settingsHeight() * Math.max(0.2f, settingsT), 8, Anim.fade(Theme.SHEET, settingsT), Anim.fade(Theme.ACCENT, settingsT));
 		if (settingsT < 0.85f) {
 			return;
 		}
@@ -983,7 +1004,101 @@ public class VoidmarkScreen extends Screen {
 			Theme.refresh();
 		});
 		y = toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "HUD stars", VoidmarkConfig.get().hudStarfield, v -> VoidmarkConfig.get().hudStarfield = v);
-		toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Animations", VoidmarkConfig.get().uiAnimations, v -> VoidmarkConfig.get().uiAnimations = v);
+		y = toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Animations", VoidmarkConfig.get().uiAnimations, v -> VoidmarkConfig.get().uiAnimations = v);
+		drawFontPicker(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY);
+	}
+
+	private float settingsHeight() {
+		return SETTINGS_H + (fontPickerOpen ? FONT_LIST_H : 0);
+	}
+
+	private static String currentFontLabel() {
+		String family = VoidmarkConfig.get().uiFont;
+		if (family == null || family.isBlank()) {
+			return "Nunito";
+		}
+		return family;
+	}
+
+	private List<String> fontMatches() {
+		String q = fontQuery.trim().toLowerCase(Locale.ROOT);
+		List<String> out = new ArrayList<>();
+		if (q.isEmpty() || "nunito".contains(q)) {
+			out.add("");
+		}
+		for (String family : SystemFonts.families()) {
+			if (q.isEmpty() || family.toLowerCase(Locale.ROOT).contains(q)) {
+				out.add(family);
+			}
+		}
+		return out;
+	}
+
+	private void drawFontPicker(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, int mouseX, int mouseY) {
+		GuiDraw.small(graphics, font, "Font", x, y + 1, Theme.MUTED);
+		y += 12;
+		float rowY = y;
+		boolean hover = GuiDraw.hovered(mouseX, mouseY, x, rowY, w, ROW);
+		GuiDraw.panel(graphics, x, rowY + 1, w, ROW - 2, 5, hover || fontPickerOpen ? Theme.CARD_HOVER : Theme.CARD, fontPickerOpen ? Theme.ACCENT : Theme.LINE);
+		GuiDraw.menu(graphics, font, clip(font, currentFontLabel(), (int) w - 18), x + 5, GuiDraw.middle(rowY, ROW), Theme.TEXT);
+		GuiDraw.small(graphics, font, fontPickerOpen ? "^" : "v", x + w - 8 - GuiDraw.smallWidth(font, fontPickerOpen ? "^" : "v"), GuiDraw.middle(rowY, ROW) + 1, Theme.MUTED);
+		hits.add(new Hit(x, rowY, w, ROW, () -> {
+			fontPickerOpen = !fontPickerOpen;
+			fontSearchFocused = fontPickerOpen;
+			if (fontPickerOpen) {
+				fontQuery = "";
+				fontScroll = 0f;
+			}
+		}));
+		if (!fontPickerOpen) {
+			return;
+		}
+		float listY = rowY + ROW + 2;
+		float searchH = 14;
+		fontListX = x;
+		fontListY = listY + searchH + 2;
+		fontListW = w;
+		fontListH = FONT_VISIBLE * FONT_ROW;
+		boolean searchHover = GuiDraw.hovered(mouseX, mouseY, x, listY, w, searchH);
+		GuiDraw.rounded(graphics, x, listY, w, searchH, 4, fontSearchFocused || searchHover ? Theme.CARD_HOVER : Theme.CARD);
+		String shown = fontQuery.isEmpty() ? (fontSearchFocused ? "|" : "Search fonts") : fontQuery + (fontSearchFocused ? "|" : "");
+		GuiDraw.menu(graphics, font, clip(font, shown, (int) w - 10), x + 5, GuiDraw.middle(listY, searchH), fontQuery.isEmpty() && !fontSearchFocused ? Theme.MUTED : Theme.TEXT);
+		hits.add(new Hit(x, listY, w, searchH, () -> fontSearchFocused = true));
+		List<String> matches = fontMatches();
+		float maxScroll = Math.max(0f, matches.size() * FONT_ROW - fontListH);
+		fontScroll = Mth.clamp(fontScroll, 0f, maxScroll);
+		boolean clip = GuiDraw.scissor(graphics, fontListX, fontListY, fontListW, fontListH);
+		if (matches.isEmpty()) {
+			GuiDraw.menu(graphics, font, "No fonts found", fontListX + 4, GuiDraw.middle(fontListY, fontListH), Theme.MUTED);
+		} else {
+			float iy = fontListY - fontScroll;
+			String selected = VoidmarkConfig.get().uiFont == null ? "" : VoidmarkConfig.get().uiFont;
+			for (String family : matches) {
+				if (iy >= fontListY && iy + FONT_ROW <= fontListY + fontListH) {
+					boolean on = family.equals(selected);
+					boolean rowHover = GuiDraw.hovered(mouseX, mouseY, fontListX, iy, fontListW, FONT_ROW);
+					if (on || rowHover) {
+						GuiDraw.rounded(graphics, fontListX, iy, fontListW, FONT_ROW, 3, Theme.withAlpha(Theme.ACCENT, on ? 40 : 22));
+					}
+					String label = family.isEmpty() ? "Nunito (default)" : family;
+					GuiDraw.menu(graphics, font, clip(font, label, (int) fontListW - 10), fontListX + 5, GuiDraw.middle(iy, FONT_ROW), on ? Theme.ACCENT : Theme.TEXT);
+					String pick = family;
+					hits.add(new Hit(fontListX, iy, fontListW, FONT_ROW, () -> pickFont(pick)));
+				}
+				iy += FONT_ROW;
+			}
+		}
+		if (clip) {
+			GuiDraw.disableScissor(graphics);
+		}
+	}
+
+	private void pickFont(String family) {
+		String current = VoidmarkConfig.get().uiFont == null ? "" : VoidmarkConfig.get().uiFont;
+		if (family.equals(current)) {
+			return;
+		}
+		UiFontPack.apply(family);
 	}
 
 	private static int menuScaleChip() {
@@ -1541,7 +1656,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.145");
+			.orElse("1.1.146");
 	}
 
 	@Override
@@ -1566,6 +1681,10 @@ public class VoidmarkScreen extends Screen {
 		if (mobSearchFocused && !onMobSearch) {
 			mobSearchFocused = false;
 		}
+		boolean onFontSearch = fontPickerOpen && GuiDraw.hovered(lx, ly, fontListX, fontListY - 16, fontListW, 14);
+		if (fontSearchFocused && !onFontSearch) {
+			fontSearchFocused = false;
+		}
 		for (int i = hits.size() - 1; i >= 0; i--) {
 			Hit hit = hits.get(i);
 			if (hit.contains(lx, ly)) {
@@ -1577,8 +1696,10 @@ public class VoidmarkScreen extends Screen {
 			pickerTarget = null;
 			return true;
 		}
-		if (settingsOpen && !GuiDraw.hovered(lx, ly, settingsX, settingsY, PANEL_W, SETTINGS_H)) {
+		if (settingsOpen && !GuiDraw.hovered(lx, ly, settingsX, settingsY, PANEL_W, settingsHeight())) {
 			settingsOpen = false;
+			fontPickerOpen = false;
+			fontSearchFocused = false;
 			return true;
 		}
 		if (notesOpen && !GuiDraw.hovered(lx, ly, notesX, notesY, PANEL_W, notesH)) {
@@ -1644,6 +1765,11 @@ public class VoidmarkScreen extends Screen {
 			notesScroll = Mth.clamp(notesScroll - (float) scrollY * 18f, 0f, maxScroll);
 			return true;
 		}
+		if (fontPickerOpen && scrollY != 0 && GuiDraw.hovered(lx, ly, fontListX, fontListY, fontListW, fontListH)) {
+			float maxScroll = Math.max(0f, fontMatches().size() * FONT_ROW - fontListH);
+			fontScroll = Mth.clamp(fontScroll - (float) scrollY * FONT_ROW * 2.2f, 0f, maxScroll);
+			return true;
+		}
 		if (tab == Tab.ESP && scrollY != 0 && GuiDraw.hovered(lx, ly, mobFieldX, mobFieldY, mobListW, mobListY + mobListH - mobFieldY)) {
 			List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
 			float maxScroll = Math.max(0f, entries.size() * ROW - mobListH);
@@ -1682,6 +1808,19 @@ public class VoidmarkScreen extends Screen {
 				}
 				return true;
 			}
+			if (fontSearchFocused) {
+				if (!fontQuery.isEmpty()) {
+					fontQuery = "";
+					fontScroll = 0f;
+				} else {
+					fontSearchFocused = false;
+				}
+				return true;
+			}
+			if (fontPickerOpen) {
+				fontPickerOpen = false;
+				return true;
+			}
 			if (searchOpen) {
 				searchOpen = false;
 				searchQuery = "";
@@ -1689,6 +1828,8 @@ public class VoidmarkScreen extends Screen {
 			}
 			if (settingsOpen) {
 				settingsOpen = false;
+				fontPickerOpen = false;
+				fontSearchFocused = false;
 				return true;
 			}
 			if (notesOpen) {
@@ -1714,6 +1855,13 @@ public class VoidmarkScreen extends Screen {
 			String nick = VoidmarkConfig.get().nick;
 			if (nick != null && !nick.isEmpty()) {
 				VoidmarkConfig.get().nick = nick.substring(0, nick.length() - 1);
+			}
+			return true;
+		}
+		if (fontSearchFocused && event.key() == InputConstants.KEY_BACKSPACE) {
+			if (!fontQuery.isEmpty()) {
+				fontQuery = fontQuery.substring(0, fontQuery.length() - 1);
+				fontScroll = 0f;
 			}
 			return true;
 		}
@@ -1748,6 +1896,14 @@ public class VoidmarkScreen extends Screen {
 			}
 			return true;
 		}
+		if (fontSearchFocused && event.key() == InputConstants.KEY_V && event.hasControlDown()) {
+			String clip = minecraft.keyboardHandler.getClipboard();
+			if (clip != null && !clip.isBlank()) {
+				fontQuery += clip.replace("\n", "").replace("\r", "");
+				fontScroll = 0f;
+			}
+			return true;
+		}
 		if (searchOpen && event.key() == InputConstants.KEY_BACKSPACE) {
 			if (!searchQuery.isEmpty()) {
 				searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
@@ -1762,6 +1918,8 @@ public class VoidmarkScreen extends Screen {
 			capeFocused = false;
 			nickFocused = false;
 			mobSearchFocused = false;
+			fontPickerOpen = false;
+			fontSearchFocused = false;
 			return true;
 		}
 		return super.keyPressed(event);
@@ -1787,6 +1945,13 @@ public class VoidmarkScreen extends Screen {
 			if (mobQuery.length() < 32) {
 				mobQuery += event.codepointAsString();
 				mobScroll = 0f;
+			}
+			return true;
+		}
+		if (fontSearchFocused && event.isAllowedChatCharacter()) {
+			if (fontQuery.length() < 48) {
+				fontQuery += event.codepointAsString();
+				fontScroll = 0f;
 			}
 			return true;
 		}

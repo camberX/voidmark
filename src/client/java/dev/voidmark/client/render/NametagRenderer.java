@@ -233,7 +233,7 @@ public final class NametagRenderer {
 		if (tag.plates) {
 			boolean showDist = showDistance && !tag.self;
 			boolean badge = tag.badge();
-			Component name = tag.name;
+			Component name = MenuFont.applyBody(tag.name);
 			float nameW = pillWidth(font.width(name), showDist ? distWidth(font, tag.dist) : 0f);
 			float badgeW = badge ? badgeWidth(font, tag) : 0f;
 			float w = Math.max(nameW, badgeW);
@@ -277,7 +277,7 @@ public final class NametagRenderer {
 			GuiDraw.text(
 				graphics,
 				font,
-				GuiDraw.meters(tag.dist),
+				MenuFont.body(GuiDraw.meters(tag.dist)),
 				tx + nameW + 5f,
 				GuiDraw.middle(y, TAG_H),
 				Anim.fade(Theme.MUTED, alpha),
@@ -287,19 +287,20 @@ public final class NametagRenderer {
 	}
 
 	private static void drawBadgeText(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, float alpha) {
-		float brandW = GuiDraw.menuWidth(font, BADGE_BRAND);
-		float roleW = GuiDraw.menuWidth(font, BADGE_ROLE);
+		float brandW = GuiDraw.brandWidth(font, BADGE_BRAND);
+		float roleW = GuiDraw.brandWidth(font, BADGE_ROLE);
 		float inner = brandW + 3f + roleW;
 		float cx = x + (w - inner) * 0.5f;
 		float textY = GuiDraw.middle(y, BADGE_H);
-		GuiDraw.menu(graphics, font, BADGE_BRAND, cx, textY, Anim.fade(Theme.ACCENT, alpha));
-		GuiDraw.menu(graphics, font, BADGE_ROLE, cx + brandW + 3f, textY, Anim.fade(Theme.WARN, alpha));
+		GuiDraw.brand(graphics, font, BADGE_BRAND, cx, textY, Anim.fade(Theme.ACCENT, alpha));
+		GuiDraw.brand(graphics, font, BADGE_ROLE, cx + brandW + 3f, textY, Anim.fade(Theme.WARN, alpha));
 	}
 
 	private static void drawTitleText(GuiGraphicsExtractor graphics, Font font, Component title, float x, float y, float w, float alpha) {
-		float titleW = font.width(title);
+		Component styled = MenuFont.applyBody(title);
+		float titleW = font.width(styled);
 		float tx = x + (w - titleW) * 0.5f;
-		GuiDraw.text(graphics, font, title, tx, GuiDraw.middle(y, BADGE_H), Anim.fade(0xFFFFFFFF, alpha), false);
+		GuiDraw.text(graphics, font, styled, tx, GuiDraw.middle(y, BADGE_H), Anim.fade(0xFFFFFFFF, alpha), false);
 	}
 
 	private static float pillWidth(float nameW, float distW) {
@@ -307,14 +308,14 @@ public final class NametagRenderer {
 	}
 
 	private static float distWidth(Font font, double dist) {
-		return font.width(GuiDraw.meters(dist));
+		return GuiDraw.menuWidth(font, GuiDraw.meters(dist));
 	}
 
 	private static float badgeWidth(Font font, Tag tag) {
 		if (tag.titled()) {
-			return PAD_X + font.width(tag.title) + PAD_X;
+			return PAD_X + GuiDraw.hudWidth(font, tag.title) + PAD_X;
 		}
-		return PAD_X + GuiDraw.menuWidth(font, BADGE_BRAND) + 3f + GuiDraw.menuWidth(font, BADGE_ROLE) + PAD_X;
+		return PAD_X + GuiDraw.brandWidth(font, BADGE_BRAND) + 3f + GuiDraw.brandWidth(font, BADGE_ROLE) + PAD_X;
 	}
 
 	/**
@@ -328,37 +329,34 @@ public final class NametagRenderer {
 		int accent = Anim.fade(Theme.ACCENT, alpha);
 		int warn = Anim.fade(Theme.WARN, alpha);
 		boolean showDist = showDistance && !tag.self;
-		int nameW = font.width(tag.name);
+		int nameW = GuiDraw.hudWidth(font, tag.name);
 		int distW = showDist ? Math.round(distWidth(font, tag.dist)) : 0;
 		int inner = nameW + (distW > 0 ? 5 + distW : 0);
 		int nx = Math.round(-inner * 0.5f);
 		int nameTop = tag.badge() ? -22 : -11;
 		graphics.fill(nx - 1, nameTop - 1, nx + inner + 1, nameTop + 9, bg);
-		graphics.text(font, tag.name, nx, nameTop, white, false);
+		GuiDraw.hud(graphics, font, tag.name, nx, nameTop, white);
 		if (showDist) {
-			graphics.text(font, GuiDraw.meters(tag.dist), nx + nameW + 5, nameTop, muted, false);
+			GuiDraw.text(graphics, font, MenuFont.body(GuiDraw.meters(tag.dist)), nx + nameW + 5, nameTop, muted, false);
 		}
 		if (!tag.badge()) {
 			return;
 		}
 		int badgeTop = nameTop - 11;
 		if (tag.titled()) {
-			int titleW = font.width(tag.title);
+			int titleW = GuiDraw.hudWidth(font, tag.title);
 			int bx = Math.round(-titleW * 0.5f);
 			graphics.fill(bx - 1, badgeTop - 1, bx + titleW + 1, badgeTop + 9, bg);
-			graphics.pose().pushMatrix();
-			graphics.pose().translate(bx, badgeTop);
-			graphics.text(font, tag.title, 0, 0, white, false);
-			graphics.pose().popMatrix();
+			GuiDraw.hud(graphics, font, tag.title, bx, badgeTop, white);
 			return;
 		}
-		float brandW = GuiDraw.menuWidth(font, BADGE_BRAND);
+		float brandW = GuiDraw.brandWidth(font, BADGE_BRAND);
 		float gap = 4f;
-		int badgeW = Math.max(1, Math.round(brandW + gap + GuiDraw.menuWidth(font, BADGE_ROLE)));
+		int badgeW = Math.max(1, Math.round(brandW + gap + GuiDraw.brandWidth(font, BADGE_ROLE)));
 		int bx = Math.round(-badgeW * 0.5f);
 		graphics.fill(bx - 1, badgeTop - 1, bx + badgeW + 1, badgeTop + 9, bg);
-		GuiDraw.text(graphics, font, MenuFont.body(BADGE_BRAND), bx, badgeTop, accent, false);
-		GuiDraw.text(graphics, font, MenuFont.body(BADGE_ROLE), bx + brandW + gap, badgeTop, warn, false);
+		GuiDraw.text(graphics, font, MenuFont.brand(BADGE_BRAND), bx, badgeTop, accent, false);
+		GuiDraw.text(graphics, font, MenuFont.brand(BADGE_ROLE), bx + brandW + gap, badgeTop, warn, false);
 	}
 
 	/** Vanilla nametag: default font, option background, white text, centered. */

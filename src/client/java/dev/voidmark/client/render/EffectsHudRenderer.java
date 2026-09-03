@@ -1,5 +1,6 @@
 package dev.voidmark.client.render;
 
+import dev.voidmark.client.ui.MenuFont;
 import dev.voidmark.client.ui.Theme;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -99,14 +100,14 @@ public final class EffectsHudRenderer {
 
 	private static float chipWidth(Font font, MobEffectInstance instance) {
 		MobEffect effect = instance.getEffect().value();
-		Component name = effect.getDisplayName();
+		Component name = MenuFont.applyBody(effect.getDisplayName());
 		String extra = extra(instance);
 		return ICON + 14 + font.width(name) + GuiDraw.smallWidth(font, extra);
 	}
 
 	private static void drawChip(GuiGraphicsExtractor graphics, Font font, MobEffectInstance instance, float x, float y, float w) {
 		MobEffect effect = instance.getEffect().value();
-		Component name = effect.getDisplayName();
+		Component name = MenuFont.applyBody(effect.getDisplayName());
 		String extra = extra(instance);
 		HudChrome.panel(graphics, x, y, w, CHIP_H, 5, Theme.WINDOW, Theme.LINE);
 		graphics.pose().pushMatrix();

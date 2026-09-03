@@ -430,6 +430,18 @@ public final class GuiDraw {
 		text(graphics, font, MenuFont.title(value), x, y - 1.0f, color, false);
 	}
 
+	public static void brand(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
+		text(graphics, font, MenuFont.brand(value), x, y - 1.0f, color, false);
+	}
+
+	public static void brandSmall(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
+		text(graphics, font, MenuFont.brandSmall(value), x, y - 1.0f, color, false);
+	}
+
+	public static void hud(GuiGraphicsExtractor graphics, Font font, Component value, float x, float y, int color) {
+		text(graphics, font, MenuFont.applyBody(value), x, y, color, false);
+	}
+
 	public static void icon(GuiGraphicsExtractor graphics, Font font, String glyph, float x, float y, int color) {
 		text(graphics, font, MenuFont.icon(glyph), x, y + 0.5f, color, false);
 	}
@@ -452,6 +464,18 @@ public final class GuiDraw {
 
 	public static int titleWidth(Font font, String value) {
 		return font.width(MenuFont.title(value));
+	}
+
+	public static int brandWidth(Font font, String value) {
+		return font.width(MenuFont.brand(value));
+	}
+
+	public static int brandSmallWidth(Font font, String value) {
+		return font.width(MenuFont.brandSmall(value));
+	}
+
+	public static int hudWidth(Font font, Component value) {
+		return font.width(MenuFont.applyBody(value));
 	}
 
 	public static boolean hovered(double mouseX, double mouseY, float x, float y, float w, float h) {

@@ -33,7 +33,9 @@ import dev.voidmark.client.render.VanillaHud;
 import dev.voidmark.client.render.WatermarkRenderer;
 import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.ItemEditScreen;
+import dev.voidmark.client.ui.SystemFonts;
 import dev.voidmark.client.ui.Theme;
+import dev.voidmark.client.ui.UiFontPack;
 import dev.voidmark.client.ui.VoidmarkScreen;
 import dev.voidmark.client.visual.CustomCape;
 import dev.voidmark.client.visual.FakeBan;
@@ -59,6 +61,9 @@ public final class VoidmarkClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		VoidmarkConfig.load();
 		Theme.refresh();
+		Thread fonts = new Thread(SystemFonts::families, "voidmark-fonts");
+		fonts.setDaemon(true);
+		fonts.start();
 		SkyblockItems.load();
 		SkyblockRecipes.load();
 		RawmatsTracker.init();
@@ -144,6 +149,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			TitaniumTracker.get().tick(client);
 			ShopCape.tick();
 			FakeBan.tick();
+			UiFontPack.tick(client);
 		});
 
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {

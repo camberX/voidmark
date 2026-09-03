@@ -68,7 +68,7 @@ public final class WatermarkRenderer {
 		float gap = 8;
 		float w = pad * 2 + brandExtra(font);
 		for (int i = 0; i < parts.size(); i++) {
-			w += GuiDraw.menuWidth(font, parts.get(i));
+			w += partWidth(font, parts.get(i), i == 0);
 			if (i + 1 < parts.size()) {
 				w += gap + 1;
 			}
@@ -86,12 +86,16 @@ public final class WatermarkRenderer {
 		float textY = GuiDraw.middle(0, HEIGHT);
 		for (int i = 0; i < parts.size(); i++) {
 			int color = i == 0 ? Theme.ACCENT : Theme.TEXT;
-			GuiDraw.menu(graphics, font, parts.get(i), cx, textY, color);
-			cx += GuiDraw.menuWidth(font, parts.get(i));
+			if (i == 0) {
+				GuiDraw.brand(graphics, font, parts.get(i), cx, textY, color);
+			} else {
+				GuiDraw.menu(graphics, font, parts.get(i), cx, textY, color);
+			}
+			cx += partWidth(font, parts.get(i), i == 0);
 			if (i == 0) {
 				cx += DEV_GAP;
-				GuiDraw.small(graphics, font, DEV_TAG, cx, textY, Theme.WARN);
-				cx += GuiDraw.smallWidth(font, DEV_TAG);
+				GuiDraw.brandSmall(graphics, font, DEV_TAG, cx, textY, Theme.WARN);
+				cx += GuiDraw.brandSmallWidth(font, DEV_TAG);
 			}
 			if (i + 1 < parts.size()) {
 				cx += gap / 2f;
@@ -105,7 +109,7 @@ public final class WatermarkRenderer {
 	public static float width(Font font) {
 		VoidmarkConfig config = VoidmarkConfig.get();
 		float w = 16 + brandExtra(font);
-		w += GuiDraw.menuWidth(font, "VOIDMARK");
+		w += GuiDraw.brandWidth(font, "VOIDMARK");
 		if (config.watermarkFps) {
 			w += 9 + GuiDraw.menuWidth(font, "000 fps");
 		}
@@ -122,6 +126,10 @@ public final class WatermarkRenderer {
 	}
 
 	private static float brandExtra(Font font) {
-		return DEV_GAP + GuiDraw.smallWidth(font, DEV_TAG);
+		return DEV_GAP + GuiDraw.brandSmallWidth(font, DEV_TAG);
+	}
+
+	private static int partWidth(Font font, String part, boolean logo) {
+		return logo ? GuiDraw.brandWidth(font, part) : GuiDraw.menuWidth(font, part);
 	}
 }

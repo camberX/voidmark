@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.146", new String[]{
+			"Theme has a Font picker for every menu and HUD label. It lists the TrueType fonts installed on your PC. The watermark VOIDMARK logo and the VOIDMARK Dev nametag stay on Nunito."
+		}),
 		new Entry("1.1.145", new String[]{
 			"/vm edit is a visual reskin again — no lore, no Maxed, no worn armor models. Raw mats only counts the materials you actually have, not cobble locked inside minions and other crafts."
 		}),

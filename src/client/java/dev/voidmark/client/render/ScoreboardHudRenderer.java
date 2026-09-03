@@ -1,5 +1,6 @@
 package dev.voidmark.client.render;
 
+import dev.voidmark.client.ui.MenuFont;
 import dev.voidmark.client.ui.Theme;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -51,13 +52,13 @@ public final class ScoreboardHudRenderer {
 	private static void draw(GuiGraphicsExtractor graphics, Font font, Layout layout, float x, float y) {
 		HudChrome.panel(graphics, x, y, layout.w, layout.h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
 		GuiDraw.small(graphics, font, "SCOREBOARD", x + PAD + 4, y + PAD - 1, Theme.ACCENT);
-		GuiDraw.text(graphics, font, layout.title, x + PAD + 4, y + PAD + 8, 0xFFFFFFFF, false);
+		GuiDraw.hud(graphics, font, layout.title, x + PAD + 4, y + PAD + 8, 0xFFFFFFFF);
 		float ly = y + PAD + HEAD + 2;
 		for (Line line : layout.lines) {
-			GuiDraw.text(graphics, font, line.name, x + PAD + 4, ly, 0xFFFFFFFF, false);
+			GuiDraw.hud(graphics, font, line.name, x + PAD + 4, ly, 0xFFFFFFFF);
 			if (line.score != null && font.width(line.score) > 0 && !line.score.getString().isBlank()) {
-				float sx = x + layout.w - PAD - font.width(line.score);
-				GuiDraw.text(graphics, font, line.score, sx, ly, 0xFFFFFFFF, false);
+				float sx = x + layout.w - PAD - GuiDraw.hudWidth(font, line.score);
+				GuiDraw.hud(graphics, font, line.score, sx, ly, 0xFFFFFFFF);
 			}
 			ly += ROW;
 		}
@@ -73,7 +74,7 @@ public final class ScoreboardHudRenderer {
 			return new Layout(Component.literal("Skyblock"), List.of(), MIN_W, EMPTY_H);
 		}
 		List<Line> lines = lines(objective.getScoreboard(), objective, font);
-		Component title = objective.getDisplayName();
+		Component title = MenuFont.applyBody(objective.getDisplayName());
 		float maxLine = font.width(title);
 		for (Line line : lines) {
 			maxLine = Math.max(maxLine, line.width);
@@ -113,8 +114,8 @@ public final class ScoreboardHudRenderer {
 		List<Line> out = new ArrayList<>(entries.size());
 		for (PlayerScoreEntry entry : entries) {
 			Component raw = entry.display() != null ? entry.display() : Component.literal(entry.owner());
-			Component name = PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(entry.owner()), raw);
-			Component score = entry.formatValue(objective.numberFormatOrDefault(StyledFormat.SIDEBAR_DEFAULT));
+			Component name = MenuFont.applyBody(PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(entry.owner()), raw));
+			Component score = MenuFont.applyBody(entry.formatValue(objective.numberFormatOrDefault(StyledFormat.SIDEBAR_DEFAULT)));
 			float width = font.width(name) + 8 + font.width(score);
 			out.add(new Line(name, score, width));
 		}
