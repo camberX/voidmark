@@ -56,8 +56,8 @@ public class VoidmarkScreen extends Screen {
 	private static final float PANEL_W = 168;
 	private static final float FEATURE_W = 176;
 	private static final float SETTINGS_H = 292;
-	private static final float FONT_LIST_H = 96;
-	private static final float FONT_ROW = 13;
+	private static final float FONT_SEARCH_H = 14;
+	private static final float FONT_ROW = 16;
 	private static final int FONT_VISIBLE = 6;
 	private static final float COG_W = 14;
 
@@ -118,12 +118,7 @@ public class VoidmarkScreen extends Screen {
 		}
 
 		float height() {
-			int extra = 0;
-			if (this == MOB) {
-				int n = VoidmarkConfig.get().nametagEspLabels().size();
-				extra = 1 + Math.max(2, Math.min(8, Math.max(n, 1)));
-			}
-			return 22 + (rows + extra) * ROW + 10;
+			return 22 + rows * ROW + 10;
 		}
 	}
 
@@ -185,6 +180,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Pane opacity", Tab.OVERLAY, "Theme"),
 		new SearchEntry("Font", Tab.OVERLAY, "Theme"),
 		new SearchEntry("UI font", Tab.OVERLAY, "Theme"),
+		new SearchEntry("Minecraft font", Tab.OVERLAY, "Theme"),
 		new SearchEntry("FPS", Tab.NODES, "Status"),
 		new SearchEntry("Ping", Tab.NODES, "Status"),
 		new SearchEntry("Hypixel", Tab.NODES, "Status"),
@@ -1029,13 +1025,20 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private float settingsHeight() {
-		return SETTINGS_H + (fontPickerOpen ? FONT_LIST_H : 0);
+		float drop = 2 + FONT_SEARCH_H + 2 + FONT_VISIBLE * FONT_ROW + 6;
+		return SETTINGS_H + (fontPickerOpen ? drop : 0);
 	}
 
 	private static String currentFontLabel() {
-		String family = VoidmarkConfig.get().uiFont;
+		return fontLabel(VoidmarkConfig.get().uiFont);
+	}
+
+	private static String fontLabel(String family) {
 		if (family == null || family.isBlank()) {
 			return "Nunito";
+		}
+		if (MenuFont.minecraftFamily(family)) {
+			return MenuFont.MINECRAFT_FAMILY;
 		}
 		return family;
 	}
@@ -1046,7 +1049,13 @@ public class VoidmarkScreen extends Screen {
 		if (q.isEmpty() || "nunito".contains(q)) {
 			out.add("");
 		}
+		if (q.isEmpty() || "minecraft".contains(q) || "vanilla".contains(q)) {
+			out.add(MenuFont.MINECRAFT_FAMILY);
+		}
 		for (String family : SystemFonts.families()) {
+			if (MenuFont.minecraftFamily(family)) {
+				continue;
+			}
 			if (q.isEmpty() || family.toLowerCase(Locale.ROOT).contains(q)) {
 				out.add(family);
 			}
@@ -1073,17 +1082,19 @@ public class VoidmarkScreen extends Screen {
 		if (!fontPickerOpen) {
 			return;
 		}
-		float listY = rowY + ROW + 2;
-		float searchH = 14;
+		float searchY = rowY + ROW + 2;
 		fontListX = x;
-		fontListY = listY + searchH + 2;
+		fontListY = searchY + FONT_SEARCH_H + 2;
 		fontListW = w;
 		fontListH = FONT_VISIBLE * FONT_ROW;
-		boolean searchHover = GuiDraw.hovered(mouseX, mouseY, x, listY, w, searchH);
-		GuiDraw.rounded(graphics, x, listY, w, searchH, 4, fontSearchFocused || searchHover ? Theme.CARD_HOVER : Theme.CARD);
+		GuiDraw.panel(graphics, x, searchY, w, FONT_SEARCH_H + 2 + fontListH + 2, 5, Theme.CARD, Theme.LINE);
+		boolean searchHover = GuiDraw.hovered(mouseX, mouseY, x, searchY, w, FONT_SEARCH_H);
+		if (fontSearchFocused || searchHover) {
+			GuiDraw.rounded(graphics, x + 1, searchY + 1, w - 2, FONT_SEARCH_H - 1, 4, Theme.CARD_HOVER);
+		}
 		String shown = fontQuery.isEmpty() ? (fontSearchFocused ? "|" : "Search fonts") : fontQuery + (fontSearchFocused ? "|" : "");
-		GuiDraw.menu(graphics, font, clip(font, shown, (int) w - 10), x + 5, GuiDraw.middle(listY, searchH), fontQuery.isEmpty() && !fontSearchFocused ? Theme.MUTED : Theme.TEXT);
-		hits.add(new Hit(x, listY, w, searchH, () -> fontSearchFocused = true));
+		GuiDraw.menu(graphics, font, clip(font, shown, (int) w - 10), x + 5, GuiDraw.middle(searchY, FONT_SEARCH_H), fontQuery.isEmpty() && !fontSearchFocused ? Theme.MUTED : Theme.TEXT);
+		hits.add(new Hit(x, searchY, w, FONT_SEARCH_H, () -> fontSearchFocused = true));
 		List<String> matches = fontMatches();
 		float maxScroll = Math.max(0f, matches.size() * FONT_ROW - fontListH);
 		fontScroll = Mth.clamp(fontScroll, 0f, maxScroll);
@@ -1094,16 +1105,21 @@ public class VoidmarkScreen extends Screen {
 			float iy = fontListY - fontScroll;
 			String selected = VoidmarkConfig.get().uiFont == null ? "" : VoidmarkConfig.get().uiFont;
 			for (String family : matches) {
-				if (iy >= fontListY && iy + FONT_ROW <= fontListY + fontListH) {
-					boolean on = family.equals(selected);
-					boolean rowHover = GuiDraw.hovered(mouseX, mouseY, fontListX, iy, fontListW, FONT_ROW);
+				if (iy + FONT_ROW > fontListY && iy < fontListY + fontListH) {
+					boolean on = family.equals(selected) || (family.isEmpty() && selected.isBlank()) || (MenuFont.minecraftFamily(family) && MenuFont.minecraftFamily(selected));
+					boolean rowHover = GuiDraw.hovered(mouseX, mouseY, fontListX, iy, fontListW, FONT_ROW)
+						&& GuiDraw.hovered(mouseX, mouseY, fontListX, fontListY, fontListW, fontListH);
 					if (on || rowHover) {
 						GuiDraw.rounded(graphics, fontListX, iy, fontListW, FONT_ROW, 3, Theme.withAlpha(Theme.ACCENT, on ? 40 : 22));
 					}
-					String label = family.isEmpty() ? "Nunito (default)" : family;
+					String label = family.isEmpty() ? "Nunito (default)" : fontLabel(family);
 					GuiDraw.menu(graphics, font, clip(font, label, (int) fontListW - 10), fontListX + 5, GuiDraw.middle(iy, FONT_ROW), on ? Theme.ACCENT : Theme.TEXT);
 					String pick = family;
-					hits.add(new Hit(fontListX, iy, fontListW, FONT_ROW, () -> pickFont(pick)));
+					float hitY = Math.max(iy, fontListY);
+					float hitB = Math.min(iy + FONT_ROW, fontListY + fontListH);
+					if (hitB - hitY >= 3f) {
+						hits.add(new Hit(fontListX, hitY, fontListW, hitB - hitY, () -> pickFont(pick)));
+					}
 				}
 				iy += FONT_ROW;
 			}
@@ -1111,14 +1127,24 @@ public class VoidmarkScreen extends Screen {
 		if (clip) {
 			GuiDraw.disableScissor(graphics);
 		}
+		if (maxScroll > 1f) {
+			float trackX = x + w - 4;
+			float trackH = fontListH - 4;
+			float trackY = fontListY + 2;
+			GuiDraw.rounded(graphics, trackX, trackY, 2.4f, trackH, 1.2f, Theme.TRACK);
+			float thumbH = Math.max(12f, trackH * trackH / (trackH + maxScroll));
+			float thumbY = trackY + (fontScroll / maxScroll) * (trackH - thumbH);
+			GuiDraw.rounded(graphics, trackX - 0.4f, thumbY, 3.2f, thumbH, 1.6f, Theme.ACCENT);
+		}
 	}
 
 	private void pickFont(String family) {
 		String current = VoidmarkConfig.get().uiFont == null ? "" : VoidmarkConfig.get().uiFont;
-		if (family.equals(current)) {
+		String next = family == null ? "" : family;
+		if (next.equals(current) || (next.isEmpty() && current.isBlank()) || (MenuFont.minecraftFamily(next) && MenuFont.minecraftFamily(current))) {
 			return;
 		}
-		UiFontPack.apply(family);
+		UiFontPack.apply(next);
 	}
 
 	private static int menuScaleChip() {
@@ -1491,11 +1517,7 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.mobGlowThroughWalls, v -> config.mobGlowThroughWalls = v);
 				y = slider(graphics, font, ix, y, iw, "Radius", String.format(Locale.ROOT, "%.0f", config.mobGlowRadius), (config.mobGlowRadius - GlowBlurRadius.MIN) / (GlowBlurRadius.MAX - GlowBlurRadius.MIN), v -> config.mobGlowRadius = VoidmarkConfig.clamp(GlowBlurRadius.MIN + v * (GlowBlurRadius.MAX - GlowBlurRadius.MIN), GlowBlurRadius.MIN, GlowBlurRadius.MAX));
 				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.mobGlowOpacity * 100) + "%", (config.mobGlowOpacity - 0.15f) / 0.75f, v -> config.mobGlowOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
-				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
-				GuiDraw.small(graphics, font, "Nametag ESP", ix, y + 1, Theme.MUTED);
-				y += ROW;
-				float listH = Feature.MOB.height() - (y - featureY) - 8;
-				drawNametagEspList(graphics, font, ix, y, iw, Math.max(ROW, listH), mouseX, mouseY, false);
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
 			}
 			case BLOCK -> {
 				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.blockOutlineOpacity * 100) + "%", (config.blockOutlineOpacity - 0.15f) / 0.75f, v -> config.blockOutlineOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
@@ -1756,7 +1778,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.157");
+			.orElse("1.1.158");
 	}
 
 	@Override
@@ -1781,7 +1803,7 @@ public class VoidmarkScreen extends Screen {
 		if (mobSearchFocused && !onMobSearch) {
 			mobSearchFocused = false;
 		}
-		boolean onFontSearch = fontPickerOpen && GuiDraw.hovered(lx, ly, fontListX, fontListY - 16, fontListW, 14);
+		boolean onFontSearch = fontPickerOpen && GuiDraw.hovered(lx, ly, fontListX, fontListY - FONT_SEARCH_H - 2, fontListW, FONT_SEARCH_H);
 		if (fontSearchFocused && !onFontSearch) {
 			fontSearchFocused = false;
 		}

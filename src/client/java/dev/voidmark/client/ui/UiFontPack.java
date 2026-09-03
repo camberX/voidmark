@@ -40,7 +40,7 @@ public final class UiFontPack {
 			return;
 		}
 		String family = VoidmarkConfig.get().uiFont;
-		boolean want = family != null && !family.isBlank();
+		boolean want = systemFont(family);
 		if (want && !loaded() && !family.equals(skipped)) {
 			apply(family);
 			return;
@@ -58,8 +58,8 @@ public final class UiFontPack {
 		}
 		busy = true;
 		try {
-			if (family == null || family.isBlank()) {
-				VoidmarkConfig.get().uiFont = "";
+			if (!systemFont(family)) {
+				VoidmarkConfig.get().uiFont = MenuFont.minecraftFamily(family) ? MenuFont.MINECRAFT_FAMILY : "";
 				VoidmarkConfig.get().save();
 				skipped = null;
 				disable(client);
@@ -83,6 +83,10 @@ public final class UiFontPack {
 			busy = false;
 			bootstrapped = true;
 		}
+	}
+
+	private static boolean systemFont(String family) {
+		return family != null && !family.isBlank() && !MenuFont.minecraftFamily(family);
 	}
 
 	private static void write(Minecraft client, Path ttf) throws IOException {

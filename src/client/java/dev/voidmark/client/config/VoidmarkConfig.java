@@ -392,6 +392,8 @@ public final class VoidmarkConfig {
 				}
 				if (loaded.uiFont == null) {
 					loaded.uiFont = "";
+				} else if (loaded.uiFont.equalsIgnoreCase("minecraft")) {
+					loaded.uiFont = "Minecraft";
 				}
 				loaded.musicApiPort = loaded.musicApiPort < 0 || loaded.musicApiPort > 65535
 					? 0

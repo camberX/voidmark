@@ -25,6 +25,7 @@ public final class MenuFont {
 	public static final Style TITLE = Style.EMPTY.withFont(new FontDescription.Resource(TITLE_ID));
 	public static final Style ICON = Style.EMPTY.withFont(new FontDescription.Resource(ICON_ID));
 	public static final Style VANILLA = Style.EMPTY.withFont(FontDescription.DEFAULT);
+	public static final String MINECRAFT_FAMILY = "Minecraft";
 	private static final Style UI_BODY = Style.EMPTY.withFont(new FontDescription.Resource(UI_ID));
 	private static final Style UI_SMALL = Style.EMPTY.withFont(new FontDescription.Resource(UI_SMALL_ID));
 	private static final Style UI_TITLE = Style.EMPTY.withFont(new FontDescription.Resource(UI_TITLE_ID));
@@ -49,20 +50,37 @@ public final class MenuFont {
 	private MenuFont() {
 	}
 
+	public static boolean minecraftFamily(String family) {
+		return family != null && family.equalsIgnoreCase(MINECRAFT_FAMILY);
+	}
+
+	public static boolean minecraft() {
+		return minecraftFamily(VoidmarkConfig.get().uiFont);
+	}
+
 	public static boolean custom() {
 		String family = VoidmarkConfig.get().uiFont;
-		return family != null && !family.isBlank() && UiFontPack.loaded();
+		return family != null && !family.isBlank() && !minecraftFamily(family) && UiFontPack.loaded();
 	}
 
 	public static Style bodyStyle() {
+		if (minecraft()) {
+			return VANILLA;
+		}
 		return custom() ? UI_BODY : BODY;
 	}
 
 	public static Style smallStyle() {
+		if (minecraft()) {
+			return VANILLA;
+		}
 		return custom() ? UI_SMALL : SMALL;
 	}
 
 	public static Style titleStyle() {
+		if (minecraft()) {
+			return VANILLA;
+		}
 		return custom() ? UI_TITLE : TITLE;
 	}
 

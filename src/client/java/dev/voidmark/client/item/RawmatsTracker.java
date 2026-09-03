@@ -243,7 +243,7 @@ public final class RawmatsTracker {
 	private static String noteOf(String leaf, List<String> used, Set<String> converted) {
 		List<String> recipe = distinctOthers(leaf, used);
 		if (!recipe.isEmpty()) {
-			return "Uses " + joinNames(recipe);
+			return "Used in " + joinNames(recipe);
 		}
 		List<String> from = distinctOthers(leaf, converted);
 		if (!from.isEmpty()) {
