@@ -66,6 +66,9 @@ async function route(request, env) {
 	if ((request.method === "POST" || request.method === "PUT") && path === "/api/cape") {
 		return handlePublish(request, env);
 	}
+	if (request.method === "POST" && path === "/api/cape/import") {
+		return handleImport(request, env);
+	}
 	if (request.method === "DELETE" && path === "/api/cape") {
 		return handleDelete(request, env);
 	}
@@ -95,6 +98,11 @@ async function route(request, env) {
 		if (asset.status !== 404) {
 			return asset;
 		}
+	}
+	if (request.method === "GET" && path === "/cape-crop.js") {
+		return new Response(CAPE_CROP_JS, {
+			headers: { ...cors(), "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" }
+		});
 	}
 	if (request.method === "GET" && path === "/manage.html") {
 		return page(MANAGE_HTML);
@@ -139,6 +147,41 @@ async function handlePublish(request, env) {
 		await saveState(env, state);
 	}
 	return json(200, { ok: true, uuid });
+}
+
+async function handleImport(request, env) {
+	if (!adminHeaderOk(request, env)) {
+		return json(403, { error: "Bad admin key" });
+	}
+	let payload;
+	try {
+		payload = await request.json();
+	} catch {
+		return json(400, { error: "Need a URL" });
+	}
+	const url = String(payload.url || "").trim();
+	if (!/^https?:\/\//i.test(url)) {
+		return json(400, { error: "Need http(s) URL" });
+	}
+	try {
+		const response = await fetch(url, {
+			headers: { "User-Agent": "Voidmark" },
+			signal: AbortSignal.timeout(10000)
+		});
+		if (!response.ok) {
+			return json(400, { error: "Fetch failed" });
+		}
+		const buf = new Uint8Array(await response.arrayBuffer());
+		if (buf.length < 24 || buf.length > MAX_BYTES) {
+			return json(400, { error: "Bad size" });
+		}
+		const type = response.headers.get("content-type") || "application/octet-stream";
+		return new Response(buf, {
+			headers: { ...cors(), "Content-Type": type, "Cache-Control": "no-store" }
+		});
+	} catch {
+		return json(400, { error: "Fetch failed" });
+	}
 }
 
 async function handleDelete(request, env) {
@@ -819,6 +862,8 @@ function page(html) {
 	});
 }
 
+const CAPE_CROP_JS = "window.VoidmarkCapeCrop = (function () {\n\tvar ASPECT = 10 / 16;\n\tvar FACE_W = 10;\n\tvar FACE_H = 16;\n\tvar LAYOUT_W = 64;\n\tvar LAYOUT_H = 32;\n\tvar MAX_SCALE = 16;\n\tvar overlay = null;\n\n\tfunction isVanilla(w, h) {\n\t\treturn w >= 64 && h >= 32 && w % 64 === 0 && h % 32 === 0 && w / 64 === h / 32;\n\t}\n\n\tfunction cover(srcW, srcH) {\n\t\tvar srcAspect = srcW / Math.max(1, srcH);\n\t\tvar crop = { x: 0, y: 0, w: 1, h: 1 };\n\t\tif (srcAspect > ASPECT) {\n\t\t\tcrop.h = 1;\n\t\t\tcrop.w = ASPECT / srcAspect;\n\t\t\tcrop.x = (1 - crop.w) * 0.5;\n\t\t\tcrop.y = 0;\n\t\t} else {\n\t\t\tcrop.w = 1;\n\t\t\tcrop.h = srcAspect / ASPECT;\n\t\t\tcrop.x = 0;\n\t\t\tcrop.y = (1 - crop.h) * 0.5;\n\t\t}\n\t\treturn crop;\n\t}\n\n\tfunction clampCrop(crop, srcW, srcH) {\n\t\tsrcW = Math.max(1, srcW);\n\t\tsrcH = Math.max(1, srcH);\n\t\tvar srcAspect = srcW / srcH;\n\t\tvar normAspect = ASPECT / srcAspect;\n\t\tvar max = cover(srcW, srcH);\n\t\tvar minW = Math.max(10 / srcW, max.w * 0.12);\n\t\tcrop.w = Math.min(max.w, Math.max(minW, crop.w));\n\t\tcrop.h = crop.w / normAspect;\n\t\tif (crop.h > max.h) {\n\t\t\tcrop.h = max.h;\n\t\t\tcrop.w = crop.h * normAspect;\n\t\t}\n\t\tcrop.x = Math.min(Math.max(0, crop.x), Math.max(0, 1 - crop.w));\n\t\tcrop.y = Math.min(Math.max(0, crop.y), Math.max(0, 1 - crop.h));\n\t}\n\n\tfunction loadImage(file) {\n\t\treturn new Promise(function (resolve, reject) {\n\t\t\tvar url = URL.createObjectURL(file);\n\t\t\tvar img = new Image();\n\t\t\timg.onload = function () {\n\t\t\t\tURL.revokeObjectURL(url);\n\t\t\t\tresolve(img);\n\t\t\t};\n\t\t\timg.onerror = function () {\n\t\t\t\tURL.revokeObjectURL(url);\n\t\t\t\treject(new Error(\"Could not read that image.\"));\n\t\t\t};\n\t\t\timg.src = url;\n\t\t});\n\t}\n\n\tfunction pickScale(sw, sh) {\n\t\tvar needed = Math.max(4, Math.min(MAX_SCALE, Math.max(Math.floor(sw / FACE_W), Math.floor(sh / FACE_H))));\n\t\treturn Math.min(MAX_SCALE, Math.max(4, needed));\n\t}\n\n\tfunction bakeAtlas(img, crop) {\n\t\tvar sw = img.width;\n\t\tvar sh = img.height;\n\t\t\tvar scale = pickScale(img.width, img.height);\n\t\tvar aw = LAYOUT_W * scale;\n\t\tvar ah = LAYOUT_H * scale;\n\t\tvar out = document.createElement(\"canvas\");\n\t\tout.width = aw;\n\t\tout.height = ah;\n\t\tvar ctx = out.getContext(\"2d\");\n\t\tctx.fillStyle = \"#000\";\n\t\tctx.fillRect(0, 0, aw, ah);\n\t\tctx.imageSmoothingEnabled = crop.w * sw > 10 * scale || crop.h * sh > 16 * scale;\n\t\tvar fu = scale;\n\t\tvar fv = scale;\n\t\tvar fw = FACE_W * scale;\n\t\tvar fh = FACE_H * scale;\n\t\tvar sx = crop.x * sw;\n\t\tvar sy = crop.y * sh;\n\t\tvar sWidth = crop.w * sw;\n\t\tvar sHeight = crop.h * sh;\n\t\tctx.drawImage(img, sx, sy, sWidth, sHeight, fu, fv, fw, fh);\n\t\tctx.drawImage(out, fu, fv, fw, fh, 12 * scale, fv, fw, fh);\n\t\tvar edge = ctx.getImageData(fu, fv, fw, fh);\n\t\tfor (var y = 0; y < fh; y++) {\n\t\t\tvar left = (y * fw) * 4;\n\t\t\tvar right = (y * fw + fw - 1) * 4;\n\t\t\tfor (var x = 0; x < scale; x++) {\n\t\t\t\tctx.fillStyle = \"rgb(\" + edge.data[left] + \",\" + edge.data[left + 1] + \",\" + edge.data[left + 2] + \")\";\n\t\t\t\tctx.fillRect(x, fv + y, 1, 1);\n\t\t\t\tctx.fillStyle = \"rgb(\" + edge.data[right] + \",\" + edge.data[right + 1] + \",\" + edge.data[right + 2] + \")\";\n\t\t\t\tctx.fillRect(11 * scale + x, fv + y, 1, 1);\n\t\t\t}\n\t\t}\n\t\tfor (var i = 0; i < fw; i++) {\n\t\t\tvar top = i * 4;\n\t\t\tvar bot = ((fh - 1) * fw + i) * 4;\n\t\t\tfor (var t = 0; t < scale; t++) {\n\t\t\t\tctx.fillStyle = \"rgb(\" + edge.data[top] + \",\" + edge.data[top + 1] + \",\" + edge.data[top + 2] + \")\";\n\t\t\t\tctx.fillRect(fu + i, t, 1, 1);\n\t\t\t\tctx.fillStyle = \"rgb(\" + edge.data[bot] + \",\" + edge.data[bot + 1] + \",\" + edge.data[bot + 2] + \")\";\n\t\t\t\tctx.fillRect(11 * scale + i, t, 1, 1);\n\t\t\t}\n\t\t}\n\t\treturn out;\n\t}\n\n\tfunction canvasPng(canvas) {\n\t\treturn new Promise(function (resolve, reject) {\n\t\t\tcanvas.toBlob(function (blob) {\n\t\t\t\tif (!blob) reject(new Error(\"Could not encode cape.\"));\n\t\t\t\telse resolve(blob);\n\t\t\t}, \"image/png\");\n\t\t});\n\t}\n\n\tfunction close() {\n\t\tif (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);\n\t\toverlay = null;\n\t}\n\n\tfunction open(file, onDone, onCancel) {\n\t\tclose();\n\t\tloadImage(file).then(function (img) {\n\t\t\tif (isVanilla(img.width, img.height)) {\n\t\t\t\tonDone(file);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tvar crop = cover(img.width, img.height);\n\t\t\toverlay = document.createElement(\"div\");\n\t\t\toverlay.className = \"overlay center\";\n\t\t\toverlay.innerHTML = \"\"\n\t\t\t\t+ '<div class=\"sheet crop-sheet\">'\n\t\t\t\t+ \"<h1 style=\\\"font-size:16px\\\">CAPE CREATOR</h1>\"\n\t\t\t\t+ '<p class=\"who\">Drag to pan. Scroll or pinch to zoom. The box is the 10\u00d716 face other players see.</p>'\n\t\t\t\t+ '<div class=\"crop-wrap\">'\n\t\t\t\t+ '<div class=\"crop-stage\" id=\"crop-stage\"><div class=\"crop-holder\"><canvas id=\"crop-src\"></canvas><div id=\"crop-box\"></div></div></div>'\n\t\t\t\t+ '<div class=\"crop-side\"><div class=\"crop-face\"><canvas id=\"crop-face\"></canvas></div><p class=\"hint\">In-game face</p></div>'\n\t\t\t\t+ \"</div>\"\n\t\t\t\t+ '<div class=\"row\">'\n\t\t\t\t+ '<button type=\"button\" class=\"ghost\" id=\"crop-reset\">Reset</button>'\n\t\t\t\t+ '<button type=\"button\" class=\"ghost\" id=\"crop-cancel\">Cancel</button>'\n\t\t\t\t+ '<button type=\"button\" class=\"primary\" id=\"crop-apply\">Apply cape</button>'\n\t\t\t\t+ \"</div></div>\";\n\t\t\tdocument.body.appendChild(overlay);\n\t\t\tvar stage = overlay.querySelector(\"#crop-stage\");\n\t\t\tvar srcCanvas = overlay.querySelector(\"#crop-src\");\n\t\t\tvar faceCanvas = overlay.querySelector(\"#crop-face\");\n\t\t\tvar box = overlay.querySelector(\"#crop-box\");\n\t\t\tvar dragging = false;\n\t\t\tvar lastX = 0;\n\t\t\tvar lastY = 0;\n\n\t\t\tfunction layout() {\n\t\t\t\tvar maxW = Math.min(420, stage.clientWidth || 420);\n\t\t\t\tvar maxH = 280;\n\t\t\t\tvar fit = Math.min(maxW / img.width, maxH / img.height);\n\t\t\t\tsrcCanvas.width = Math.max(1, Math.round(img.width * fit));\n\t\t\t\tsrcCanvas.height = Math.max(1, Math.round(img.height * fit));\n\t\t\t\tvar sctx = srcCanvas.getContext(\"2d\");\n\t\t\t\tsctx.imageSmoothingEnabled = true;\n\t\t\t\tsctx.drawImage(img, 0, 0, srcCanvas.width, srcCanvas.height);\n\t\t\t\tbox.style.left = crop.x * srcCanvas.width + \"px\";\n\t\t\t\tbox.style.top = crop.y * srcCanvas.height + \"px\";\n\t\t\t\tbox.style.width = crop.w * srcCanvas.width + \"px\";\n\t\t\t\tbox.style.height = crop.h * srcCanvas.height + \"px\";\n\t\t\t\tfaceCanvas.width = 50;\n\t\t\t\tfaceCanvas.height = 80;\n\t\t\t\tvar fctx = faceCanvas.getContext(\"2d\");\n\t\t\t\tfctx.imageSmoothingEnabled = true;\n\t\t\t\tfctx.drawImage(\n\t\t\t\t\timg,\n\t\t\t\t\tcrop.x * img.width,\n\t\t\t\t\tcrop.y * img.height,\n\t\t\t\t\tcrop.w * img.width,\n\t\t\t\t\tcrop.h * img.height,\n\t\t\t\t\t0,\n\t\t\t\t\t0,\n\t\t\t\t\t50,\n\t\t\t\t\t80\n\t\t\t\t);\n\t\t\t}\n\n\t\t\toverlay.querySelector(\"#crop-reset\").onclick = function () {\n\t\t\t\tcrop = cover(img.width, img.height);\n\t\t\t\tlayout();\n\t\t\t};\n\t\t\toverlay.querySelector(\"#crop-cancel\").onclick = function () {\n\t\t\t\tclose();\n\t\t\t\tif (onCancel) onCancel();\n\t\t\t};\n\t\t\toverlay.querySelector(\"#crop-apply\").onclick = function () {\n\t\t\t\tcanvasPng(bakeAtlas(img, crop)).then(function (blob) {\n\t\t\t\t\tclose();\n\t\t\t\t\tonDone(blob);\n\t\t\t\t}).catch(function (error) {\n\t\t\t\t\talert(error.message);\n\t\t\t\t});\n\t\t\t};\n\t\t\toverlay.addEventListener(\"click\", function (event) {\n\t\t\t\tif (event.target === overlay) {\n\t\t\t\t\tclose();\n\t\t\t\t\tif (onCancel) onCancel();\n\t\t\t\t}\n\t\t\t});\n\t\t\tstage.addEventListener(\"pointerdown\", function (event) {\n\t\t\t\tdragging = true;\n\t\t\t\tlastX = event.clientX;\n\t\t\t\tlastY = event.clientY;\n\t\t\t\tstage.setPointerCapture(event.pointerId);\n\t\t\t});\n\t\t\tstage.addEventListener(\"pointerup\", function () { dragging = false; });\n\t\t\tstage.addEventListener(\"pointermove\", function (event) {\n\t\t\t\tif (!dragging) return;\n\t\t\t\tvar dx = (event.clientX - lastX) / srcCanvas.width;\n\t\t\t\tvar dy = (event.clientY - lastY) / srcCanvas.height;\n\t\t\t\tlastX = event.clientX;\n\t\t\t\tlastY = event.clientY;\n\t\t\t\tcrop.x += dx;\n\t\t\t\tcrop.y += dy;\n\t\t\t\tclampCrop(crop, img.width, img.height);\n\t\t\t\tlayout();\n\t\t\t});\n\t\t\tstage.addEventListener(\"wheel\", function (event) {\n\t\t\t\tevent.preventDefault();\n\t\t\t\tvar rect = srcCanvas.getBoundingClientRect();\n\t\t\t\tvar px = (event.clientX - rect.left) / srcCanvas.width;\n\t\t\t\tvar py = (event.clientY - rect.top) / srcCanvas.height;\n\t\t\t\tvar factor = event.deltaY < 0 ? 0.88 : 1.14;\n\t\t\t\tcrop.x = px - (px - crop.x) * factor;\n\t\t\t\tcrop.y = py - (py - crop.y) * factor;\n\t\t\t\tcrop.w *= factor;\n\t\t\t\tcrop.h *= factor;\n\t\t\t\tclampCrop(crop, img.width, img.height);\n\t\t\t\tlayout();\n\t\t\t}, { passive: false });\n\t\t\trequestAnimationFrame(layout);\n\t\t}).catch(function (error) {\n\t\t\tif (onCancel) onCancel();\n\t\t\talert(error.message);\n\t\t});\n\t}\n\n\treturn { open: open, isVanilla: isVanilla };\n})();\n";
+
 const STORE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -878,7 +923,7 @@ const STORE_HTML = `<!DOCTYPE html>
 				<div class="kicker">How it works</div>
 				<ol class="steps">
 					<li><span class="num">1</span><span>Send the listed amount as PayPal Friends and Family. Include your Minecraft username in the note.</span></li>
-					<li><span class="num">2</span><span>You get whitelisted. Open Voidmark, open the Cape card, and set a PNG.</span></li>
+					<li><span class="num">2</span><span>You get whitelisted. In Voidmark, open the Cape card and click Create cape to crop any photo onto the cape, or paste a PNG URL.</span></li>
 					<li><span class="num">3</span><span>Other Voidmark clients pick it up when they join a world. Capes only show for Voidmark users.</span></li>
 				</ol>
 				<p class="warn">Friends and Family has no PayPal purchase protection. This is a cape for a client mod, not a Hypixel cosmetic.</p>
@@ -1116,6 +1161,13 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		.overlay.center { align-items: center; justify-content: center; padding: 16px; }
 		.drawer, .sheet { width: min(440px, 100%); background: var(--pane); border-left: 1px solid var(--line); padding: 22px; overflow: auto; box-shadow: -20px 0 80px #000a; }
 		.sheet { width: min(460px, 100%); border: 1px solid var(--line); border-radius: 16px; border-left: 1px solid var(--line); }
+		.crop-sheet { width: min(740px, 100%) !important; }
+		.crop-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 14px; margin: 12px 0 16px; align-items: start; }
+		.crop-stage { position: relative; background: #070b12; border: 1px solid var(--line); border-radius: 10px; min-height: 220px; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+		.crop-holder { position: relative; display: inline-block; }
+		.crop-stage canvas { display: block; }
+		#crop-box { position: absolute; border: 2px solid var(--accent); box-shadow: 0 0 0 9999px #0009; pointer-events: none; }
+		.crop-face canvas { width: 50px; height: 80px; background: #000; border: 1px solid var(--line); border-radius: 6px; display: block; }
 		.who { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
 		.preview { margin-bottom: 16px; }
 		.stage { position: relative; height: 360px; border-radius: 10px; overflow: hidden; background: #070b12; border: 1px solid var(--line); }
@@ -1229,10 +1281,10 @@ const MANAGE_HTML = `<!DOCTYPE html>
 					<button type="button" class="ghost" id="d-urlgo">Fetch</button>
 				</div>
 			</div>
-			<input id="d-file" type="file" accept="image/png,.png" hidden>
+			<input id="d-file" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" hidden>
 			<div class="row">
 				<button type="button" class="ghost" id="d-copy">Copy UUID</button>
-				<button type="button" class="ghost" id="d-upload">Upload PNG</button>
+				<button type="button" class="ghost" id="d-upload">Create cape</button>
 				<button type="button" class="ghost" id="d-tag">Head tag</button>
 			</div>
 			<div class="row" style="margin-top:8px">
@@ -1264,6 +1316,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		</div>
 	</div>
 	<script src="https://cdn.jsdelivr.net/npm/skinview3d@3.4.1/bundles/skinview3d.bundle.js"></script>
+	<script src="/cape-crop.js"></script>
 	<script>
 		const key = sessionStorage.getItem("voidmark-admin") || "";
 		if (!key) location.replace("/admin.html");
@@ -1959,28 +2012,42 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			if (!selected) return;
 			navigator.clipboard.writeText(selected).then(function () { setStatus(true, "UUID copied."); });
 		};
+		function uploadCapeBlob(blob) {
+			return fetch("/api/cape", { method: "PUT", headers: { "X-UUID": selected, "X-Admin": key }, body: blob })
+				.then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || "Upload failed"); }); })
+				.then(function () { return loadPlayers(false); })
+				.then(function () { setStatus(true, "Cape updated."); });
+		}
 		document.getElementById("d-upload").onclick = function () { document.getElementById("d-file").click(); };
 		document.getElementById("d-file").onchange = function () {
 			const file = document.getElementById("d-file").files[0];
 			if (!file || !selected) return;
-			fetch("/api/cape", { method: "PUT", headers: { "X-UUID": selected, "X-Admin": key }, body: file })
-				.then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || "Upload failed"); }); })
-				.then(function () { return loadPlayers(false); })
-				.then(function () { setStatus(true, "Cape updated."); })
-				.catch(function (error) { setStatus(false, error.message); })
-				.finally(function () { document.getElementById("d-file").value = ""; });
+			if (!window.VoidmarkCapeCrop) {
+				uploadCapeBlob(file).catch(function (error) { setStatus(false, error.message); }).finally(function () { document.getElementById("d-file").value = ""; });
+				return;
+			}
+			VoidmarkCapeCrop.open(file, function (png) {
+				uploadCapeBlob(png).catch(function (error) { setStatus(false, error.message); }).finally(function () { document.getElementById("d-file").value = ""; });
+			}, function () { document.getElementById("d-file").value = ""; });
 		};
 		document.getElementById("d-urlgo").onclick = function () {
 			const url = document.getElementById("d-url").value.trim();
 			if (!url || !selected) return;
-			fetch("/api/cape", {
-				method: "PUT",
-				headers: { "Content-Type": "application/json", "X-UUID": selected, "X-Admin": key },
+			fetch("/api/cape/import", {
+				method: "POST",
+				headers: { "Content-Type": "application/json", "X-Admin": key },
 				body: JSON.stringify({ url: url })
-			}).then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || "Fetch failed"); }); })
-				.then(function () { return loadPlayers(false); })
-				.then(function () { setStatus(true, "Cape fetched and saved."); })
-				.catch(function (error) { setStatus(false, error.message); });
+			}).then(function (response) {
+				if (!response.ok) {
+					return response.json().then(function (data) { throw new Error(data.error || "Fetch failed"); });
+				}
+				return response.blob();
+			}).then(function (blob) {
+				if (!window.VoidmarkCapeCrop) return uploadCapeBlob(blob);
+				return new Promise(function (resolve, reject) {
+					VoidmarkCapeCrop.open(blob, function (png) { uploadCapeBlob(png).then(resolve).catch(reject); }, function () { resolve(); });
+				});
+			}).catch(function (error) { setStatus(false, error.message); });
 		};
 		document.getElementById("d-note").addEventListener("change", function () {
 			if (!selected) return;

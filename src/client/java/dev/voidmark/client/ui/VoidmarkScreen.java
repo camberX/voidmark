@@ -177,6 +177,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Hypixel", Tab.NODES, "Status"),
 		new SearchEntry("Nick hider", Tab.PLAYER, "Player"),
 		new SearchEntry("Cape", Tab.PLAYER, "Player"),
+		new SearchEntry("Cape creator", Tab.PLAYER, "Player"),
 		new SearchEntry("Cape shop", Tab.PLAYER, "Player"),
 		new SearchEntry("Refresh capes", Tab.PLAYER, "Player")
 	};
@@ -695,7 +696,7 @@ public class VoidmarkScreen extends Screen {
 			}
 		}
 
-		float y = featureCard(graphics, font, right, top, col, ShopCape.allowed() ? cardHeight(5) : cardHeight(3), "Cape");
+		float y = featureCard(graphics, font, right, top, col, ShopCape.allowed() ? cardHeight(6) : cardHeight(3), "Cape");
 		if (!ShopCape.allowed()) {
 			String shop = ShopCape.publishStatus();
 			GuiDraw.small(graphics, font, shop.isBlank() ? ShopCape.lockLabel() : shop, rx, y + 2, Theme.WARN);
@@ -731,6 +732,12 @@ public class VoidmarkScreen extends Screen {
 		GuiDraw.panel(graphics, rx, y + 1, iw, ROW - 2, 5, hoverFile ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
 		GuiDraw.menu(graphics, font, "Local file...", rx + 5, GuiDraw.middle(y, ROW), Theme.TEXT);
 		hits.add(new Hit(rx, y, iw, ROW, CustomCape::pickLocal));
+		y += ROW;
+
+		boolean hoverCreate = GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
+		GuiDraw.panel(graphics, rx, y + 1, iw, ROW - 2, 5, hoverCreate ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
+		GuiDraw.menu(graphics, font, "Create cape...", rx + 5, GuiDraw.middle(y, ROW), Theme.TEXT);
+		hits.add(new Hit(rx, y, iw, ROW, CustomCape::pickCreate));
 		y += ROW;
 
 		boolean hoverClear = GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
@@ -1522,7 +1529,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.131");
+			.orElse("1.1.132");
 	}
 
 	@Override

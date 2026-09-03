@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.132", new String[]{
+			"Cape creator crops photos onto the 10×16 cape face in Voidmark and on the cape desk. Drag to pan, scroll to zoom, then apply. Vanilla 64×32 templates still skip the cropper."
+		}),
 		new Entry("1.1.131", new String[]{
 			"Nametags cog picks Voidmark plates or vanilla tags. Menu buttons, fields, list rows, and compact HUD pieces no longer draw a left accent rail. Remaining HUD rails flip to the side closer to the screen edge."
 		}),

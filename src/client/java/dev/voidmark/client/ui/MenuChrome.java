@@ -32,6 +32,7 @@ public final class MenuChrome {
 			|| screen instanceof VoidmarkScreen
 			|| screen instanceof ItemEditScreen
 			|| screen instanceof HudEditorScreen
+			|| screen instanceof CapeCreatorScreen
 			|| screen instanceof FakeBanScreen) {
 			return false;
 		}

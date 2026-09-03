@@ -37,11 +37,15 @@ final class CapeAtlas {
 	 * Takes ownership of {@code src}. Returns a texture the cape model can sample.
 	 */
 	static NativeImage toAtlas(NativeImage src) {
-		if (isVanillaLayout(src.getWidth(), src.getHeight())) {
+		return toAtlas(src, null);
+	}
+
+	static NativeImage toAtlas(NativeImage src, CapeCrop crop) {
+		if (crop == null && isVanillaLayout(src.getWidth(), src.getHeight())) {
 			return src;
 		}
 		try {
-			return bake(src);
+			return bake(src, crop);
 		} finally {
 			src.close();
 		}
@@ -51,18 +55,22 @@ final class CapeAtlas {
 		return Math.max(1, width / LAYOUT_W);
 	}
 
-	private static NativeImage bake(NativeImage src) {
+	private static NativeImage bake(NativeImage src, CapeCrop crop) {
 		int scale = pickScale(src.getWidth(), src.getHeight());
 		NativeImage atlas = new NativeImage(LAYOUT_W * scale, LAYOUT_H * scale, false);
 		try {
 			atlas.fillRect(0, 0, atlas.getWidth(), atlas.getHeight(), 0xFF000000);
 
-			int pad = averageBorder(src);
 			int fu = 1 * scale;
 			int fv = 1 * scale;
 			int fw = FACE_W * scale;
 			int fh = FACE_H * scale;
-			paintFace(src, atlas, fu, fv, fw, fh, pad);
+			if (crop != null) {
+				paintFaceCrop(src, atlas, fu, fv, fw, fh, crop);
+			} else {
+				int pad = averageBorder(src);
+				paintFace(src, atlas, fu, fv, fw, fh, pad);
+			}
 			atlas.copyRect(fu, fv, (FACE_U - 1) * scale, 0, fw, fh, false, false);
 			paintEdges(atlas, scale);
 			return atlas;
@@ -96,6 +104,22 @@ final class CapeAtlas {
 				}
 				float sx = (px - ox) / fit - 0.5f;
 				float sy = (py - oy) / fit - 0.5f;
+				int color = bilinear ? sampleBilinear(src, sx, sy) : sampleNearest(src, sx, sy);
+				atlas.setPixel(dx + x, dy + y, color | 0xFF000000);
+			}
+		}
+	}
+
+	private static void paintFaceCrop(NativeImage src, NativeImage atlas, int dx, int dy, int dw, int dh, CapeCrop crop) {
+		float x0 = crop.x * src.getWidth();
+		float y0 = crop.y * src.getHeight();
+		float cw = crop.w * src.getWidth();
+		float ch = crop.h * src.getHeight();
+		boolean bilinear = cw > dw || ch > dh;
+		for (int y = 0; y < dh; y++) {
+			for (int x = 0; x < dw; x++) {
+				float sx = x0 + (x + 0.5f) / dw * cw - 0.5f;
+				float sy = y0 + (y + 0.5f) / dh * ch - 0.5f;
 				int color = bilinear ? sampleBilinear(src, sx, sy) : sampleNearest(src, sx, sy);
 				atlas.setPixel(dx + x, dy + y, color | 0xFF000000);
 			}

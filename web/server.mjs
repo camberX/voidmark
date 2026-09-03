@@ -130,6 +130,10 @@ async function route(req, res) {
 		await handlePublish(req, res);
 		return;
 	}
+	if (req.method === "POST" && path === "/api/cape/import") {
+		await handleImport(req, res);
+		return;
+	}
 	if (req.method === "DELETE" && path === "/api/cape") {
 		await handleDelete(req, res);
 		return;
@@ -203,6 +207,45 @@ async function handlePublish(req, res) {
 		await touchCapeAt(uuid);
 	}
 	json(res, 200, { ok: true, uuid });
+}
+
+async function handleImport(req, res) {
+	if (!adminHeaderOk(req)) {
+		json(res, 403, { error: "Bad admin key" });
+		return;
+	}
+	let payload;
+	try {
+		payload = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}");
+	} catch {
+		json(res, 400, { error: "Need a URL" });
+		return;
+	}
+	const url = String(payload.url || "").trim();
+	if (!/^https?:\/\//i.test(url)) {
+		json(res, 400, { error: "Need http(s) URL" });
+		return;
+	}
+	try {
+		const response = await fetch(url, {
+			headers: { "User-Agent": "Voidmark" },
+			signal: AbortSignal.timeout(10000)
+		});
+		if (!response.ok) {
+			json(res, 400, { error: "Fetch failed" });
+			return;
+		}
+		const buf = Buffer.from(await response.arrayBuffer());
+		if (buf.length < 24 || buf.length > MAX_BYTES) {
+			json(res, 400, { error: "Bad size" });
+			return;
+		}
+		const type = response.headers.get("content-type") || "application/octet-stream";
+		res.writeHead(200, { ...cors(), "Content-Type": type, "Cache-Control": "no-store" });
+		res.end(buf);
+	} catch {
+		json(res, 400, { error: "Fetch failed" });
+	}
 }
 
 async function handleDelete(req, res) {

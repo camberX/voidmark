@@ -69,6 +69,13 @@
 		.overlay.center { align-items: center; justify-content: center; padding: 16px; }
 		.drawer, .sheet { width: min(440px, 100%); background: var(--pane); border-left: 1px solid var(--line); padding: 22px; overflow: auto; box-shadow: -20px 0 80px #000a; }
 		.sheet { width: min(460px, 100%); border: 1px solid var(--line); border-radius: 16px; border-left: 1px solid var(--line); }
+		.crop-sheet { width: min(740px, 100%) !important; }
+		.crop-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 14px; margin: 12px 0 16px; align-items: start; }
+		.crop-stage { position: relative; background: #070b12; border: 1px solid var(--line); border-radius: 10px; min-height: 220px; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+		.crop-holder { position: relative; display: inline-block; }
+		.crop-stage canvas { display: block; }
+		#crop-box { position: absolute; border: 2px solid var(--accent); box-shadow: 0 0 0 9999px #0009; pointer-events: none; }
+		.crop-face canvas { width: 50px; height: 80px; background: #000; border: 1px solid var(--line); border-radius: 6px; display: block; }
 		.who { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
 		.preview { margin-bottom: 16px; }
 		.stage { position: relative; height: 360px; border-radius: 10px; overflow: hidden; background: #070b12; border: 1px solid var(--line); }
@@ -182,10 +189,10 @@
 					<button type="button" class="ghost" id="d-urlgo">Fetch</button>
 				</div>
 			</div>
-			<input id="d-file" type="file" accept="image/png,.png" hidden>
+			<input id="d-file" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" hidden>
 			<div class="row">
 				<button type="button" class="ghost" id="d-copy">Copy UUID</button>
-				<button type="button" class="ghost" id="d-upload">Upload PNG</button>
+				<button type="button" class="ghost" id="d-upload">Create cape</button>
 				<button type="button" class="ghost" id="d-tag">Head tag</button>
 			</div>
 			<div class="row" style="margin-top:8px">
@@ -217,6 +224,7 @@
 		</div>
 	</div>
 	<script src="https://cdn.jsdelivr.net/npm/skinview3d@3.4.1/bundles/skinview3d.bundle.js"></script>
+	<script src="/cape-crop.js"></script>
 	<script>
 		const key = sessionStorage.getItem("voidmark-admin") || "";
 		if (!key) location.replace("/admin.html");
@@ -912,28 +920,42 @@
 			if (!selected) return;
 			navigator.clipboard.writeText(selected).then(function () { setStatus(true, "UUID copied."); });
 		};
+		function uploadCapeBlob(blob) {
+			return fetch("/api/cape", { method: "PUT", headers: { "X-UUID": selected, "X-Admin": key }, body: blob })
+				.then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || "Upload failed"); }); })
+				.then(function () { return loadPlayers(false); })
+				.then(function () { setStatus(true, "Cape updated."); });
+		}
 		document.getElementById("d-upload").onclick = function () { document.getElementById("d-file").click(); };
 		document.getElementById("d-file").onchange = function () {
 			const file = document.getElementById("d-file").files[0];
 			if (!file || !selected) return;
-			fetch("/api/cape", { method: "PUT", headers: { "X-UUID": selected, "X-Admin": key }, body: file })
-				.then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || "Upload failed"); }); })
-				.then(function () { return loadPlayers(false); })
-				.then(function () { setStatus(true, "Cape updated."); })
-				.catch(function (error) { setStatus(false, error.message); })
-				.finally(function () { document.getElementById("d-file").value = ""; });
+			if (!window.VoidmarkCapeCrop) {
+				uploadCapeBlob(file).catch(function (error) { setStatus(false, error.message); }).finally(function () { document.getElementById("d-file").value = ""; });
+				return;
+			}
+			VoidmarkCapeCrop.open(file, function (png) {
+				uploadCapeBlob(png).catch(function (error) { setStatus(false, error.message); }).finally(function () { document.getElementById("d-file").value = ""; });
+			}, function () { document.getElementById("d-file").value = ""; });
 		};
 		document.getElementById("d-urlgo").onclick = function () {
 			const url = document.getElementById("d-url").value.trim();
 			if (!url || !selected) return;
-			fetch("/api/cape", {
-				method: "PUT",
-				headers: { "Content-Type": "application/json", "X-UUID": selected, "X-Admin": key },
+			fetch("/api/cape/import", {
+				method: "POST",
+				headers: { "Content-Type": "application/json", "X-Admin": key },
 				body: JSON.stringify({ url: url })
-			}).then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || "Fetch failed"); }); })
-				.then(function () { return loadPlayers(false); })
-				.then(function () { setStatus(true, "Cape fetched and saved."); })
-				.catch(function (error) { setStatus(false, error.message); });
+			}).then(function (response) {
+				if (!response.ok) {
+					return response.json().then(function (data) { throw new Error(data.error || "Fetch failed"); });
+				}
+				return response.blob();
+			}).then(function (blob) {
+				if (!window.VoidmarkCapeCrop) return uploadCapeBlob(blob);
+				return new Promise(function (resolve, reject) {
+					VoidmarkCapeCrop.open(blob, function (png) { uploadCapeBlob(png).then(resolve).catch(reject); }, function () { resolve(); });
+				});
+			}).catch(function (error) { setStatus(false, error.message); });
 		};
 		document.getElementById("d-note").addEventListener("change", function () {
 			if (!selected) return;
