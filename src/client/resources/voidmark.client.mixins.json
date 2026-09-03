@@ -5,6 +5,7 @@
 	"client": [
 		"AbstractButtonMixin",
 		"AbstractClientPlayerMixin",
+		"AbstractSelectionListMixin",
 		"AbstractSliderButtonMixin",
 		"AbstractWidgetInvoker",
 		"AvatarRendererMixin",

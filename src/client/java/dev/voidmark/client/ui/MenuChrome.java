@@ -60,8 +60,6 @@ public final class MenuChrome {
 	public static void headerFooter(GuiGraphicsExtractor graphics, int width, int height) {
 		GuiDraw.fill(graphics, 0, 0, width, 48, 0x66000000);
 		GuiDraw.fill(graphics, 0, height - 36, width, 36, 0x88000000);
-		GuiDraw.fill(graphics, 0, 47, width, 1, Theme.withAlpha(Theme.ACCENT, 80));
-		GuiDraw.fill(graphics, 0, height - 36, width, 1, Theme.withAlpha(Theme.LINE, 200));
 	}
 
 	public static Component bodyLabel(Component message, boolean active) {
