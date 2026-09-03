@@ -25,7 +25,7 @@ import java.util.UUID;
 /**
  * Admin-triggered prank: first sighting waits 5 seconds, posts a red
  * exception line, runs {@code /limbo} for 3 seconds, then a Hypixel-style
- * 180-day boosting kick. Later reconnects never open a real connection:
+ * 360-day boosting kick. Later reconnects never open a real connection:
  * vanilla ConnectScreen is shown, Connecting, Encrypting, then Joining
  * world are faked, and the kick fires after half a second on Joining
  * world. Remaining time is snapshotted at kick and only refreshes on the
@@ -41,7 +41,7 @@ public final class FakeBan {
 	private static final long CONNECTING_MS = 700L;
 	private static final long ENCRYPTING_MS = 400L;
 	private static final long JOINING_HOLD_MS = 500L;
-	private static final long BAN_MS = 180L * 24L * 60L * 60L * 1000L;
+	private static final long BAN_MS = 360L * 24L * 60L * 60L * 1000L;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.connectTimeout(Duration.ofSeconds(8))

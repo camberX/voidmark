@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.126", new String[]{
+			"Fake boosting bans last 360 days instead of 180."
+		}),
 		new Entry("1.1.125", new String[]{
 			"Music HUD no longer launches an external Windows shell. Now-playing on Windows uses the player window and local companion apps."
 		}),

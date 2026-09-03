@@ -511,7 +511,7 @@ function shopConfig(state, env) {
 const MAX_TAG = 48;
 const MAX_NOTE = 160;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const BAN_MS = 180 * DAY_MS;
+const BAN_MS = 360 * DAY_MS;
 
 function sanitizeTag(value) {
 	return String(value || "")
