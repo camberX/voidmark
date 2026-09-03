@@ -55,16 +55,22 @@ void main() {
 
     float outer = max(blur.a - inside, 0.0);
     outer = pow(clamp(outer, 0.0, 1.0), 0.62);
-    outer = smoothstep(0.0, 0.85, outer);
 
     vec3 color = blur.rgb / max(blur.a, 0.001);
     if (inside > 0.001) {
         color = mask.rgb / max(mask.a, 0.001);
     }
 
-    float alpha = (outer * 1.05 + rim * 0.92) * (1.0 - inside);
-    vec4 esp = vec4(color, clamp(alpha, 0.0, 1.0));
+    float espAout = (outer * 1.05 + rim * 0.92) * (1.0 - inside);
+    espAout = clamp(espAout, 0.0, 1.0);
     vec4 vanilla = vanillaSobel(oneTexel);
+    vec3 vanillaColor = vanilla.rgb / max(vanilla.a, 0.001);
 
-    fragColor = vec4(esp.rgb * esp.a + vanilla.rgb * vanilla.a, clamp(esp.a + vanilla.a, 0.0, 1.0));
+    // ENTITY_OUTLINE_BLIT uses SRC_ALPHA, so keep straight (unpremultiplied) RGB.
+    // Mixing premul RGB here was the black vignette at the halo edge.
+    float alpha = clamp(espAout + vanilla.a, 0.0, 1.0);
+    vec3 rgb = alpha > 0.001
+        ? (color * espAout + vanillaColor * vanilla.a) / alpha
+        : vec3(0.0);
+    fragColor = vec4(rgb, alpha);
 }

@@ -18,6 +18,7 @@ void main() {
     if (color.a > 0.92) {
         fragColor = vec4(0.0);
     } else {
-        fragColor = color;
+        // Premultiply so empty texels cannot pull the halo RGB toward black.
+        fragColor = vec4(color.rgb * color.a, color.a);
     }
 }

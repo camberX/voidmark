@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.voidmark.Voidmark;
+import dev.voidmark.client.render.GlowBlurRadius;
 import dev.voidmark.client.render.MobCatalog;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -147,6 +148,7 @@ public final class VoidmarkConfig {
 	public java.util.List<String> mobGlowNames = new java.util.ArrayList<>();
 	public java.util.List<String> mobGlowIds = new java.util.ArrayList<>();
 	public float mobGlowSize = 0.48f;
+	public float mobGlowRadius = GlowBlurRadius.DEFAULT;
 	public float mobGlowOpacity = 0.58f;
 	public int mobGlowRgb = 0x2FB5FF;
 	public java.util.List<ItemSkin> itemSkins = new java.util.ArrayList<>();
@@ -354,6 +356,7 @@ public final class VoidmarkConfig {
 				}
 				loaded.normalizeMobGlowIds();
 				loaded.mobGlowSize = clamp(loaded.mobGlowSize <= 0f ? 0.48f : loaded.mobGlowSize, 0.12f, 1.20f);
+				loaded.mobGlowRadius = clamp(loaded.mobGlowRadius <= 0f ? GlowBlurRadius.DEFAULT : loaded.mobGlowRadius, GlowBlurRadius.MIN, GlowBlurRadius.MAX);
 				loaded.mobGlowOpacity = clamp(loaded.mobGlowOpacity <= 0f ? 0.58f : loaded.mobGlowOpacity, 0.15f, 0.90f);
 				loaded.mobGlowRgb = loaded.mobGlowRgb & 0xFFFFFF;
 				if (loaded.mobGlowRgb == 0) {

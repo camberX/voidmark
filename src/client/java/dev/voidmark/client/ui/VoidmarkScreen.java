@@ -7,6 +7,7 @@ import dev.voidmark.client.location.SkyblockLocation;
 import dev.voidmark.client.mining.MiningAreas;
 import dev.voidmark.client.mining.MiningTracker;
 import dev.voidmark.client.mining.TitaniumTracker;
+import dev.voidmark.client.render.GlowBlurRadius;
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.HudStats;
 import dev.voidmark.client.render.EspMobPrint;
@@ -1488,7 +1489,7 @@ public class VoidmarkScreen extends Screen {
 			}
 			case MOB -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.mobGlowThroughWalls, v -> config.mobGlowThroughWalls = v);
-				y = slider(graphics, font, ix, y, iw, "Size", String.format(Locale.ROOT, "%.0f", config.mobGlowSize * 100), (config.mobGlowSize - 0.12f) / 1.08f, v -> config.mobGlowSize = VoidmarkConfig.clamp(0.12f + v * 1.08f, 0.12f, 1.20f));
+				y = slider(graphics, font, ix, y, iw, "Radius", String.format(Locale.ROOT, "%.0f", config.mobGlowRadius), (config.mobGlowRadius - GlowBlurRadius.MIN) / (GlowBlurRadius.MAX - GlowBlurRadius.MIN), v -> config.mobGlowRadius = VoidmarkConfig.clamp(GlowBlurRadius.MIN + v * (GlowBlurRadius.MAX - GlowBlurRadius.MIN), GlowBlurRadius.MIN, GlowBlurRadius.MAX));
 				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.mobGlowOpacity * 100) + "%", (config.mobGlowOpacity - 0.15f) / 0.75f, v -> config.mobGlowOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
 				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
 				GuiDraw.small(graphics, font, "Nametag ESP", ix, y + 1, Theme.MUTED);
@@ -1755,7 +1756,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.154");
+			.orElse("1.1.155");
 	}
 
 	@Override

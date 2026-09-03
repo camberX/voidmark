@@ -28,6 +28,7 @@
 		"MinecraftMixin",
 		"ModelBlockRendererMixin",
 		"PlayerTabOverlayMixin",
+		"PostPassMixin",
 		"ProjectionMixin",
 		"ScreenMixin",
 		"SkyRendererMixin",
