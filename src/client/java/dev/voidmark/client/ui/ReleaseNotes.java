@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.149", new String[]{
+			"/vm esp <text> reads Hypixel nametags as soon as they exist on the client, including hidden hologram stands and text displays, instead of waiting until the plate is drawn."
+		}),
 		new Entry("1.1.148", new String[]{
 			"Glow ESP no longer covers slayers and other mobs that already have vanilla glow — they keep Minecraft's outline."
 		}),

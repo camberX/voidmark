@@ -1657,7 +1657,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.148");
+			.orElse("1.1.149");
 	}
 
 	@Override

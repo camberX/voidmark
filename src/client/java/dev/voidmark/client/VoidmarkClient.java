@@ -168,6 +168,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			MiningTracker.reset();
 			TitaniumTracker.get().clear();
 			FakeBan.reset();
+			MobGlowRenderer.reset();
 		});
 	}
 

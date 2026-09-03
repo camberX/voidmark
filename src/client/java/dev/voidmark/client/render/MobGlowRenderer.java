@@ -1,8 +1,10 @@
 package dev.voidmark.client.render;
 
 import dev.voidmark.client.config.VoidmarkConfig;
+import dev.voidmark.client.mixin.ClientLevelAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -10,11 +12,15 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.scores.PlayerTeam;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
@@ -24,22 +30,35 @@ import java.util.regex.Pattern;
  * A mob glows when its type is selected in the ESP list, or when
  * {@code /vm esp <text>} is set and its nametag (or a hologram nametag
  * riding / floating above it) contains that text.
+ * <p>
+ * Nametag ESP reads names from every loaded entity, not only ones Minecraft
+ * is currently drawing. Hypixel holograms are often invisible armor stands or
+ * text displays whose custom name is already on the client before the plate
+ * is shown. If Hypixel has not sent the name yet, it cannot be guessed.
  */
 public final class MobGlowRenderer {
 	private static final double MAX_RANGE = 96.0;
 	private static final double MAX_RANGE_SQ = MAX_RANGE * MAX_RANGE;
-	private static final double HOLOGRAM_RANGE = 3.25;
+	private static final double HOLOGRAM_RANGE = 4.5;
 	private static final Pattern STRIP = Pattern.compile("§.");
 	private static List<String> cachedIds;
 	private static Set<EntityType<?>> cachedTypes = Set.of();
 	private static int nameTick = Integer.MIN_VALUE;
 	private static String nameNeedle = "";
 	private static Set<Integer> nameIds = Set.of();
+	private static final Map<UUID, String> remembered = new HashMap<>();
 
 	private MobGlowRenderer() {
 	}
 
 	public static void init() {
+	}
+
+	public static void reset() {
+		nameTick = Integer.MIN_VALUE;
+		nameNeedle = "";
+		nameIds = Set.of();
+		remembered.clear();
 	}
 
 	public static int nearbyCount() {
@@ -48,7 +67,7 @@ public final class MobGlowRenderer {
 			return 0;
 		}
 		int count = 0;
-		for (Entity entity : client.level.entitiesForRendering()) {
+		for (Entity entity : allEntities(client)) {
 			if (isEspTarget(entity, client.player)) {
 				count++;
 			}
@@ -161,9 +180,15 @@ public final class MobGlowRenderer {
 		}
 		String n = needle.toLowerCase(Locale.ROOT);
 		Set<Integer> ids = new HashSet<>();
-		for (Entity entity : client.level.entitiesForRendering()) {
+		Set<UUID> seen = new HashSet<>();
+		for (Entity entity : allEntities(client)) {
 			if (entity == null || entity == client.player) {
 				continue;
+			}
+			seen.add(entity.getUUID());
+			String live = labelOf(entity);
+			if (!live.isEmpty()) {
+				remembered.put(entity.getUUID(), live);
 			}
 			if (!nameMatches(entity, n)) {
 				continue;
@@ -171,57 +196,111 @@ public final class MobGlowRenderer {
 			if (!hasVanillaGlow(entity)) {
 				ids.add(entity.getId());
 			}
-			linkHologram(client, entity, ids);
+			linkHologram(client, entity, live, ids);
 		}
+		remembered.keySet().removeIf(uuid -> !seen.contains(uuid));
 		nameIds = ids;
 	}
 
 	private static boolean nameMatches(Entity entity, String needle) {
-		if (namedText(entity, needle)) {
+		if (labelContains(entity, needle)) {
 			return true;
 		}
 		for (Entity passenger : entity.getPassengers()) {
-			if (namedText(passenger, needle)) {
+			if (labelContains(passenger, needle)) {
 				return true;
 			}
 		}
 		Entity vehicle = entity.getVehicle();
-		return vehicle != null && namedText(vehicle, needle);
-	}
-
-	private static boolean namedText(Entity entity, String needle) {
-		if (textContains(entity.getCustomName(), needle)) {
+		if (vehicle != null && labelContains(vehicle, needle)) {
 			return true;
 		}
-		return entity.hasCustomName() && textContains(entity.getDisplayName(), needle);
+		String cached = remembered.get(entity.getUUID());
+		return cached != null && cached.contains(needle);
+	}
+
+	private static boolean labelContains(Entity entity, String needle) {
+		String live = labelOf(entity);
+		return !live.isEmpty() && live.contains(needle);
 	}
 
 	/**
-	 * Hypixel often puts the real name on an armor-stand hologram above the mob,
-	 * not on the mob itself. Glow the living entity under that hologram too.
+	 * Custom name, scoreboard prefix, and text-display lines — including names
+	 * Hypixel has already sent but has not made visible yet.
 	 */
-	private static void linkHologram(Minecraft client, Entity hologram, Set<Integer> ids) {
-		if (hologram.getType() != EntityType.ARMOR_STAND) {
+	private static String labelOf(Entity entity) {
+		if (entity == null) {
+			return "";
+		}
+		StringBuilder out = new StringBuilder();
+		append(out, entity.getCustomName());
+		if (entity.hasCustomName()) {
+			append(out, entity.getDisplayName());
+		}
+		PlayerTeam team = entity.getTeam();
+		if (team != null) {
+			append(out, team.getPlayerPrefix());
+			append(out, team.getPlayerSuffix());
+		}
+		if (entity instanceof Display.TextDisplay display) {
+			Display.TextDisplay.TextRenderState state = display.textRenderState();
+			if (state != null) {
+				append(out, state.text());
+			}
+		}
+		return out.toString();
+	}
+
+	private static void append(StringBuilder out, Component text) {
+		if (text == null) {
 			return;
 		}
+		String raw = STRIP.matcher(text.getString()).replaceAll("").toLowerCase(Locale.ROOT).trim();
+		if (raw.isEmpty()) {
+			return;
+		}
+		if (!out.isEmpty()) {
+			out.append(' ');
+		}
+		out.append(raw);
+	}
+
+	/**
+	 * Hypixel often puts the real name on an armor-stand or text-display hologram
+	 * above the mob, not on the mob itself. Glow the living entity under it too,
+	 * and remember that name on the mob so ESP still hits after the plate hides.
+	 */
+	private static void linkHologram(Minecraft client, Entity hologram, String live, Set<Integer> ids) {
+		if (!isHologram(hologram)) {
+			return;
+		}
+		String label = live == null || live.isEmpty() ? labelOf(hologram) : live;
 		AABB box = hologram.getBoundingBox().inflate(HOLOGRAM_RANGE);
 		for (Entity other : client.level.getEntities(hologram, box)) {
 			if (other instanceof LivingEntity living
 				&& living.isAlive()
 				&& other != client.player
-				&& other.getType() != EntityType.ARMOR_STAND
+				&& !isHologram(other)
 				&& !hasVanillaGlow(other)) {
 				ids.add(other.getId());
+				if (!label.isEmpty()) {
+					remembered.put(other.getUUID(), label);
+				}
 			}
 		}
 	}
 
-	private static boolean textContains(Component text, String needle) {
-		if (text == null) {
-			return false;
+	private static boolean isHologram(Entity entity) {
+		return entity.getType() == EntityType.ARMOR_STAND
+			|| entity.getType() == EntityType.TEXT_DISPLAY
+			|| entity instanceof Display.TextDisplay;
+	}
+
+	private static Iterable<Entity> allEntities(Minecraft client) {
+		if (client.level instanceof ClientLevelAccessor access) {
+			return access.voidmark$entities().getAll();
 		}
-		String raw = STRIP.matcher(text.getString()).replaceAll("").toLowerCase(Locale.ROOT);
-		return !raw.isEmpty() && raw.contains(needle);
+		return client.level.entitiesForRendering();
 	}
 
 	private static boolean occluded(Minecraft client, Vec3 from, Vec3 to) {
