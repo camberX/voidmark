@@ -40,7 +40,7 @@ Recolors terrain toward a color you pick. Strength goes from a light wash to a f
 
 ### Visuals → ESP
 
-Click one or more types in the scrollable list of every living vanilla type plus players. Click a selected row again to deselect it. Matching entities are drawn into the outline buffer as a silhouette, then a custom post shader blurs that mask and keeps only the outside so you get a clean rim plus an outward gradient. `/vm esp <text>` does the same for nametags that contain that word, using the name as soon as it exists on the client rather than waiting for Hypixel to show the plate. Entities that already glow in vanilla are left on Minecraft’s sobel outline. **Block outline** applies the same glow to the block under your crosshair; its color and opacity are on the Block outline cog. Through-walls, size, opacity, and color for mobs are on the Mob glow cog.
+Click one or more types in the scrollable list of every living vanilla type plus players. Click a selected row again to deselect it. Matching entities are drawn into the outline buffer as a silhouette, then a custom post shader blurs that mask and keeps only the outside so you get a clean rim plus an outward gradient. `/vm esp <text>` does the same for nametags that contain that word: it reads the name from entity metadata packets and glows the living mob in render distance, even before the hologram plate draws. Entities that already glow in vanilla are left on Minecraft’s sobel outline. **Block outline** applies the same glow to the block under your crosshair; its color and opacity are on the Block outline cog. Through-walls, size, opacity, and color for mobs are on the Mob glow cog.
 
 ### Skyblock → Nodes
 
