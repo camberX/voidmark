@@ -277,7 +277,7 @@ public final class ItemStorage {
 				}
 				addNested(compound.getCompoundOrEmpty("tag").getCompoundOrEmpty("ExtraAttributes"), out, depth + 1, nestStorage);
 				addNested(compound.getCompoundOrEmpty("ExtraAttributes"), out, depth + 1, nestStorage);
-				addNested(compound.getCompoundOrEmpty("components").getCompoundOrEmpty("minecraft:custom_data"), out, depth + 1, nestStorage);
+				addNested(customData(compound), out, depth + 1, nestStorage);
 				return;
 			}
 			for (String key : compound.keySet()) {
@@ -307,20 +307,19 @@ public final class ItemStorage {
 		if (tag.contains("Count") || tag.contains("count")) {
 			return true;
 		}
+		if (tag.contains("components") || tag.contains("tag")) {
+			return true;
+		}
 		return !tag.getCompoundOrEmpty("tag").getCompoundOrEmpty("ExtraAttributes").isEmpty()
 			|| !tag.getCompoundOrEmpty("ExtraAttributes").isEmpty();
 	}
 
 	private static String itemId(CompoundTag tag) {
-		String id = ItemIdsRead.id(tag.getCompoundOrEmpty("tag").getCompoundOrEmpty("ExtraAttributes"));
+		String id = ItemIdsRead.id(extraAttributes(tag));
 		if (id != null) {
 			return id;
 		}
-		id = ItemIdsRead.id(tag.getCompoundOrEmpty("ExtraAttributes"));
-		if (id != null) {
-			return id;
-		}
-		id = ItemIdsRead.id(tag.getCompoundOrEmpty("components").getCompoundOrEmpty("minecraft:custom_data"));
+		id = ItemIdsRead.id(customData(tag));
 		if (id != null) {
 			return id;
 		}
@@ -329,6 +328,45 @@ public final class ItemStorage {
 			return id;
 		}
 		return null;
+	}
+
+	private static CompoundTag extraAttributes(CompoundTag tag) {
+		CompoundTag extra = tag.getCompoundOrEmpty("tag").getCompoundOrEmpty("ExtraAttributes");
+		if (!extra.isEmpty()) {
+			return extra;
+		}
+		return tag.getCompoundOrEmpty("ExtraAttributes");
+	}
+
+	private static CompoundTag customData(CompoundTag tag) {
+		CompoundTag fromItem = tag.getCompoundOrEmpty("components");
+		CompoundTag fromTag = tag.getCompoundOrEmpty("tag").getCompoundOrEmpty("components");
+		CompoundTag components = fromItem.isEmpty() ? fromTag : fromItem;
+		if (components.isEmpty()) {
+			return new CompoundTag();
+		}
+		CompoundTag direct = components.getCompoundOrEmpty("minecraft:custom_data");
+		if (!direct.isEmpty()) {
+			return direct;
+		}
+		for (String key : components.keySet()) {
+			String lower = key.toLowerCase(Locale.ROOT);
+			if (!lower.contains("custom_data") && !lower.equals("customdata")) {
+				continue;
+			}
+			CompoundTag nested = components.getCompoundOrEmpty(key);
+			if (!nested.isEmpty()) {
+				return nested;
+			}
+			String snbt = components.getStringOr(key, "");
+			if (!snbt.isBlank() && snbt.startsWith("{")) {
+				try {
+					return net.minecraft.nbt.TagParser.parseCompoundFully(snbt);
+				} catch (Exception ignored) {
+				}
+			}
+		}
+		return new CompoundTag();
 	}
 
 	private static long itemCount(CompoundTag tag) {

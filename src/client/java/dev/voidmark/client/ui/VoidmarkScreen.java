@@ -135,6 +135,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Aspect ratio", Tab.WORLD, "World"),
 		new SearchEntry("Custom fog", Tab.WORLD, "World"),
 		new SearchEntry("Mob glow", Tab.ESP, "ESP"),
+		new SearchEntry("Nametag ESP", Tab.ESP, "ESP"),
 		new SearchEntry("Block outline", Tab.ESP, "ESP"),
 		new SearchEntry("Block outline color", Tab.ESP, "ESP"),
 		new SearchEntry("Mobs", Tab.ESP, "ESP"),
@@ -1656,7 +1657,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.146");
+			.orElse("1.1.147");
 	}
 
 	@Override

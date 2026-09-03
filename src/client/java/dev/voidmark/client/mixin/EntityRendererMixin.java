@@ -26,7 +26,7 @@ public class EntityRendererMixin {
 	@Inject(method = "affectedByCulling", at = @At("HEAD"), cancellable = true)
 	private void voidmark$disableCulling(Entity entity, CallbackInfoReturnable<Boolean> cir) {
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (config.mobGlowEnabled && config.mobGlowThroughWalls && MobGlowRenderer.listed(entity.getType())) {
+		if (config.mobGlowEnabled && config.mobGlowThroughWalls && MobGlowRenderer.listed(entity)) {
 			Minecraft client = Minecraft.getInstance();
 			if (client.player != null && entity != client.player) {
 				cir.setReturnValue(false);
@@ -42,6 +42,8 @@ public class EntityRendererMixin {
 		if (VoidmarkConfig.get().mobGlowEnabled) {
 			int glow = MobGlowRenderer.outlineColor(entity);
 			if (glow != 0) {
+				// Always replace vanilla team/glow color so ESP wins on slayers
+				// and other entities that already have the GLOWING flag.
 				state.outlineColor = glow;
 			}
 		}

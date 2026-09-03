@@ -27,6 +27,7 @@ import dev.voidmark.client.render.RawmatsHudRenderer;
 import dev.voidmark.client.render.MiningHudRenderer;
 import dev.voidmark.client.render.MiningWorldRenderer;
 import dev.voidmark.client.render.BlockOutlineGlow;
+import dev.voidmark.client.render.EspCommands;
 import dev.voidmark.client.render.MobGlowRenderer;
 import dev.voidmark.client.render.NodeWorldRenderer;
 import dev.voidmark.client.render.VanillaHud;
@@ -106,11 +107,13 @@ public final class VoidmarkClient implements ClientModInitializer {
 			root.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
 			root.then(musicCommand());
 			root.then(RawmatsCommands.command());
+			root.then(EspCommands.command());
 			dispatcher.register(root);
 			var vm = ClientCommands.literal("vm").executes(context -> openScreen());
 			vm.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
 			vm.then(musicCommand());
 			vm.then(RawmatsCommands.command());
+			vm.then(EspCommands.command());
 			dispatcher.register(vm);
 		});
 

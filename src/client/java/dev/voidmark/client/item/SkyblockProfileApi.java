@@ -3,15 +3,18 @@ package dev.voidmark.client.item;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import dev.voidmark.Voidmark;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.Player;
 
 import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -23,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.GZIPInputStream;
 
 /**
  * Pulls Ender Chest and backpack inventories from
@@ -128,56 +132,270 @@ public final class SkyblockProfileApi {
 	}
 
 	private static boolean applyMember(JsonObject member) {
+		Map<String, Long> ender = new HashMap<>();
+		Map<String, Long> bags = new HashMap<>();
 		JsonObject inventory = object(member, "inventory");
-		if (inventory == null) {
+		boolean sawEnder = ingestStorage(inventory, ender, true);
+		boolean sawBags = ingestStorage(inventory, bags, false);
+		if (!sawEnder) {
+			sawEnder = ingestStorage(member, ender, true);
+		}
+		if (!sawBags) {
+			sawBags = ingestStorage(member, bags, false);
+		}
+		sawEnder |= ingestBlob(inventory, ender, bags, true);
+		sawBags |= ingestBlob(inventory, ender, bags, false);
+		sawEnder |= ingestBlob(member, ender, bags, true);
+		sawBags |= ingestBlob(member, ender, bags, false);
+		JsonElement invEl = member.get("inventory");
+		if (invEl != null && invEl.isJsonPrimitive()) {
+			CompoundTag tag = readNbt(data(invEl));
+			if (tag != null) {
+				boolean[] found = new boolean[2];
+				walkStorageNbt(tag, ender, bags, found);
+				sawEnder |= found[0];
+				sawBags |= found[1];
+			}
+		}
+		if (!sawEnder && !sawBags) {
 			fail("inventory hidden");
 			return false;
 		}
-		boolean hasEnder = inventory.has("ender_chest_contents");
-		boolean hasBags = inventory.has("backpack_contents");
-		Map<String, Long> ender = new HashMap<>();
-		Map<String, Long> bags = new HashMap<>();
-		if (hasEnder) {
-			countData(data(inventory.get("ender_chest_contents")), ender, false);
-		}
-		if (hasBags) {
-			JsonObject backpacks = object(inventory, "backpack_contents");
-			if (backpacks != null) {
-				for (Map.Entry<String, JsonElement> entry : backpacks.entrySet()) {
-					countData(data(entry.getValue()), bags, true);
-				}
-			}
-		}
-		ItemStorage.applyApi(hasEnder ? ender : null, hasBags ? bags : null);
+		ItemStorage.applyApi(sawEnder ? ender : null, sawBags ? bags : null);
+		Voidmark.LOGGER.info("Skyblock storage: {} ender item ids, {} backpack item ids", ender.size(), bags.size());
 		return true;
 	}
 
-	private static void countData(String data, Map<String, Long> out, boolean nestStorage) {
-		if (data == null || data.isBlank()) {
+	private static boolean ingestStorage(JsonObject parent, Map<String, Long> dest, boolean ender) {
+		if (parent == null) {
+			return false;
+		}
+		boolean saw = false;
+		if (ender) {
+			for (String key : parent.keySet()) {
+				if (!enderKey(key)) {
+					continue;
+				}
+				saw |= countPayload(parent.get(key), dest, true);
+			}
+		} else {
+			for (String key : parent.keySet()) {
+				if (!backpackKey(key)) {
+					continue;
+				}
+				saw |= countPayload(parent.get(key), dest, true);
+			}
+		}
+		return saw;
+	}
+
+	private static boolean ingestBlob(JsonObject parent, Map<String, Long> ender, Map<String, Long> bags, boolean wantEnder) {
+		if (parent == null) {
+			return false;
+		}
+		String blob = data(parent);
+		if (blob.isEmpty()) {
+			return false;
+		}
+		CompoundTag tag = readNbt(blob);
+		if (tag == null) {
+			return false;
+		}
+		boolean[] found = new boolean[2];
+		walkStorageNbt(tag, ender, bags, found);
+		return wantEnder ? found[0] : found[1];
+	}
+
+	private static void walkStorageNbt(CompoundTag tag, Map<String, Long> ender, Map<String, Long> bags, boolean[] found) {
+		if (tag == null) {
 			return;
 		}
-		CompoundTag tag = readNbt(data);
-		if (tag != null) {
-			ItemStorage.addCounts(tag, out, nestStorage);
+		for (String key : tag.keySet()) {
+			if (enderKey(key)) {
+				ItemStorage.addCounts(tag.get(key), ender, true);
+				found[0] = true;
+			} else if (backpackKey(key)) {
+				ItemStorage.addCounts(tag.get(key), bags, true);
+				found[1] = true;
+			} else if (tag.get(key) instanceof CompoundTag child) {
+				walkStorageNbt(child, ender, bags, found);
+			}
 		}
 	}
 
-	private static CompoundTag readNbt(String data) {
-		try {
-			byte[] raw = Base64.getDecoder().decode(data);
-			try (ByteArrayInputStream in = new ByteArrayInputStream(raw)) {
-				return NbtIo.readCompressed(in, NbtAccounter.unlimitedHeap());
+	private static boolean countPayload(JsonElement element, Map<String, Long> dest, boolean nestStorage) {
+		if (element == null || element.isJsonNull()) {
+			return false;
+		}
+		boolean saw = false;
+		String blob = data(element);
+		if (!blob.isEmpty()) {
+			CompoundTag tag = readNbt(blob);
+			if (tag != null) {
+				ItemStorage.addCounts(tag, dest, nestStorage);
+				saw = true;
 			}
-		} catch (Exception ignored) {
+		}
+		if (element.isJsonArray()) {
+			for (JsonElement child : element.getAsJsonArray()) {
+				saw |= countPayload(child, dest, nestStorage);
+			}
+			return saw;
+		}
+		if (!element.isJsonObject()) {
+			return saw;
+		}
+		JsonObject object = element.getAsJsonObject();
+		if (jsonItemId(object) != null) {
+			countJsonItem(object, dest);
+			return true;
+		}
+		for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+			String key = entry.getKey() == null ? "" : entry.getKey().toLowerCase(Locale.ROOT);
+			if (key.contains("icon")) {
+				continue;
+			}
+			if ("data".equals(key) || "value".equals(key) || "type".equals(key) || "success".equals(key)) {
+				continue;
+			}
+			saw |= countPayload(entry.getValue(), dest, nestStorage);
+		}
+		return saw;
+	}
+
+	private static void countJsonItem(JsonObject object, Map<String, Long> dest) {
+		String id = jsonItemId(object);
+		if (id == null) {
+			return;
+		}
+		long count = jsonCount(object);
+		if (count > 0L) {
+			dest.merge(id, count, Long::sum);
+		}
+	}
+
+	private static String jsonItemId(JsonObject object) {
+		if (object == null) {
+			return null;
+		}
+		JsonObject extra = object(object(object, "tag"), "ExtraAttributes");
+		if (extra == null) {
+			extra = object(object, "ExtraAttributes");
+		}
+		if (extra == null) {
+			extra = object(object(object, "components"), "minecraft:custom_data");
+		}
+		if (extra != null) {
+			String id = skyblockId(string(extra, "id"));
+			if (id != null) {
+				return id;
+			}
+		}
+		for (String key : new String[]{"skyblock_id", "item_id", "itemId", "id", "item"}) {
+			String id = skyblockId(string(object, key));
+			if (id != null) {
+				return id;
+			}
+		}
+		return null;
+	}
+
+	private static long jsonCount(JsonObject object) {
+		for (String key : new String[]{"Count", "count", "stackSize", "amount"}) {
+			JsonElement value = object.get(key);
+			if (value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber()) {
+				return Math.max(0L, value.getAsLong());
+			}
+		}
+		return 1L;
+	}
+
+	private static String skyblockId(String raw) {
+		if (raw == null || raw.isBlank() || raw.contains(":")) {
+			return null;
+		}
+		String id = SkyblockRecipes.normalize(raw);
+		return id.isBlank() ? null : id;
+	}
+
+	private static boolean enderKey(String key) {
+		if (key == null) {
+			return false;
+		}
+		String lower = key.toLowerCase(Locale.ROOT);
+		return lower.contains("ender_chest") || lower.contains("enderchest");
+	}
+
+	private static boolean backpackKey(String key) {
+		if (key == null) {
+			return false;
+		}
+		String lower = key.toLowerCase(Locale.ROOT);
+		if (lower.contains("icon")) {
+			return false;
+		}
+		return lower.contains("backpack_contents")
+			|| lower.equals("backpacks")
+			|| (lower.contains("backpack") && lower.contains("content"));
+	}
+
+	private static CompoundTag readNbt(String data) {
+		if (data == null || data.isBlank()) {
+			return null;
+		}
+		String trimmed = data.trim();
+		if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
 			try {
-				byte[] raw = Base64.getMimeDecoder().decode(data);
-				try (ByteArrayInputStream in = new ByteArrayInputStream(raw)) {
-					return NbtIo.readCompressed(in, NbtAccounter.unlimitedHeap());
+				return TagParser.parseCompoundFully(trimmed);
+			} catch (Exception ignored) {
+			}
+		}
+		byte[] raw = decodeBase64(trimmed);
+		if (raw == null || raw.length == 0) {
+			return null;
+		}
+		CompoundTag tag = readGzip(raw);
+		if (tag != null) {
+			return tag;
+		}
+		return readUncompressed(raw);
+	}
+
+	private static byte[] decodeBase64(String data) {
+		String cleaned = data.replaceAll("\\s+", "");
+		try {
+			return Base64.getDecoder().decode(cleaned);
+		} catch (IllegalArgumentException ignored) {
+			try {
+				return Base64.getUrlDecoder().decode(cleaned);
+			} catch (IllegalArgumentException ignoredUrl) {
+				try {
+					return Base64.getMimeDecoder().decode(data);
+				} catch (IllegalArgumentException failed) {
+					return null;
 				}
+			}
+		}
+	}
+
+	private static CompoundTag readGzip(byte[] raw) {
+		try (ByteArrayInputStream in = new ByteArrayInputStream(raw)) {
+			return NbtIo.readCompressed(in, NbtAccounter.unlimitedHeap());
+		} catch (Exception ignored) {
+			try (GZIPInputStream gzip = new GZIPInputStream(new ByteArrayInputStream(raw));
+				 DataInputStream data = new DataInputStream(gzip)) {
+				return NbtIo.read(data, NbtAccounter.unlimitedHeap());
 			} catch (Exception exception) {
-				Voidmark.LOGGER.warn("Could not decode Skyblock storage NBT");
 				return null;
 			}
+		}
+	}
+
+	private static CompoundTag readUncompressed(byte[] raw) {
+		try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(raw))) {
+			return NbtIo.read(in, NbtAccounter.unlimitedHeap());
+		} catch (Exception ignored) {
+			return null;
 		}
 	}
 
@@ -226,14 +444,39 @@ public final class SkyblockProfileApi {
 	}
 
 	private static String data(JsonElement element) {
-		if (element == null || !element.isJsonObject()) {
+		if (element == null || element.isJsonNull()) {
 			return "";
 		}
-		JsonElement value = element.getAsJsonObject().get("data");
-		if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
+		if (element.isJsonPrimitive()) {
+			JsonPrimitive primitive = element.getAsJsonPrimitive();
+			return primitive.isString() ? primitive.getAsString() : "";
+		}
+		if (!element.isJsonObject()) {
 			return "";
 		}
-		return value.getAsString();
+		JsonObject object = element.getAsJsonObject();
+		for (String key : new String[]{"data", "value", "contents", "nbt", "bytes", "item_bytes"}) {
+			JsonElement value = object.get(key);
+			if (value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
+				String text = value.getAsString();
+				if (!text.isBlank()) {
+					return text;
+				}
+			}
+		}
+		return "";
+	}
+
+	private static String string(JsonObject object, String key) {
+		if (object == null || key == null || !object.has(key)) {
+			return "";
+		}
+		JsonElement value = object.get(key);
+		if (value == null || !value.isJsonPrimitive()) {
+			return "";
+		}
+		JsonPrimitive primitive = value.getAsJsonPrimitive();
+		return primitive.isString() ? primitive.getAsString() : primitive.getAsString();
 	}
 
 	private static JsonObject object(JsonObject parent, String key) {

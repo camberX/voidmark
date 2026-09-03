@@ -143,6 +143,7 @@ public final class VoidmarkConfig {
 	public float blockOutlineOpacity = 0.58f;
 	public int blockOutlineRgb = 0x2FB5FF;
 	public String mobGlowId = "";
+	public String mobGlowName = "";
 	public java.util.List<String> mobGlowIds = new java.util.ArrayList<>();
 	public float mobGlowSize = 0.48f;
 	public float mobGlowOpacity = 0.58f;
@@ -253,6 +254,9 @@ public final class VoidmarkConfig {
 				loaded.nametagOpacity = loaded.nametagOpacity <= 0f ? 1.0f : clamp(loaded.nametagOpacity, 0.15f, 1f);
 				loaded.nametagStyle = normalizeNametagStyle(loaded.nametagStyle);
 				loaded.menuScale = normalizeMenuScale(loaded.menuScale);
+				if (loaded.mobGlowName == null) {
+					loaded.mobGlowName = "";
+				}
 				if (loaded.mobGlowIds == null) {
 					loaded.mobGlowIds = new java.util.ArrayList<>();
 				}
