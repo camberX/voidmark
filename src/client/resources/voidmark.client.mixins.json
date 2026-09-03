@@ -21,6 +21,7 @@
 		"FontMixin",
 		"GuiGraphicsExtractorMixin",
 		"ItemModelResolverMixin",
+		"ItemStackMixin",
 		"LightmapRenderStateExtractorMixin",
 		"MinecraftMixin",
 		"ModelBlockRendererMixin",

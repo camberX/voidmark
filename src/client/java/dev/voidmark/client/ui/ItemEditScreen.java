@@ -3,6 +3,7 @@ package dev.voidmark.client.ui;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.voidmark.client.item.ItemAppearance;
 import dev.voidmark.client.item.ItemIds;
+import dev.voidmark.client.item.ItemText;
 import dev.voidmark.client.render.GuiDraw;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -20,9 +21,10 @@ import java.util.List;
 
 public class ItemEditScreen extends Screen {
 	private static final float MENU_W = 268;
-	private static final float MENU_H = 196;
+	private static final float MENU_H = 228;
 	private static final float SLOT = 52;
 	private static final float FIELD_H = 18;
+	private static final float BTN_H = 16;
 	private static final int SUGGESTIONS = 6;
 
 	private final ItemStack original;
@@ -45,6 +47,7 @@ public class ItemEditScreen extends Screen {
 	private ItemIds.Preview preview = ItemIds.Preview.empty();
 	private List<String> suggestions = List.of();
 	private long blinkAt = System.currentTimeMillis();
+	private String status = "";
 
 	public ItemEditScreen() {
 		super(Component.literal("Item"));
@@ -178,8 +181,13 @@ public class ItemEditScreen extends Screen {
 			blinkAt = System.currentTimeMillis();
 		}));
 
+		float by = windowY + windowH - 12 - BTN_H;
 		float listY = fieldY + FIELD_H + 6;
+		float listBottom = by - 16;
 		for (int i = 0; i < suggestions.size(); i++) {
+			if (listY + 14 > listBottom) {
+				break;
+			}
 			String id = suggestions.get(i);
 			boolean hover = GuiDraw.hovered(mouseX, mouseY, fieldX, listY, fieldW, 14);
 			if (hover) {
@@ -194,6 +202,85 @@ public class ItemEditScreen extends Screen {
 		if (suggestions.isEmpty()) {
 			GuiDraw.small(graphics, font, "Type minecraft:stone or sb:HYPERION", fieldX, listY, Theme.OFF);
 		}
+
+		String copied = ItemText.clipboard().label();
+		String line = status.isBlank()
+			? (copied.isBlank() ? "Copy a Hypixel name and lore, then replace this item" : "Copied " + clip(font, copied, (int) fieldW - 8))
+			: status;
+		GuiDraw.small(graphics, font, clip(font, line, (int) fieldW - 4), fieldX, by - 12, Theme.MUTED);
+
+		float gap = 6;
+		float bw = (fieldW - gap) * 0.5f;
+		button(graphics, font, mouseX, mouseY, fieldX, by, bw, "Copy lore", this::copyLore);
+		button(
+			graphics,
+			font,
+			mouseX,
+			mouseY,
+			fieldX + bw + gap,
+			by,
+			bw,
+			"Replace",
+			this::replaceLore
+		);
+	}
+
+	private void button(
+		GuiGraphicsExtractor graphics,
+		Font font,
+		int mouseX,
+		int mouseY,
+		float x,
+		float y,
+		float w,
+		String label,
+		Runnable click
+	) {
+		boolean hover = GuiDraw.hovered(mouseX, mouseY, x, y, w, BTN_H);
+		GuiDraw.panel(graphics, x, y, w, BTN_H, 5, hover ? Theme.CARD_HOVER : Theme.CARD, hover ? Theme.ACCENT : Theme.LINE);
+		GuiDraw.menu(graphics, font, label, x + (w - GuiDraw.menuWidth(font, label)) * 0.5f, GuiDraw.middle(y, BTN_H), Theme.TEXT);
+		hits.add(new Hit(x, y, w, BTN_H, mx -> click.run()));
+	}
+
+	private void copyLore() {
+		ItemStack source = ItemStack.EMPTY;
+		if (minecraft != null && minecraft.player != null && query.trim().equalsIgnoreCase(originalId)) {
+			source = ItemIds.held(minecraft.player);
+		}
+		if (source.isEmpty()) {
+			source = previewStack();
+		}
+		if (source.isEmpty() && minecraft != null && minecraft.player != null) {
+			source = ItemIds.held(minecraft.player);
+		}
+		ItemText text = ItemText.capture(source);
+		if (!text.present()) {
+			status = "Nothing to copy";
+			return;
+		}
+		ItemText.setClipboard(text);
+		ItemAppearance.persistClipboard();
+		String name = text.label();
+		status = name.isBlank() ? "Copied name and lore" : "Copied " + name;
+	}
+
+	private void replaceLore() {
+		if (minecraft == null || minecraft.player == null) {
+			status = "Hold an item first";
+			return;
+		}
+		ItemText text = ItemText.clipboard();
+		if (!text.present()) {
+			status = "No lore copied";
+			return;
+		}
+		ItemStack live = ItemIds.held(minecraft.player);
+		if (live.isEmpty()) {
+			status = "Hold an item first";
+			return;
+		}
+		ItemAppearance.applyText(minecraft.player, live, text);
+		status = "Replaced name and lore";
 	}
 
 	private ItemStack previewStack() {
@@ -204,7 +291,7 @@ public class ItemEditScreen extends Screen {
 	}
 
 	private void layout() {
-		float extra = suggestions.isEmpty() ? 0 : suggestions.size() * 15f - 8;
+		float extra = suggestions.isEmpty() ? 0 : suggestions.size() * 15f;
 		windowW = Math.min(MENU_W, Math.max(1, width - 16));
 		windowH = Math.min(MENU_H + extra, Math.max(1, height - 16));
 		if (!placed) {
@@ -239,7 +326,7 @@ public class ItemEditScreen extends Screen {
 			return;
 		}
 		if (preview.kind() == ItemIds.Kind.EMPTY || query.trim().equalsIgnoreCase(originalId)) {
-			ItemAppearance.clear(client.player, live);
+			ItemAppearance.revertModel(client.player, live);
 			return;
 		}
 		if (preview.kind() == ItemIds.Kind.VANILLA || preview.kind() == ItemIds.Kind.SKYBLOCK) {

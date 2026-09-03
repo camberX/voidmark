@@ -5,6 +5,7 @@ import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.media.CoverArt;
 import dev.voidmark.client.media.MediaSession;
 import dev.voidmark.client.media.NowPlaying;
+import dev.voidmark.client.ui.Anim;
 import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.Theme;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -20,6 +21,7 @@ public final class MusicHudRenderer {
 	public static final float WIDTH = 248;
 	public static final float HEIGHT = 54;
 	public static final float HEIGHT_IDLE = 36;
+	private static final float CONTROL_H = 16;
 	private static final float COVER = 42;
 	private static final float COVER_PAD = 6;
 
@@ -32,6 +34,7 @@ public final class MusicHudRenderer {
 	private static Rect prevHit = Rect.EMPTY;
 	private static Rect playHit = Rect.EMPTY;
 	private static Rect nextHit = Rect.EMPTY;
+	private static float reveal;
 
 	private MusicHudRenderer() {
 	}
@@ -51,7 +54,16 @@ public final class MusicHudRenderer {
 	public static float drawHeight() {
 		NowPlaying track = MediaSession.current();
 		boolean idle = !track.present() && !HudLayout.editorOpen();
-		return idle && VoidmarkConfig.get().musicHideIdle ? 0 : (track.present() || HudLayout.editorOpen() ? HEIGHT : HEIGHT_IDLE);
+		if (idle && VoidmarkConfig.get().musicHideIdle) {
+			return 0;
+		}
+		if (!track.present() && !HudLayout.editorOpen()) {
+			return HEIGHT_IDLE;
+		}
+		if (HudLayout.editorOpen()) {
+			return HEIGHT + CONTROL_H;
+		}
+		return HEIGHT;
 	}
 
 	public static boolean interactive() {
@@ -65,7 +77,7 @@ public final class MusicHudRenderer {
 		if (Minecraft.getInstance().screen instanceof HudEditorScreen) {
 			return false;
 		}
-		if (!interactive()) {
+		if (!interactive() || reveal < 0.85f) {
 			return false;
 		}
 		double x = event.x();
@@ -89,25 +101,59 @@ public final class MusicHudRenderer {
 		Minecraft client = Minecraft.getInstance();
 		if (client.options.hideGui) {
 			clearHits();
+			reveal = 0f;
 			return;
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
 		if (!config.musicHudEnabled) {
 			clearHits();
+			reveal = 0f;
 			return;
 		}
 		NowPlaying track = MediaSession.current();
 		if (!track.present() && config.musicHideIdle && !HudLayout.editorOpen()) {
 			clearHits();
+			reveal = 0f;
 			return;
 		}
 		HudLayout.Box box = HudLayout.box(HudLayout.Id.MUSIC, client.font, graphics.guiWidth(), graphics.guiHeight());
-		draw(graphics, client.font, box.x(), box.y(), HudLayout.scale(HudLayout.Id.MUSIC), track);
+		draw(graphics, client.font, box.x(), box.y(), HudLayout.scale(HudLayout.Id.MUSIC), track, deltaTracker);
 	}
 
 	public static void draw(GuiGraphicsExtractor graphics, Font font, float x, float y, float scale, NowPlaying track) {
+		draw(graphics, font, x, y, scale, track, DeltaTracker.ONE);
+	}
+
+	public static void draw(
+		GuiGraphicsExtractor graphics,
+		Font font,
+		float x,
+		float y,
+		float scale,
+		NowPlaying track,
+		DeltaTracker deltaTracker
+	) {
 		boolean live = track.present();
-		float h = live || HudLayout.editorOpen() ? HEIGHT : HEIGHT_IDLE;
+		boolean editor = HudLayout.editorOpen();
+		float body = live || editor ? HEIGHT : HEIGHT_IDLE;
+		boolean chat = interactive();
+		float dt = Math.min(0.05f, Math.max(0f, deltaTracker.getRealtimeDeltaTicks() / 20f));
+		float target = 0f;
+		if (live || editor) {
+			boolean over = mouseOver(x, y, scale, body + CONTROL_H * Math.max(reveal, 0.02f))
+				|| mouseOver(x, y, scale, body);
+			target = editor || (chat && over) ? 1f : 0f;
+		}
+		if (editor) {
+			reveal = 1f;
+		} else if (!live || !chat) {
+			reveal = Anim.exp(reveal, 0f, 18f, dt);
+		} else {
+			reveal = Anim.exp(reveal, target, 18f, dt);
+		}
+		float extra = (live || editor) ? CONTROL_H * reveal : 0f;
+		float h = body + extra;
+
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(x, y);
 		if (scale != 1.0f) {
@@ -115,7 +161,7 @@ public final class MusicHudRenderer {
 		}
 
 		HudChrome.panel(graphics, 0, 0, WIDTH, h, 6, Theme.WINDOW, Theme.LINE, Theme.ACCENT);
-		float cover = drawCover(graphics, font, track, live, h);
+		float cover = drawCover(graphics, font, track, live, body);
 		float textX = COVER_PAD + cover + 6;
 
 		if (!live) {
@@ -152,24 +198,47 @@ public final class MusicHudRenderer {
 			GuiDraw.menu(graphics, font, clock, barX + barW + 5, barY - 5, Theme.TEXT);
 		}
 
-		boolean chat = interactive();
-		int control = chat ? Theme.TEXT : Theme.MUTED;
-		int active = chat ? Theme.ACCENT : Theme.MUTED;
-		float cy = 40;
+		if (reveal < 0.02f) {
+			clearHits();
+			graphics.pose().popMatrix();
+			return;
+		}
+
+		float cy = HEIGHT + 3;
 		float playX = (WIDTH - 14) * 0.5f;
 		float prevX = playX - 28;
 		float nextX = playX + 28;
+		int control = Anim.fade(Theme.TEXT, reveal);
+		int active = Anim.fade(Theme.ACCENT, reveal);
+		boolean clip = GuiDraw.scissor(
+			graphics,
+			x,
+			y + HEIGHT * scale,
+			WIDTH * scale,
+			CONTROL_H * reveal * scale
+		);
 		GuiDraw.icon(graphics, font, PREV, prevX, cy, control);
 		GuiDraw.icon(graphics, font, track.playing() ? PAUSE : PLAY, playX, cy, active);
 		GuiDraw.icon(graphics, font, NEXT, nextX, cy, control);
-		if (chat) {
-			GuiDraw.small(graphics, font, "click", WIDTH - 8 - GuiDraw.smallWidth(font, "click"), 40, Theme.ACCENT);
+		if (clip) {
+			GuiDraw.disableScissor(graphics);
 		}
 
-		prevHit = screenRect(x, y, scale, prevX - 4, cy - 2, 18, 14);
-		playHit = screenRect(x, y, scale, playX - 4, cy - 2, 18, 14);
-		nextHit = screenRect(x, y, scale, nextX - 4, cy - 2, 18, 14);
+		if (reveal >= 0.85f && (chat || editor)) {
+			prevHit = screenRect(x, y, scale, prevX - 4, cy - 2, 18, 14);
+			playHit = screenRect(x, y, scale, playX - 4, cy - 2, 18, 14);
+			nextHit = screenRect(x, y, scale, nextX - 4, cy - 2, 18, 14);
+		} else {
+			clearHits();
+		}
 		graphics.pose().popMatrix();
+	}
+
+	private static boolean mouseOver(float x, float y, float scale, float h) {
+		Minecraft client = Minecraft.getInstance();
+		double mx = client.mouseHandler.getScaledXPos(client.getWindow());
+		double my = client.mouseHandler.getScaledYPos(client.getWindow());
+		return mx >= x && mx <= x + WIDTH * scale && my >= y && my <= y + h * scale;
 	}
 
 	private static float drawCover(GuiGraphicsExtractor graphics, Font font, NowPlaying track, boolean live, float panelH) {

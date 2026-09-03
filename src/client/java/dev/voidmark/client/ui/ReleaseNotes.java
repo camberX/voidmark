@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.133", new String[]{
+			"Music controls stay hidden until you hover the HUD with chat open, then slide down. /vm edit can copy a Hypixel item's name and lore, color codes included, and replace the one you are holding."
+		}),
 		new Entry("1.1.132", new String[]{
 			"Cape creator crops photos onto the 10×16 cape face in Voidmark and on the cape desk. Drag to pan, scroll to zoom, then apply. Vanilla 64×32 templates still skip the cropper."
 		}),

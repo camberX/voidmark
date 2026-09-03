@@ -147,6 +147,9 @@ public final class VoidmarkConfig {
 	public float mobGlowOpacity = 0.58f;
 	public int mobGlowRgb = 0x2FB5FF;
 	public java.util.List<ItemSkin> itemSkins = new java.util.ArrayList<>();
+	public String itemClipboardName = "";
+	public String itemClipboardItemName = "";
+	public String itemClipboardLore = "";
 
 	private VoidmarkConfig() {
 	}
@@ -274,6 +277,15 @@ public final class VoidmarkConfig {
 				}
 				if (loaded.itemSkins == null) {
 					loaded.itemSkins = new java.util.ArrayList<>();
+				}
+				if (loaded.itemClipboardName == null) {
+					loaded.itemClipboardName = "";
+				}
+				if (loaded.itemClipboardItemName == null) {
+					loaded.itemClipboardItemName = "";
+				}
+				if (loaded.itemClipboardLore == null) {
+					loaded.itemClipboardLore = "";
 				}
 				if (loaded.rawmatsItemId == null) {
 					loaded.rawmatsItemId = "";
@@ -495,5 +507,8 @@ public final class VoidmarkConfig {
 		public String originalId = "";
 		public int slot = 0;
 		public boolean offhand = false;
+		public String nameJson = "";
+		public String itemNameJson = "";
+		public String loreJson = "";
 	}
 }

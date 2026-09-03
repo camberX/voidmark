@@ -18,6 +18,16 @@ public final class ItemAppearance {
 	private ItemAppearance() {
 	}
 
+	public static boolean suppress() {
+		boolean prior = Boolean.TRUE.equals(APPLYING.get());
+		APPLYING.set(true);
+		return prior;
+	}
+
+	public static void resume(boolean prior) {
+		APPLYING.set(prior);
+	}
+
 	public static ItemStack visual(ItemStack stack) {
 		if (stack == null || stack.isEmpty() || Boolean.TRUE.equals(APPLYING.get())) {
 			return stack;
@@ -28,6 +38,17 @@ public final class ItemAppearance {
 		}
 		if (skin.display.getCount() != stack.getCount()) {
 			skin.display.setCount(Math.max(1, stack.getCount()));
+		}
+		return skin.display;
+	}
+
+	public static ItemStack named(ItemStack stack) {
+		if (stack == null || stack.isEmpty() || Boolean.TRUE.equals(APPLYING.get())) {
+			return stack;
+		}
+		Skin skin = find(stack);
+		if (skin == null || !skin.textOverride || skin.display.isEmpty()) {
+			return stack;
 		}
 		return skin.display;
 	}
@@ -43,7 +64,7 @@ public final class ItemAppearance {
 		}
 		String canonical = displayId == null ? "" : displayId.trim();
 		if (canonical.isEmpty() || canonical.equalsIgnoreCase(ItemIds.idOf(real))) {
-			clear(player, real);
+			revertModel(player, real);
 			return;
 		}
 		boolean offhand = isOffhand(player, real);
@@ -58,16 +79,51 @@ public final class ItemAppearance {
 			existing = new Skin();
 			SKINS.add(existing);
 		}
+		ItemText overlay = existing.textOverride ? ItemText.capture(existing.display) : ItemText.empty();
 		existing.key = key;
 		existing.originalId = ItemIds.idOf(real);
 		existing.displayId = canonical;
 		existing.slot = slot;
 		existing.offhand = offhand;
 		existing.display = display.copy();
-		if (changed) {
-			persist();
-			playSwap(player, offhand);
+		if (overlay.present()) {
+			overlay.apply(existing.display);
+			existing.textOverride = true;
 		}
+		persist();
+		playSwap(player, offhand);
+	}
+
+	public static void applyText(Player player, ItemStack real, ItemText text) {
+		if (player == null || real == null || real.isEmpty() || text == null || !text.present()) {
+			return;
+		}
+		boolean offhand = isOffhand(player, real);
+		int slot = offhand ? Inventory.SLOT_OFFHAND : player.getInventory().getSelectedSlot();
+		String key = keyOf(real, offhand, slot);
+		Skin existing = byKey(key);
+		if (existing == null) {
+			existing = find(real);
+		}
+		if (existing == null) {
+			existing = new Skin();
+			existing.key = key;
+			existing.originalId = ItemIds.idOf(real);
+			existing.displayId = ItemIds.idOf(real);
+			existing.slot = slot;
+			existing.offhand = offhand;
+			existing.display = real.copy();
+			SKINS.add(existing);
+		} else if (existing.display == null || existing.display.isEmpty()) {
+			existing.display = real.copy();
+		}
+		existing.slot = slot;
+		existing.offhand = offhand;
+		existing.key = key;
+		text.apply(existing.display);
+		existing.textOverride = true;
+		persist();
+		playSwap(player, offhand);
 	}
 
 	public static void clear(Player player, ItemStack real) {
@@ -89,9 +145,50 @@ public final class ItemAppearance {
 		}
 	}
 
+	public static void revertModel(Player player, ItemStack real) {
+		if (real == null || real.isEmpty()) {
+			return;
+		}
+		Skin skin = find(real);
+		if (skin == null) {
+			return;
+		}
+		if (!skin.textOverride) {
+			clear(player, real);
+			return;
+		}
+		String original = ItemIds.idOf(real);
+		if (original.equalsIgnoreCase(skin.displayId)) {
+			return;
+		}
+		ItemText overlay = ItemText.capture(skin.display);
+		skin.display = real.copy();
+		overlay.apply(skin.display);
+		skin.displayId = original;
+		skin.originalId = original;
+		persist();
+		if (player != null) {
+			playSwap(player, isOffhand(player, real));
+		}
+	}
+
 	public static void reload() {
 		SKINS.clear();
 		VoidmarkConfig config = VoidmarkConfig.get();
+		if (config.itemClipboardName == null) {
+			config.itemClipboardName = "";
+		}
+		if (config.itemClipboardItemName == null) {
+			config.itemClipboardItemName = "";
+		}
+		if (config.itemClipboardLore == null) {
+			config.itemClipboardLore = "";
+		}
+		ItemText.setClipboard(ItemText.fromJson(
+			config.itemClipboardName,
+			config.itemClipboardItemName,
+			config.itemClipboardLore
+		));
 		if (config.itemSkins == null) {
 			config.itemSkins = new ArrayList<>();
 			return;
@@ -106,10 +203,13 @@ public final class ItemAppearance {
 			} catch (RuntimeException ignored) {
 				continue;
 			}
-			if (preview.kind() != ItemIds.Kind.VANILLA && preview.kind() != ItemIds.Kind.SKYBLOCK) {
-				continue;
-			}
-			if (preview.stack() == null || preview.stack().isEmpty()) {
+			ItemStack display;
+			if (preview.kind() == ItemIds.Kind.VANILLA || preview.kind() == ItemIds.Kind.SKYBLOCK) {
+				if (preview.stack() == null || preview.stack().isEmpty()) {
+					continue;
+				}
+				display = preview.stack().copy();
+			} else {
 				continue;
 			}
 			Skin skin = new Skin();
@@ -118,9 +218,27 @@ public final class ItemAppearance {
 			skin.displayId = preview.canonical();
 			skin.slot = entry.slot;
 			skin.offhand = entry.offhand;
-			skin.display = preview.stack().copy();
+			skin.display = display;
+			ItemText overlay = ItemText.fromJson(
+				entry.nameJson == null ? "" : entry.nameJson,
+				entry.itemNameJson == null ? "" : entry.itemNameJson,
+				entry.loreJson == null ? "" : entry.loreJson
+			);
+			if (overlay.present()) {
+				overlay.apply(skin.display);
+				skin.textOverride = true;
+			}
 			SKINS.add(skin);
 		}
+	}
+
+	public static void persistClipboard() {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		ItemText text = ItemText.clipboard();
+		config.itemClipboardName = text.nameJson();
+		config.itemClipboardItemName = text.itemNameJson();
+		config.itemClipboardLore = text.loreJson();
+		config.save();
 	}
 
 	private static Skin find(ItemStack stack) {
@@ -215,6 +333,12 @@ public final class ItemAppearance {
 			entry.originalId = skin.originalId;
 			entry.slot = skin.slot;
 			entry.offhand = skin.offhand;
+			if (skin.textOverride && !skin.display.isEmpty()) {
+				ItemText overlay = ItemText.capture(skin.display);
+				entry.nameJson = overlay.nameJson();
+				entry.itemNameJson = overlay.itemNameJson();
+				entry.loreJson = overlay.loreJson();
+			}
 			out.add(entry);
 		}
 		config.itemSkins = out;
@@ -238,6 +362,7 @@ public final class ItemAppearance {
 		String displayId = "";
 		int slot;
 		boolean offhand;
+		boolean textOverride;
 		ItemStack display = ItemStack.EMPTY;
 	}
 }
