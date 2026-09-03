@@ -21,17 +21,15 @@ public final class ClientPackets {
 			ConnectionPing.onKeepAlive(keepAlive.getId());
 			return;
 		}
-		if (!(packet instanceof ClientboundLevelParticlesPacket particles)) {
-			return;
+		if (packet instanceof ClientboundLevelParticlesPacket particles) {
+			ParticleOptions options = particles.getParticle();
+			double x = particles.getX();
+			double y = particles.getY();
+			double z = particles.getZ();
+			Minecraft.getInstance().execute(() ->
+				EnderNodeTracker.get().onParticle(x, y, z, options.getType())
+			);
 		}
-
-		ParticleOptions options = particles.getParticle();
-		double x = particles.getX();
-		double y = particles.getY();
-		double z = particles.getZ();
-
-		Minecraft.getInstance().execute(() ->
-			EnderNodeTracker.get().onParticle(x, y, z, options.getType())
-		);
+		EspNamePackets.onPacket(packet);
 	}
 }

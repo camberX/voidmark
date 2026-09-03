@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.150", new String[]{
+			"/vm esp <text> glows the living mob as soon as Hypixel sends the nametag in entity metadata, even if the hologram plate has not rendered yet."
+		}),
 		new Entry("1.1.149", new String[]{
 			"/vm esp <text> reads Hypixel nametags as soon as they exist on the client, including hidden hologram stands and text displays, instead of waiting until the plate is drawn."
 		}),
