@@ -4,6 +4,8 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.voidmark.client.item.ItemAppearance;
 import dev.voidmark.client.item.ItemIds;
 import dev.voidmark.client.item.ItemText;
+import dev.voidmark.client.item.SkyblockItems;
+import dev.voidmark.client.item.SkyblockLore;
 import dev.voidmark.client.render.GuiDraw;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -14,6 +16,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -21,10 +24,9 @@ import java.util.List;
 
 public class ItemEditScreen extends Screen {
 	private static final float MENU_W = 268;
-	private static final float MENU_H = 228;
+	private static final float MENU_H = 208;
 	private static final float SLOT = 52;
 	private static final float FIELD_H = 18;
-	private static final float BTN_H = 16;
 	private static final int SUGGESTIONS = 6;
 
 	private final ItemStack original;
@@ -181,9 +183,9 @@ public class ItemEditScreen extends Screen {
 			blinkAt = System.currentTimeMillis();
 		}));
 
-		float by = windowY + windowH - 12 - BTN_H;
+		float statusY = windowY + windowH - 16;
 		float listY = fieldY + FIELD_H + 6;
-		float listBottom = by - 16;
+		float listBottom = statusY - 4;
 		for (int i = 0; i < suggestions.size(); i++) {
 			if (listY + 14 > listBottom) {
 				break;
@@ -193,94 +195,44 @@ public class ItemEditScreen extends Screen {
 			if (hover) {
 				GuiDraw.rounded(graphics, fieldX, listY, fieldW, 14, 4, 0x14FFFFFF);
 			}
-			GuiDraw.small(graphics, font, clip(font, id, (int) fieldW - 10), fieldX + 5, listY + 2, hover ? Theme.TEXT : Theme.MUTED);
+			String label = suggestionLabel(id);
+			GuiDraw.small(graphics, font, clip(font, label, (int) fieldW - 10), fieldX + 5, listY + 2, hover ? Theme.TEXT : Theme.MUTED);
 			final String pick = id;
 			hits.add(new Hit(fieldX, listY, fieldW, 14, mx -> applySuggestion(pick)));
 			listY += 15;
 		}
 
 		if (suggestions.isEmpty()) {
-			GuiDraw.small(graphics, font, "Type minecraft:stone or sb:HYPERION", fieldX, listY, Theme.OFF);
+			GuiDraw.small(graphics, font, "Type Hyperion, sb:HYPERION, or minecraft:stone", fieldX, listY, Theme.OFF);
 		}
 
-		String copied = ItemText.clipboard().label();
-		String line = status.isBlank()
-			? (copied.isBlank() ? "Copy a Hypixel name and lore, then replace this item" : "Copied " + clip(font, copied, (int) fieldW - 8))
-			: status;
-		GuiDraw.small(graphics, font, clip(font, line, (int) fieldW - 4), fieldX, by - 12, Theme.MUTED);
-
-		float gap = 6;
-		float bw = (fieldW - gap) * 0.5f;
-		button(graphics, font, mouseX, mouseY, fieldX, by, bw, "Copy lore", this::copyLore);
-		button(
-			graphics,
-			font,
-			mouseX,
-			mouseY,
-			fieldX + bw + gap,
-			by,
-			bw,
-			"Replace",
-			this::replaceLore
-		);
+		String line = status.isBlank() ? loreHint() : status;
+		GuiDraw.small(graphics, font, clip(font, line, (int) fieldW - 4), fieldX, statusY, Theme.MUTED);
 	}
 
-	private void button(
-		GuiGraphicsExtractor graphics,
-		Font font,
-		int mouseX,
-		int mouseY,
-		float x,
-		float y,
-		float w,
-		String label,
-		Runnable click
-	) {
-		boolean hover = GuiDraw.hovered(mouseX, mouseY, x, y, w, BTN_H);
-		GuiDraw.panel(graphics, x, y, w, BTN_H, 5, hover ? Theme.CARD_HOVER : Theme.CARD, hover ? Theme.ACCENT : Theme.LINE);
-		GuiDraw.menu(graphics, font, label, x + (w - GuiDraw.menuWidth(font, label)) * 0.5f, GuiDraw.middle(y, BTN_H), Theme.TEXT);
-		hits.add(new Hit(x, y, w, BTN_H, mx -> click.run()));
+	private static String suggestionLabel(String id) {
+		if (id != null && id.toLowerCase(java.util.Locale.ROOT).startsWith("sb:")) {
+			SkyblockItems.Entry entry = SkyblockItems.get(id.substring(3));
+			if (entry != null && entry.name() != null && !entry.name().isBlank()) {
+				return entry.name() + "  " + id;
+			}
+		}
+		return id;
 	}
 
-	private void copyLore() {
-		ItemStack source = ItemStack.EMPTY;
-		if (minecraft != null && minecraft.player != null && query.trim().equalsIgnoreCase(originalId)) {
-			source = ItemIds.held(minecraft.player);
+	private String loreHint() {
+		if (preview.kind() == ItemIds.Kind.SKYBLOCK) {
+			if (SkyblockLore.loading(preview.canonical())) {
+				return "Loading " + preview.title() + " lore…";
+			}
+			if (ItemText.hasLore(previewStack()) || (SkyblockLore.get(preview.canonical()) != null && SkyblockLore.get(preview.canonical()).present())) {
+				return "Using " + preview.title() + " name and lore";
+			}
+			if (SkyblockLore.failed(preview.canonical())) {
+				return "No lore for " + preview.title();
+			}
 		}
-		if (source.isEmpty()) {
-			source = previewStack();
-		}
-		if (source.isEmpty() && minecraft != null && minecraft.player != null) {
-			source = ItemIds.held(minecraft.player);
-		}
-		ItemText text = ItemText.capture(source);
-		if (!text.present()) {
-			status = "Nothing to copy";
-			return;
-		}
-		ItemText.setClipboard(text);
-		ItemAppearance.persistClipboard();
-		String name = text.label();
-		status = name.isBlank() ? "Copied name and lore" : "Copied " + name;
-	}
-
-	private void replaceLore() {
-		if (minecraft == null || minecraft.player == null) {
-			status = "Hold an item first";
-			return;
-		}
-		ItemText text = ItemText.clipboard();
-		if (!text.present()) {
-			status = "No lore copied";
-			return;
-		}
-		ItemStack live = ItemIds.held(minecraft.player);
-		if (live.isEmpty()) {
-			status = "Hold an item first";
-			return;
-		}
-		ItemAppearance.applyText(minecraft.player, live, text);
-		status = "Replaced name and lore";
+		return "Type a Skyblock item name to copy its lore";
 	}
 
 	private ItemStack previewStack() {
@@ -308,7 +260,9 @@ public class ItemEditScreen extends Screen {
 		String trimmed = query.trim();
 		boolean exact = preview.kind() != ItemIds.Kind.UNKNOWN
 			&& !trimmed.isEmpty()
-			&& (trimmed.equalsIgnoreCase(preview.canonical()) || trimmed.equalsIgnoreCase(originalId));
+			&& (trimmed.equalsIgnoreCase(preview.canonical())
+				|| trimmed.equalsIgnoreCase(originalId)
+				|| (preview.kind() == ItemIds.Kind.SKYBLOCK && trimmed.equalsIgnoreCase(preview.title())));
 		suggestions = exact ? List.of() : ItemIds.suggest(query, SUGGESTIONS);
 		syncHand();
 	}
@@ -331,6 +285,32 @@ public class ItemEditScreen extends Screen {
 		}
 		if (preview.kind() == ItemIds.Kind.VANILLA || preview.kind() == ItemIds.Kind.SKYBLOCK) {
 			ItemAppearance.set(client.player, live, preview.stack(), preview.canonical());
+			if (preview.kind() == ItemIds.Kind.SKYBLOCK) {
+				applySkyblockLore(client.player, live);
+			}
+		}
+	}
+
+	private void applySkyblockLore(Player player, ItemStack live) {
+		ItemStack source = preview.stack();
+		if (ItemText.hasLore(source)) {
+			ItemAppearance.applyText(player, live, ItemText.capture(source), preview.canonical());
+			status = "Using " + preview.title() + " name and lore";
+			return;
+		}
+		SkyblockLore.request(preview.canonical());
+		ItemText fetched = SkyblockLore.get(preview.canonical());
+		if (fetched != null && fetched.present()) {
+			ItemAppearance.applyText(player, live, fetched, preview.canonical());
+			status = "Using " + preview.title() + " name and lore";
+			return;
+		}
+		if (SkyblockLore.loading(preview.canonical())) {
+			status = "Loading " + preview.title() + " lore…";
+			return;
+		}
+		if (fetched != null) {
+			status = "No lore for " + preview.title();
 		}
 	}
 

@@ -73,37 +73,73 @@ public final class SkyblockItems {
 		return get(id) != null;
 	}
 
+	public static Entry match(String query) {
+		load();
+		if (query == null || query.isBlank()) {
+			return null;
+		}
+		String raw = query.trim();
+		Entry byId = get(raw.replace(' ', '_'));
+		if (byId != null) {
+			return byId;
+		}
+		String needle = raw.toLowerCase(Locale.ROOT);
+		Entry exact = null;
+		int exacts = 0;
+		for (Entry entry : BY_ID.values()) {
+			if (entry.name != null && entry.name.toLowerCase(Locale.ROOT).equals(needle)) {
+				exact = entry;
+				exacts++;
+			}
+		}
+		return exacts == 1 ? exact : null;
+	}
+
 	public static List<String> suggest(String prefix, int limit) {
 		load();
 		if (prefix == null || prefix.isBlank()) {
 			return List.of();
 		}
-		String needle = prefix.trim().toUpperCase(Locale.ROOT);
-		List<String> prefixHits = new ArrayList<>();
-		List<String> containsHits = new ArrayList<>();
-		for (String id : BY_ID.keySet()) {
-			if (id.startsWith(needle)) {
-				prefixHits.add(id);
-			} else if (id.contains(needle)) {
-				containsHits.add(id);
+		String idNeedle = prefix.trim().toUpperCase(Locale.ROOT).replace(' ', '_');
+		String nameNeedle = prefix.trim().toLowerCase(Locale.ROOT);
+		List<String> idPrefix = new ArrayList<>();
+		List<String> namePrefix = new ArrayList<>();
+		List<String> idContains = new ArrayList<>();
+		List<String> nameContains = new ArrayList<>();
+		for (Entry entry : BY_ID.values()) {
+			String id = entry.id;
+			String name = entry.name == null ? "" : entry.name.toLowerCase(Locale.ROOT);
+			if (id.startsWith(idNeedle)) {
+				idPrefix.add(id);
+			} else if (!name.isEmpty() && name.startsWith(nameNeedle)) {
+				namePrefix.add(id);
+			} else if (id.contains(idNeedle)) {
+				idContains.add(id);
+			} else if (!name.isEmpty() && name.contains(nameNeedle)) {
+				nameContains.add(id);
 			}
 		}
-		Collections.sort(prefixHits);
-		Collections.sort(containsHits);
+		Collections.sort(idPrefix);
+		Collections.sort(namePrefix);
+		Collections.sort(idContains);
+		Collections.sort(nameContains);
 		List<String> out = new ArrayList<>(limit);
-		for (String id : prefixHits) {
-			if (out.size() >= limit) {
-				break;
-			}
-			out.add(id);
-		}
-		for (String id : containsHits) {
-			if (out.size() >= limit) {
-				break;
-			}
-			out.add(id);
-		}
+		addAll(out, idPrefix, limit);
+		addAll(out, namePrefix, limit);
+		addAll(out, idContains, limit);
+		addAll(out, nameContains, limit);
 		return out;
+	}
+
+	private static void addAll(List<String> out, List<String> ids, int limit) {
+		for (String id : ids) {
+			if (out.size() >= limit) {
+				return;
+			}
+			if (!out.contains(id)) {
+				out.add(id);
+			}
+		}
 	}
 
 	private static Entry parse(String line) {

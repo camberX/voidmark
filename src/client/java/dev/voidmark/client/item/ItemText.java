@@ -3,11 +3,16 @@ package dev.voidmark.client.item;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
+import dev.voidmark.client.visual.NickHider;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public final class ItemText {
 	private static ItemText clipboard = empty();
@@ -62,6 +67,47 @@ public final class ItemText {
 		return new ItemText(name, itemName, lore);
 	}
 
+	public static ItemText fromLegacy(String nameRaw, List<String> loreLines) {
+		Component name = nameRaw == null || nameRaw.isBlank() ? null : styled(nameRaw, true);
+		List<Component> lines = new ArrayList<>();
+		if (loreLines != null) {
+			int max = Math.min(loreLines.size(), ItemLore.MAX_LINES);
+			for (int i = 0; i < max; i++) {
+				String line = loreLines.get(i);
+				lines.add(line == null || line.isEmpty() ? Component.empty() : styled(line, false));
+			}
+		}
+		ItemLore lore = lines.isEmpty() ? ItemLore.EMPTY : new ItemLore(lines);
+		if (name == null && lore.lines().isEmpty()) {
+			return empty();
+		}
+		return new ItemText(name, null, lore);
+	}
+
+	public static boolean hasLore(ItemStack stack) {
+		if (stack == null || stack.isEmpty()) {
+			return false;
+		}
+		boolean prior = ItemAppearance.suppress();
+		try {
+			ItemLore lore = stack.get(DataComponents.LORE);
+			return lore != null && !lore.lines().isEmpty();
+		} finally {
+			ItemAppearance.resume(prior);
+		}
+	}
+
+	public static Component styled(String raw, boolean itemName) {
+		if (raw == null || raw.isEmpty()) {
+			return Component.empty();
+		}
+		Component parsed = NickHider.parseLegacy(raw.replace('§', '&'));
+		if (itemName && parsed instanceof MutableComponent mutable) {
+			return mutable.withStyle(style -> style.withItalic(false));
+		}
+		return parsed;
+	}
+
 	public boolean present() {
 		return name != null || itemName != null || (lore != null && !lore.lines().isEmpty());
 	}
@@ -85,6 +131,10 @@ public final class ItemText {
 
 	public Component name() {
 		return name;
+	}
+
+	public ItemLore lore() {
+		return lore;
 	}
 
 	public void apply(ItemStack stack) {

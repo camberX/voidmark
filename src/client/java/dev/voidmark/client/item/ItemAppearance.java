@@ -86,15 +86,22 @@ public final class ItemAppearance {
 		existing.slot = slot;
 		existing.offhand = offhand;
 		existing.display = display.copy();
-		if (overlay.present()) {
+		existing.loreSource = "";
+		if (overlay.present() && !canonical.toLowerCase(java.util.Locale.ROOT).startsWith("sb:")) {
 			overlay.apply(existing.display);
 			existing.textOverride = true;
+		} else {
+			existing.textOverride = false;
 		}
 		persist();
 		playSwap(player, offhand);
 	}
 
 	public static void applyText(Player player, ItemStack real, ItemText text) {
+		applyText(player, real, text, "");
+	}
+
+	public static void applyText(Player player, ItemStack real, ItemText text, String sourceId) {
 		if (player == null || real == null || real.isEmpty() || text == null || !text.present()) {
 			return;
 		}
@@ -104,6 +111,10 @@ public final class ItemAppearance {
 		Skin existing = byKey(key);
 		if (existing == null) {
 			existing = find(real);
+		}
+		String source = sourceId == null ? "" : sourceId;
+		if (existing != null && existing.textOverride && !source.isEmpty() && source.equals(existing.loreSource)) {
+			return;
 		}
 		if (existing == null) {
 			existing = new Skin();
@@ -122,6 +133,7 @@ public final class ItemAppearance {
 		existing.key = key;
 		text.apply(existing.display);
 		existing.textOverride = true;
+		existing.loreSource = source;
 		persist();
 		playSwap(player, offhand);
 	}
@@ -363,6 +375,7 @@ public final class ItemAppearance {
 		int slot;
 		boolean offhand;
 		boolean textOverride;
+		String loreSource = "";
 		ItemStack display = ItemStack.EMPTY;
 	}
 }

@@ -162,6 +162,12 @@ public final class ItemIds {
 		if (looksLikeSkyblockId(raw) && SkyblockItems.has(raw)) {
 			return skyblock(raw);
 		}
+		if (!lower.startsWith("minecraft:")) {
+			SkyblockItems.Entry named = SkyblockItems.match(raw);
+			if (named != null) {
+				return skyblock(named.id());
+			}
+		}
 		return vanilla(raw);
 	}
 
@@ -182,21 +188,34 @@ public final class ItemIds {
 			}
 			return out;
 		}
-		String path = lower.startsWith("minecraft:") ? lower.substring(10) : lower;
-		if (path.length() < 2) {
-			return List.of();
-		}
 		List<String> out = new ArrayList<>();
-		for (Identifier id : BuiltInRegistries.ITEM.keySet()) {
-			String full = id.toString();
-			if (full.equals("minecraft:air")) {
-				continue;
-			}
-			if (full.startsWith("minecraft:" + path) || id.getPath().startsWith(path)) {
-				out.add(full);
+		if (!lower.startsWith("minecraft:") && raw.length() >= 2) {
+			for (String id : SkyblockItems.suggest(raw, limit)) {
+				out.add("sb:" + id);
 			}
 		}
-		out.sort(String::compareTo);
+		String path = lower.startsWith("minecraft:") ? lower.substring(10) : lower;
+		if (path.length() >= 2) {
+			List<String> vanilla = new ArrayList<>();
+			for (Identifier id : BuiltInRegistries.ITEM.keySet()) {
+				String full = id.toString();
+				if (full.equals("minecraft:air")) {
+					continue;
+				}
+				if (full.startsWith("minecraft:" + path) || id.getPath().startsWith(path)) {
+					vanilla.add(full);
+				}
+			}
+			vanilla.sort(String::compareTo);
+			for (String id : vanilla) {
+				if (out.size() >= limit) {
+					break;
+				}
+				if (!out.contains(id)) {
+					out.add(id);
+				}
+			}
+		}
 		if (out.size() > limit) {
 			return new ArrayList<>(out.subList(0, limit));
 		}

@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.134", new String[]{
+			"/vm edit: type a Skyblock item name (Hyperion) to reskin and copy that item's Hypixel name and lore, color codes included."
+		}),
 		new Entry("1.1.133", new String[]{
 			"Music controls stay hidden until you hover the HUD with chat open, then slide down. /vm edit can copy a Hypixel item's name and lore, color codes included, and replace the one you are holding."
 		}),
