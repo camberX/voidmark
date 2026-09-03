@@ -10,7 +10,6 @@ import dev.voidmark.client.mining.TitaniumTracker;
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.HudStats;
 import dev.voidmark.client.render.MobCatalog;
-import dev.voidmark.client.render.MobGlowRenderer;
 import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.render.PlayerPreview;
 import dev.voidmark.client.render.Starfield;
@@ -136,7 +135,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Block outline", Tab.ESP, "ESP"),
 		new SearchEntry("Block outline color", Tab.ESP, "ESP"),
 		new SearchEntry("Mobs", Tab.ESP, "ESP"),
-		new SearchEntry("Node ESP", Tab.ESP, "ESP"),
+		new SearchEntry("Node ESP", Tab.NODES, "Nodes"),
 		new SearchEntry("Nametags", Tab.ESP, "ESP"),
 		new SearchEntry("Own nametag", Tab.ESP, "ESP"),
 		new SearchEntry("Nametag size", Tab.ESP, "ESP"),
@@ -151,7 +150,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Commissions", Tab.MINING, "Mining"),
 		new SearchEntry("Pickaxe ability", Tab.MINING, "Mining"),
 		new SearchEntry("Ability alert", Tab.MINING, "Mining"),
-		new SearchEntry("Filled box", Tab.ESP, "ESP"),
+		new SearchEntry("Filled box", Tab.NODES, "Nodes"),
 		new SearchEntry("Watermark", Tab.OVERLAY, "Overlay"),
 		new SearchEntry("Music HUD", Tab.OVERLAY, "Overlay"),
 		new SearchEntry("Raw mats", Tab.OVERLAY, "Overlay"),
@@ -506,12 +505,11 @@ public class VoidmarkScreen extends Screen {
 		VoidmarkConfig config = VoidmarkConfig.get();
 		config.normalizeMobGlowIds();
 
-		float y = featureCard(graphics, font, left, top, col, cardHeight(5), "Glow");
+		float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Glow");
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mob glow", config.mobGlowEnabled, v -> config.mobGlowEnabled = v, Feature.MOB);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Block outline", config.blockOutlineGlow, v -> config.blockOutlineGlow = v, Feature.BLOCK);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Nametags", config.nametagsEnabled, v -> config.nametagsEnabled = v, Feature.NAMETAGS);
-		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Own nametag", config.nametagSelf, v -> config.nametagSelf = v);
-		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node ESP", config.boxFill, v -> config.boxFill = v, Feature.NODE_ESP);
+		toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Own nametag", config.nametagSelf, v -> config.nametagSelf = v);
 
 		List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
 		float listH = windowY + windowH - PAD - top;
@@ -590,10 +588,6 @@ public class VoidmarkScreen extends Screen {
 			float thumbY = trackY + (mobScroll / maxScroll) * (trackH - thumbH);
 			GuiDraw.rounded(graphics, trackX - 0.4f, thumbY, 3.2f, thumbH, 1.6f, Theme.ACCENT);
 		}
-
-		int nearby = config.mobGlowEnabled ? MobGlowRenderer.nearbyCount() : 0;
-		GuiDraw.small(graphics, font, nearby == 0 ? "None nearby" : nearby + " nearby", ix + 1, top + cardHeight(3) + 6, Theme.MUTED);
-		GuiDraw.small(graphics, font, "Click a type to add it, again to drop it.", ix + 1, top + cardHeight(3) + 16, Theme.MUTED);
 	}
 
 	private void drawPlayerTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
@@ -1088,9 +1082,10 @@ public class VoidmarkScreen extends Screen {
 				GuiDraw.menu(graphics, font, "from the toolbar HUD editor.", rx, y + 16, Theme.MUTED);
 			}
 			case NODES -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(2), "Markers");
+				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Markers");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.markersEnabled, v -> config.markersEnabled = v, Feature.NODES);
-				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node ESP", config.boxFill, v -> config.boxFill = v, Feature.NODE_ESP);
 
 				y = featureCard(graphics, font, right, top, col, cardHeight(6), "Status");
 				y = readout(graphics, font, rx, y, iw, "Hypixel", SkyblockLocation.onHypixel);
@@ -1525,7 +1520,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.129");
+			.orElse("1.1.130");
 	}
 
 	@Override

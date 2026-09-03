@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.130", new String[]{
+			"Node ESP sits on the Nodes tab without the extra caption text. Server list and world list no longer have dark bands over the header and footer."
+		}),
 		new Entry("1.1.129", new String[]{
 			"YouTube Music HUD no longer guesses a different song from the window title. Artist, cover, and the progress bar come from the API Server on 26538."
 		}),

@@ -39,9 +39,7 @@ public abstract class ScreenMixin {
 		if (!MenuChrome.applies(self)) {
 			return;
 		}
-		if (MenuChrome.outOfWorld()) {
-			MenuChrome.headerFooter(graphics, width, height);
-		} else {
+		if (!MenuChrome.outOfWorld()) {
 			GuiDraw.fill(graphics, 0, 0, width, height, 0x55000000);
 		}
 		ci.cancel();

@@ -20,4 +20,11 @@ public abstract class AbstractSelectionListMixin {
 		MenuChrome.listSeparators(graphics, self.getX(), self.getY(), self.getWidth(), self.getBottom());
 		ci.cancel();
 	}
+
+	@Inject(method = "extractListBackground", at = @At("HEAD"), cancellable = true)
+	private void voidmark$noListDirt(GuiGraphicsExtractor graphics, CallbackInfo ci) {
+		if (MenuChrome.enabled()) {
+			ci.cancel();
+		}
+	}
 }
