@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.138", new String[]{
+			"The Cape card stays inside the Player tab instead of hanging off the bottom of the menu."
+		}),
 		new Entry("1.1.137", new String[]{
 			"Titanium ESP uses SkyHanni's Dwarven Mines area nodes, so named jobs like Rampart's Quarry Titanium only mark ore in that zone. Neighbouring rooms (Forge, Village, Far Reserve, corridors) no longer steal those veins."
 		}),

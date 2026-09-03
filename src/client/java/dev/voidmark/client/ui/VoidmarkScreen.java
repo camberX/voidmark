@@ -39,7 +39,7 @@ import java.util.function.DoubleConsumer;
 
 public class VoidmarkScreen extends Screen {
 	private static final float MENU_W = 400;
-	private static final float MENU_H = 248;
+	private static final float MENU_H = 268;
 	private static final float SIDEBAR_W = 88;
 	private static final float TOOLBAR_H = 22;
 	private static final float ROW = 16;
@@ -325,7 +325,11 @@ public class VoidmarkScreen extends Screen {
 
 		drawSidebar(graphics, font, localMx, localMy);
 		drawToolbar(graphics, font, localMx, localMy);
+		boolean columnsClip = GuiDraw.scissor(graphics, windowX, windowY, windowW, windowH);
 		drawColumns(graphics, font, localMx, localMy);
+		if (columnsClip) {
+			GuiDraw.disableScissor(graphics);
+		}
 		if (searchT > 0.02f && !searchQuery.isBlank()) {
 			drawSearchResults(graphics, font, localMx, localMy);
 		}
@@ -645,7 +649,8 @@ public class VoidmarkScreen extends Screen {
 		}
 		hits.add(new Hit(previewX, previewY, previewW, previewH, () -> previewDrag = true));
 
-		float y = featureCard(graphics, font, right, top, col, cardHeight(1) + 56, "Nick");
+		float nickH = cardHeight(1) + 56;
+		float y = featureCard(graphics, font, right, top, col, nickH, "Nick");
 		float rx = innerX(right);
 		y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Replace my name", config.nickEnabled, v -> config.nickEnabled = v);
 		GuiDraw.small(graphics, font, "Chat, tab, scoreboard. Use &6 &l.", rx, y + 1, Theme.MUTED);
@@ -679,7 +684,7 @@ public class VoidmarkScreen extends Screen {
 		}
 		NickHider.resume();
 
-		drawCapeColumn(graphics, font, mouseX, mouseY, right, top + cardHeight(1) + 64, col);
+		drawCapeColumn(graphics, font, mouseX, mouseY, right, top + nickH + 8, col);
 	}
 
 	private void drawCapeColumn(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY, float right, float top, float col) {
@@ -696,7 +701,10 @@ public class VoidmarkScreen extends Screen {
 			}
 		}
 
-		float y = featureCard(graphics, font, right, top, col, ShopCape.allowed() ? cardHeight(6) : cardHeight(3), "Cape");
+		float want = ShopCape.allowed() ? cardHeight(6) : cardHeight(3);
+		float maxH = windowY + windowH - PAD - top;
+		float h = Math.min(want, Math.max(cardHeight(3), maxH));
+		float y = featureCard(graphics, font, right, top, col, h, "Cape");
 		if (!ShopCape.allowed()) {
 			String shop = ShopCape.publishStatus();
 			GuiDraw.small(graphics, font, shop.isBlank() ? ShopCape.lockLabel() : shop, rx, y + 2, Theme.WARN);
@@ -1529,7 +1537,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.137");
+			.orElse("1.1.138");
 	}
 
 	@Override
