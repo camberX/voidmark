@@ -61,10 +61,21 @@ public final class GuiDraw {
 	}
 
 	/**
-	 * Click GUI / title / pause / options: the old translate+scale fill so
-	 * rounded chrome meets under 90%/75% menu scale. Inventory and chat keep
-	 * the cheap HUD path.
+	 * Rounded chrome (HUD panes and menus). Pose scale so the three body rects
+	 * meet in float space — integer fills left seams, and overlapping them on
+	 * translucent HUD panes made darker bands.
 	 */
+	private static void fillSmooth(GuiGraphicsExtractor graphics, float x, float y, float w, float h, int color) {
+		if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
+			return;
+		}
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x, y);
+		graphics.pose().scale(w, h);
+		graphics.fill(0, 0, 1, 1, color);
+		graphics.pose().popMatrix();
+	}
+
 	private static boolean menuSmooth() {
 		Minecraft client = Minecraft.getInstance();
 		if (client == null) {
@@ -224,17 +235,12 @@ public final class GuiDraw {
 		}
 		float r = Math.min(radius, Math.min(w, h) / 2f);
 		if (r < 0.75f) {
-			fill(graphics, x, y, w, h, color);
+			fillSmooth(graphics, x, y, w, h, color);
 			return;
 		}
-		fill(graphics, x + r, y, w - 2f * r, h, color);
-		if (menuSmooth()) {
-			fill(graphics, x, y + r, r, h - 2f * r, color);
-			fill(graphics, x + w - r, y + r, r, h - 2f * r, color);
-		} else {
-			sideStrip(graphics, x, y, w, h, r, color, true);
-			sideStrip(graphics, x, y, w, h, r, color, false);
-		}
+		fillSmooth(graphics, x + r, y, w - 2f * r, h, color);
+		fillSmooth(graphics, x, y + r, r, h - 2f * r, color);
+		fillSmooth(graphics, x + w - r, y + r, r, h - 2f * r, color);
 		corner(graphics, x, y, r, 0f, 0f, color);
 		corner(graphics, x + w - r, y, r, CIRCLE_HALF, 0f, color);
 		corner(graphics, x, y + h - r, r, 0f, CIRCLE_HALF, color);
@@ -243,54 +249,18 @@ public final class GuiDraw {
 
 	public static void roundLeft(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
 		float r = Math.min(radius, Math.min(w, h) / 2f);
-		fill(graphics, x + r, y, w - r, h, color);
-		if (menuSmooth()) {
-			fill(graphics, x, y + r, r, h - 2f * r, color);
-		} else {
-			sideStrip(graphics, x, y, w, h, r, color, true);
-		}
+		fillSmooth(graphics, x + r, y, w - r, h, color);
+		fillSmooth(graphics, x, y + r, r, h - 2f * r, color);
 		corner(graphics, x, y, r, 0f, 0f, color);
 		corner(graphics, x, y + h - r, r, 0f, CIRCLE_HALF, color);
 	}
 
 	public static void roundRight(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int color) {
 		float r = Math.min(radius, Math.min(w, h) / 2f);
-		fill(graphics, x, y, w - r, h, color);
-		if (menuSmooth()) {
-			fill(graphics, x + w - r, y + r, r, h - 2f * r, color);
-		} else {
-			sideStrip(graphics, x, y, w, h, r, color, false);
-		}
+		fillSmooth(graphics, x, y, w - r, h, color);
+		fillSmooth(graphics, x + w - r, y + r, r, h - 2f * r, color);
 		corner(graphics, x + w - r, y, r, CIRCLE_HALF, 0f, color);
 		corner(graphics, x + w - r, y + h - r, r, CIRCLE_HALF, CIRCLE_HALF, color);
-	}
-
-	/**
-	 * Middle band of a rounded rect. Integer fills plus the click GUI's 90%/75%
-	 * pose left a 1px column at {@code x+r} / {@code x+w-r} (outline showing
-	 * through the card). Overlap the center in the side band only — not into
-	 * the corner squares — so the seam closes without a per-rect pose.
-	 */
-	private static void sideStrip(
-		GuiGraphicsExtractor graphics,
-		float x,
-		float y,
-		float w,
-		float h,
-		float r,
-		int color,
-		boolean left
-	) {
-		float overlap = 2f;
-		float stripH = h - 2f * r;
-		if (stripH <= 0f) {
-			return;
-		}
-		if (left) {
-			fill(graphics, x, y + r, r + overlap, stripH, color);
-		} else {
-			fill(graphics, x + w - r - overlap, y + r, r + overlap, stripH, color);
-		}
 	}
 
 	public static void panel(GuiGraphicsExtractor graphics, float x, float y, float w, float h, float radius, int fill, int outline) {

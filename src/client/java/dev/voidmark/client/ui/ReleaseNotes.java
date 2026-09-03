@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.164", new String[]{
+			"HUD panes no longer show seam lines or darker bands at the rounded corners. Item wells and stars stay on the cheap fill path."
+		}),
 		new Entry("1.1.163", new String[]{
 			"The click GUI, title screen, and other menus use the old smooth fills again. HUD panes keep the cheaper integer path while you are in a world."
 		}),
