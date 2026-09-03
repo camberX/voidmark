@@ -4,8 +4,11 @@ import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
+
+import java.util.Optional;
 
 public final class MenuFont {
 	public static final Identifier BODY_ID = Voidmark.id("nl");
@@ -20,6 +23,7 @@ public final class MenuFont {
 	public static final Style SMALL = Style.EMPTY.withFont(new FontDescription.Resource(SMALL_ID));
 	public static final Style TITLE = Style.EMPTY.withFont(new FontDescription.Resource(TITLE_ID));
 	public static final Style ICON = Style.EMPTY.withFont(new FontDescription.Resource(ICON_ID));
+	public static final Style VANILLA = Style.EMPTY.withFont(FontDescription.DEFAULT);
 	private static final Style UI_BODY = Style.EMPTY.withFont(new FontDescription.Resource(UI_ID));
 	private static final Style UI_SMALL = Style.EMPTY.withFont(new FontDescription.Resource(UI_SMALL_ID));
 	private static final Style UI_TITLE = Style.EMPTY.withFont(new FontDescription.Resource(UI_TITLE_ID));
@@ -62,15 +66,15 @@ public final class MenuFont {
 	}
 
 	public static Component body(String value) {
-		return Component.literal(value).withStyle(bodyStyle());
+		return withFallback(value == null ? "" : value, bodyStyle());
 	}
 
 	public static Component small(String value) {
-		return Component.literal(value).withStyle(smallStyle());
+		return withFallback(value == null ? "" : value, smallStyle());
 	}
 
 	public static Component title(String value) {
-		return Component.literal(value).withStyle(titleStyle());
+		return withFallback(value == null ? "" : value, titleStyle());
 	}
 
 	public static Component brand(String value) {
@@ -81,12 +85,56 @@ public final class MenuFont {
 		return Component.literal(value).withStyle(SMALL);
 	}
 
+	public static Component vanilla(String value) {
+		return Component.literal(value == null ? "" : value).withStyle(VANILLA);
+	}
+
+	public static Component vanilla(Component value) {
+		return withFallback(value, VANILLA);
+	}
+
 	public static Component applyBody(Component value) {
-		Component text = value == null ? Component.empty() : value;
-		return text.copy().withStyle(bodyStyle());
+		return withFallback(value, bodyStyle());
 	}
 
 	public static Component icon(String glyph) {
 		return Component.literal(glyph).withStyle(ICON);
+	}
+
+	private static Component withFallback(String value, Style custom) {
+		return splitUnicode(value, custom);
+	}
+
+	private static Component withFallback(Component value, Style custom) {
+		Component text = value == null ? Component.empty() : value;
+		MutableComponent out = Component.empty();
+		text.visit((style, string) -> {
+			if (string != null && !string.isEmpty()) {
+				Style run = style.withFont(custom.getFont());
+				out.append(splitUnicode(string, run));
+			}
+			return Optional.empty();
+		}, Style.EMPTY);
+		return out;
+	}
+
+	private static Component splitUnicode(String value, Style custom) {
+		if (value == null || value.isEmpty()) {
+			return Component.empty().withStyle(custom);
+		}
+		Style fallback = custom.withFont(FontDescription.DEFAULT);
+		MutableComponent out = null;
+		int i = 0;
+		while (i < value.length()) {
+			boolean unicode = value.codePointAt(i) > 0x7F;
+			int start = i;
+			i += Character.charCount(value.codePointAt(start));
+			while (i < value.length() && (value.codePointAt(i) > 0x7F) == unicode) {
+				i += Character.charCount(value.codePointAt(i));
+			}
+			MutableComponent piece = Component.literal(value.substring(start, i)).withStyle(unicode ? fallback : custom);
+			out = out == null ? piece : out.append(piece);
+		}
+		return out == null ? Component.empty().withStyle(custom) : out;
 	}
 }

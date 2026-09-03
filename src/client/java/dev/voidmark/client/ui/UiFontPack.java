@@ -154,6 +154,17 @@ public final class UiFontPack {
 					{
 						"type": "reference",
 						"id": "minecraft:include/space"
+					},
+					{
+						"type": "reference",
+						"id": "minecraft:include/default",
+						"filter": {
+							"uniform": false
+						}
+					},
+					{
+						"type": "reference",
+						"id": "minecraft:include/unifont"
 					}
 				]
 			}

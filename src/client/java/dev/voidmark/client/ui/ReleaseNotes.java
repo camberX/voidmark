@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.154", new String[]{
+			"ESP lists every /vm esp nametag filter with an x to remove it. You can glow more than one word at once. Player nametags stay on Minecraft's font; Unicode that the Theme font is missing falls back to vanilla so it still draws."
+		}),
 		new Entry("1.1.153", new String[]{
 			"/vm esp seer no longer glows Obsidian Defenders. Nametags bind to the mob under them, not every nearby mob, and a known different plate is never treated as a copy."
 		}),

@@ -144,6 +144,7 @@ public final class VoidmarkConfig {
 	public int blockOutlineRgb = 0x2FB5FF;
 	public String mobGlowId = "";
 	public String mobGlowName = "";
+	public java.util.List<String> mobGlowNames = new java.util.ArrayList<>();
 	public java.util.List<String> mobGlowIds = new java.util.ArrayList<>();
 	public float mobGlowSize = 0.48f;
 	public float mobGlowOpacity = 0.58f;
@@ -191,6 +192,90 @@ public final class VoidmarkConfig {
 		}
 		mobGlowIds = next;
 		mobGlowId = next.isEmpty() ? "" : next.get(0);
+	}
+
+	public java.util.List<String> nametagEspLabels() {
+		normalizeNametagEsp();
+		return mobGlowNames;
+	}
+
+	public java.util.List<String> nametagEspNeedles() {
+		java.util.List<String> needles = new java.util.ArrayList<>();
+		for (String label : nametagEspLabels()) {
+			needles.add(label.toLowerCase(java.util.Locale.ROOT));
+		}
+		return needles;
+	}
+
+	public boolean addNametagEsp(String raw) {
+		String label = raw == null ? "" : raw.trim();
+		if (label.isEmpty()) {
+			return false;
+		}
+		normalizeNametagEsp();
+		for (String existing : mobGlowNames) {
+			if (existing.equalsIgnoreCase(label)) {
+				return false;
+			}
+		}
+		if (mobGlowNames.size() >= 24) {
+			mobGlowNames.remove(0);
+		}
+		mobGlowNames.add(label);
+		mobGlowEnabled = true;
+		syncNametagEsp();
+		return true;
+	}
+
+	public boolean removeNametagEsp(String raw) {
+		String label = raw == null ? "" : raw.trim();
+		if (label.isEmpty()) {
+			return false;
+		}
+		normalizeNametagEsp();
+		boolean removed = mobGlowNames.removeIf(existing -> existing.equalsIgnoreCase(label));
+		if (removed) {
+			syncNametagEsp();
+		}
+		return removed;
+	}
+
+	public void clearNametagEsp() {
+		if (mobGlowNames == null) {
+			mobGlowNames = new java.util.ArrayList<>();
+		} else {
+			mobGlowNames.clear();
+		}
+		syncNametagEsp();
+	}
+
+	public void normalizeNametagEsp() {
+		java.util.List<String> next = new java.util.ArrayList<>();
+		java.util.Set<String> seen = new java.util.HashSet<>();
+		if (mobGlowNames != null) {
+			for (String raw : mobGlowNames) {
+				String label = raw == null ? "" : raw.trim();
+				if (label.isEmpty()) {
+					continue;
+				}
+				String key = label.toLowerCase(java.util.Locale.ROOT);
+				if (seen.add(key)) {
+					next.add(label);
+				}
+			}
+		}
+		if (next.isEmpty() && mobGlowName != null && !mobGlowName.isBlank()) {
+			next.add(mobGlowName.trim());
+		}
+		mobGlowNames = next;
+		syncNametagEsp();
+	}
+
+	private void syncNametagEsp() {
+		if (mobGlowNames == null) {
+			mobGlowNames = new java.util.ArrayList<>();
+		}
+		mobGlowName = mobGlowNames.isEmpty() ? "" : mobGlowNames.get(0);
 	}
 
 	public static VoidmarkConfig get() {
@@ -257,6 +342,10 @@ public final class VoidmarkConfig {
 				if (loaded.mobGlowName == null) {
 					loaded.mobGlowName = "";
 				}
+				if (loaded.mobGlowNames == null) {
+					loaded.mobGlowNames = new java.util.ArrayList<>();
+				}
+				loaded.normalizeNametagEsp();
 				if (loaded.mobGlowIds == null) {
 					loaded.mobGlowIds = new java.util.ArrayList<>();
 				}

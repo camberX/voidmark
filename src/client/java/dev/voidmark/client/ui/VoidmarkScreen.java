@@ -9,6 +9,7 @@ import dev.voidmark.client.mining.MiningTracker;
 import dev.voidmark.client.mining.TitaniumTracker;
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.HudStats;
+import dev.voidmark.client.render.EspMobPrint;
 import dev.voidmark.client.render.MobCatalog;
 import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.render.PlayerPreview;
@@ -116,7 +117,12 @@ public class VoidmarkScreen extends Screen {
 		}
 
 		float height() {
-			return 22 + rows * ROW + 10;
+			int extra = 0;
+			if (this == MOB) {
+				int n = VoidmarkConfig.get().nametagEspLabels().size();
+				extra = 1 + Math.max(2, Math.min(8, Math.max(n, 1)));
+			}
+			return 22 + (rows + extra) * ROW + 10;
 		}
 	}
 
@@ -250,6 +256,11 @@ public class VoidmarkScreen extends Screen {
 	private float mobFieldY;
 	private float mobFieldW;
 	private boolean ensureMobVisible;
+	private float nametagEspScroll;
+	private float nametagEspListX;
+	private float nametagEspListY;
+	private float nametagEspListW;
+	private float nametagEspListH;
 	private float previewYaw = 18f;
 	private float previewPitch = -8f;
 	private boolean previewDrag;
@@ -530,6 +541,13 @@ public class VoidmarkScreen extends Screen {
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Block outline", config.blockOutlineGlow, v -> config.blockOutlineGlow = v, Feature.BLOCK);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Nametags", config.nametagsEnabled, v -> config.nametagsEnabled = v, Feature.NAMETAGS);
 		toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Own nametag", config.nametagSelf, v -> config.nametagSelf = v);
+
+		List<String> nametags = config.nametagEspLabels();
+		float namesTop = top + cardHeight(4) + 8;
+		float namesH = Math.max(cardHeight(2), windowY + windowH - PAD - namesTop);
+		String namesTitle = nametags.isEmpty() ? "Nametag ESP" : "Nametag ESP  " + nametags.size();
+		float namesY = featureCard(graphics, font, left, namesTop, col, namesH, namesTitle);
+		drawNametagEspList(graphics, font, ix, namesY, iw, namesH - CARD_HEAD - 4, mouseX, mouseY, true);
 
 		List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
 		float listH = windowY + windowH - PAD - top;
@@ -1273,6 +1291,82 @@ public class VoidmarkScreen extends Screen {
 		return CARD_HEAD + rows * ROW + CARD_PAD;
 	}
 
+	private void drawNametagEspList(
+		GuiGraphicsExtractor graphics,
+		Font font,
+		float x,
+		float y,
+		float w,
+		float h,
+		int mouseX,
+		int mouseY,
+		boolean scrollable
+	) {
+		List<String> labels = VoidmarkConfig.get().nametagEspLabels();
+		if (labels.isEmpty()) {
+			GuiDraw.menu(graphics, font, "No nametag filters", x + 1, GuiDraw.middle(y, ROW), Theme.MUTED);
+			GuiDraw.small(graphics, font, "/vm esp <text>", x + 1, y + ROW + 1, Theme.MUTED);
+			return;
+		}
+		float scroll = 0f;
+		float maxScroll = Math.max(0f, labels.size() * ROW - h);
+		if (scrollable) {
+			nametagEspListX = x;
+			nametagEspListY = y;
+			nametagEspListW = w;
+			nametagEspListH = h;
+			nametagEspScroll = Mth.clamp(nametagEspScroll, 0f, maxScroll);
+			scroll = nametagEspScroll;
+		}
+		boolean clipped = h < labels.size() * ROW && GuiDraw.scissor(graphics, x, y, w, h);
+		int first = (int) (scroll / ROW);
+		int last = Math.min(labels.size() - 1, first + (int) (h / ROW) + 1);
+		for (int i = first; i <= last; i++) {
+			String label = labels.get(i);
+			float iy = y + i * ROW - scroll;
+			boolean rowHover = GuiDraw.hovered(mouseX, mouseY, x, iy, w, ROW)
+				&& GuiDraw.hovered(mouseX, mouseY, x, y, w, h);
+			float xW = 12f;
+			float xX = x + w - xW;
+			boolean xHover = GuiDraw.hovered(mouseX, mouseY, xX, iy, xW, ROW)
+				&& GuiDraw.hovered(mouseX, mouseY, x, y, w, h);
+			if (rowHover && !xHover) {
+				GuiDraw.rounded(graphics, x - 2, iy, w + 4, ROW, 5, 0x10FFFFFF);
+			}
+			if (xHover) {
+				GuiDraw.rounded(graphics, xX - 1, iy + 1, xW + 2, ROW - 2, 4, Theme.withAlpha(Theme.WARN, 40));
+			}
+			GuiDraw.menu(graphics, font, clip(font, label, (int) (w - xW - 8)), x + 1, GuiDraw.middle(iy, ROW), Theme.TEXT);
+			GuiDraw.menu(graphics, font, "x", xX + (xW - GuiDraw.menuWidth(font, "x")) * 0.5f, GuiDraw.middle(iy, ROW), xHover ? Theme.WARN : Theme.MUTED);
+			float hitY = Math.max(iy, y);
+			float hitB = Math.min(iy + ROW, y + h);
+			if (hitB - hitY >= 3f) {
+				hits.add(new Hit(xX, hitY, xW, hitB - hitY, () -> removeNametagEsp(label)));
+			}
+		}
+		if (clipped) {
+			GuiDraw.disableScissor(graphics);
+		}
+		if (scrollable && maxScroll > 1f) {
+			float trackX = x + w + 3;
+			float trackH = h;
+			GuiDraw.rounded(graphics, trackX, y, 2.4f, trackH, 1.2f, Theme.TRACK);
+			float thumbH = Math.max(14f, trackH * trackH / (trackH + maxScroll));
+			float thumbY = y + (nametagEspScroll / maxScroll) * (trackH - thumbH);
+			GuiDraw.rounded(graphics, trackX - 0.4f, thumbY, 3.2f, thumbH, 1.6f, Theme.ACCENT);
+		}
+	}
+
+	private void removeNametagEsp(String label) {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		if (!config.removeNametagEsp(label)) {
+			return;
+		}
+		EspMobPrint.drop(label.toLowerCase(Locale.ROOT));
+		config.save();
+		UnloadState.markDirty();
+	}
+
 	private float featureCard(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, float h, String title) {
 		GuiDraw.panel(graphics, x, y, w, h, Math.min(14f, h / 2f), Theme.CARD, Theme.LINE);
 		GuiDraw.small(graphics, font, title, x + CARD_PAD, y + 5, Theme.HEADER);
@@ -1396,7 +1490,11 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.mobGlowThroughWalls, v -> config.mobGlowThroughWalls = v);
 				y = slider(graphics, font, ix, y, iw, "Size", String.format(Locale.ROOT, "%.0f", config.mobGlowSize * 100), (config.mobGlowSize - 0.12f) / 1.08f, v -> config.mobGlowSize = VoidmarkConfig.clamp(0.12f + v * 1.08f, 0.12f, 1.20f));
 				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.mobGlowOpacity * 100) + "%", (config.mobGlowOpacity - 0.15f) / 0.75f, v -> config.mobGlowOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
-				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
+				y = colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
+				GuiDraw.small(graphics, font, "Nametag ESP", ix, y + 1, Theme.MUTED);
+				y += ROW;
+				float listH = Feature.MOB.height() - (y - featureY) - 8;
+				drawNametagEspList(graphics, font, ix, y, iw, Math.max(ROW, listH), mouseX, mouseY, false);
 			}
 			case BLOCK -> {
 				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.blockOutlineOpacity * 100) + "%", (config.blockOutlineOpacity - 0.15f) / 0.75f, v -> config.blockOutlineOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
@@ -1657,7 +1755,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.153");
+			.orElse("1.1.154");
 	}
 
 	@Override
@@ -1769,6 +1867,11 @@ public class VoidmarkScreen extends Screen {
 		if (fontPickerOpen && scrollY != 0 && GuiDraw.hovered(lx, ly, fontListX, fontListY, fontListW, fontListH)) {
 			float maxScroll = Math.max(0f, fontMatches().size() * FONT_ROW - fontListH);
 			fontScroll = Mth.clamp(fontScroll - (float) scrollY * FONT_ROW * 2.2f, 0f, maxScroll);
+			return true;
+		}
+		if (tab == Tab.ESP && scrollY != 0 && GuiDraw.hovered(lx, ly, nametagEspListX, nametagEspListY, nametagEspListW, nametagEspListH)) {
+			float maxScroll = Math.max(0f, VoidmarkConfig.get().nametagEspLabels().size() * ROW - nametagEspListH);
+			nametagEspScroll = Mth.clamp(nametagEspScroll - (float) scrollY * ROW * 2.2f, 0f, maxScroll);
 			return true;
 		}
 		if (tab == Tab.ESP && scrollY != 0 && GuiDraw.hovered(lx, ly, mobFieldX, mobFieldY, mobListW, mobListY + mobListH - mobFieldY)) {

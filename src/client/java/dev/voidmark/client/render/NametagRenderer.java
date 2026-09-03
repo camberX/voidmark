@@ -233,7 +233,7 @@ public final class NametagRenderer {
 		if (tag.plates) {
 			boolean showDist = showDistance && !tag.self;
 			boolean badge = tag.badge();
-			Component name = MenuFont.applyBody(tag.name);
+			Component name = MenuFont.vanilla(tag.name);
 			float nameW = pillWidth(font.width(name), showDist ? distWidth(font, tag.dist) : 0f);
 			float badgeW = badge ? badgeWidth(font, tag) : 0f;
 			float w = Math.max(nameW, badgeW);
@@ -277,7 +277,7 @@ public final class NametagRenderer {
 			GuiDraw.text(
 				graphics,
 				font,
-				MenuFont.body(GuiDraw.meters(tag.dist)),
+				MenuFont.vanilla(GuiDraw.meters(tag.dist)),
 				tx + nameW + 5f,
 				GuiDraw.middle(y, TAG_H),
 				Anim.fade(Theme.MUTED, alpha),
@@ -297,7 +297,7 @@ public final class NametagRenderer {
 	}
 
 	private static void drawTitleText(GuiGraphicsExtractor graphics, Font font, Component title, float x, float y, float w, float alpha) {
-		Component styled = MenuFont.applyBody(title);
+		Component styled = MenuFont.vanilla(title);
 		float titleW = font.width(styled);
 		float tx = x + (w - titleW) * 0.5f;
 		GuiDraw.text(graphics, font, styled, tx, GuiDraw.middle(y, BADGE_H), Anim.fade(0xFFFFFFFF, alpha), false);
@@ -308,12 +308,12 @@ public final class NametagRenderer {
 	}
 
 	private static float distWidth(Font font, double dist) {
-		return GuiDraw.menuWidth(font, GuiDraw.meters(dist));
+		return font.width(MenuFont.vanilla(GuiDraw.meters(dist)));
 	}
 
 	private static float badgeWidth(Font font, Tag tag) {
 		if (tag.titled()) {
-			return PAD_X + GuiDraw.hudWidth(font, tag.title) + PAD_X;
+			return PAD_X + font.width(MenuFont.vanilla(tag.title)) + PAD_X;
 		}
 		return PAD_X + GuiDraw.brandWidth(font, BADGE_BRAND) + 3f + GuiDraw.brandWidth(font, BADGE_ROLE) + PAD_X;
 	}
@@ -329,25 +329,25 @@ public final class NametagRenderer {
 		int accent = Anim.fade(Theme.ACCENT, alpha);
 		int warn = Anim.fade(Theme.WARN, alpha);
 		boolean showDist = showDistance && !tag.self;
-		int nameW = GuiDraw.hudWidth(font, tag.name);
+		int nameW = font.width(MenuFont.vanilla(tag.name));
 		int distW = showDist ? Math.round(distWidth(font, tag.dist)) : 0;
 		int inner = nameW + (distW > 0 ? 5 + distW : 0);
 		int nx = Math.round(-inner * 0.5f);
 		int nameTop = tag.badge() ? -22 : -11;
 		graphics.fill(nx - 1, nameTop - 1, nx + inner + 1, nameTop + 9, bg);
-		GuiDraw.hud(graphics, font, tag.name, nx, nameTop, white);
+		GuiDraw.text(graphics, font, MenuFont.vanilla(tag.name), nx, nameTop, white, false);
 		if (showDist) {
-			GuiDraw.text(graphics, font, MenuFont.body(GuiDraw.meters(tag.dist)), nx + nameW + 5, nameTop, muted, false);
+			GuiDraw.text(graphics, font, MenuFont.vanilla(GuiDraw.meters(tag.dist)), nx + nameW + 5, nameTop, muted, false);
 		}
 		if (!tag.badge()) {
 			return;
 		}
 		int badgeTop = nameTop - 11;
 		if (tag.titled()) {
-			int titleW = GuiDraw.hudWidth(font, tag.title);
+			int titleW = font.width(MenuFont.vanilla(tag.title));
 			int bx = Math.round(-titleW * 0.5f);
 			graphics.fill(bx - 1, badgeTop - 1, bx + titleW + 1, badgeTop + 9, bg);
-			GuiDraw.hud(graphics, font, tag.title, bx, badgeTop, white);
+			GuiDraw.text(graphics, font, MenuFont.vanilla(tag.title), bx, badgeTop, white, false);
 			return;
 		}
 		float brandW = GuiDraw.brandWidth(font, BADGE_BRAND);
@@ -364,12 +364,12 @@ public final class NametagRenderer {
 		if (name == null || name.getString().isBlank()) {
 			return;
 		}
-		int w = font.width(name);
+		int w = font.width(MenuFont.vanilla(name));
 		int x = Math.round(cx - w * 0.5f);
 		int top = Math.round(y);
 		int bg = Minecraft.getInstance().options.getBackgroundColor(0.25f);
 		graphics.fill(x - 1, top - 1, x + w + 1, top + 9, bg);
-		graphics.text(font, name, x, top, 0xFFFFFFFF, false);
+		graphics.text(font, MenuFont.vanilla(name), x, top, 0xFFFFFFFF, false);
 	}
 
 	public static boolean isDev(UUID uuid) {

@@ -214,28 +214,27 @@ public final class MobGlowRenderer {
 	}
 
 	private static boolean nametagHit(Entity entity) {
-		VoidmarkConfig config = VoidmarkConfig.get();
-		String needle = config.mobGlowName == null ? "" : config.mobGlowName.trim();
-		if (needle.isEmpty()) {
+		java.util.List<String> needles = VoidmarkConfig.get().nametagEspNeedles();
+		if (needles.isEmpty()) {
 			return false;
 		}
-		refreshNameIds(needle);
+		refreshNameIds(needles);
 		return nameIds.contains(entity.getId());
 	}
 
-	private static void refreshNameIds(String needle) {
+	private static void refreshNameIds(java.util.List<String> needles) {
 		Minecraft client = Minecraft.getInstance();
 		int tick = client.player == null ? 0 : client.player.tickCount;
-		if (tick == nameTick && needle.equals(nameNeedle)) {
+		String key = String.join("\n", needles);
+		if (tick == nameTick && key.equals(nameNeedle)) {
 			return;
 		}
 		nameTick = tick;
-		nameNeedle = needle;
+		nameNeedle = key;
 		if (client.level == null || client.player == null) {
 			nameIds = Set.of();
 			return;
 		}
-		String n = needle.toLowerCase(Locale.ROOT);
 		Set<Integer> ids = new HashSet<>();
 		Set<UUID> seen = new HashSet<>();
 		Map<UUID, String> plates = new HashMap<>();
@@ -263,16 +262,22 @@ public final class MobGlowRenderer {
 				continue;
 			}
 			String plate = plates.getOrDefault(entity.getUUID(), "");
-			boolean named = textHasNeedle(plate, n) || nameMatches(entity, n);
-			boolean otherName = hasOtherName(plate, n);
-			if (otherName && entity instanceof LivingEntity living) {
-				EspMobPrint.forget(n, living);
+			boolean hit = false;
+			for (String n : needles) {
+				boolean named = textHasNeedle(plate, n) || nameMatches(entity, n);
+				boolean otherName = hasOtherName(plate, n);
+				if (otherName && entity instanceof LivingEntity living) {
+					EspMobPrint.forget(n, living);
+				}
+				if (named && !otherName && entity instanceof LivingEntity living) {
+					EspMobPrint.learn(n, living);
+				}
+				boolean copy = !otherName && entity instanceof LivingEntity living && EspMobPrint.matches(n, living);
+				if (named || copy) {
+					hit = true;
+				}
 			}
-			if (named && !otherName && entity instanceof LivingEntity living) {
-				EspMobPrint.learn(n, living);
-			}
-			boolean copy = !otherName && entity instanceof LivingEntity living && EspMobPrint.matches(n, living);
-			if (named || copy) {
+			if (hit) {
 				ids.add(entity.getId());
 			}
 		}
