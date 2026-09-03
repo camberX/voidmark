@@ -23,11 +23,14 @@ public class MinecraftMixin {
 	}
 
 	/**
-	 * Push ESP targets into the outline buffer even when they already have
-	 * vanilla glow, and even when they are invisible holograms.
+	 * Push ESP targets into the outline buffer (including holograms). Entities
+	 * that already have vanilla GLOWING keep Minecraft's own outline.
 	 */
 	@Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true)
 	private void voidmark$espGlow(Entity entity, CallbackInfoReturnable<Boolean> cir) {
+		if (MobGlowRenderer.hasVanillaGlow(entity)) {
+			return;
+		}
 		if (MobGlowRenderer.shouldForceGlow(entity)) {
 			cir.setReturnValue(true);
 		}

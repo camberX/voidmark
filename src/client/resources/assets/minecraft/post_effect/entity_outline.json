@@ -1,16 +1,28 @@
 {
     "targets": {
         "swap": {},
-        "blur": {}
+        "blur": {},
+        "esp": {}
     },
     "passes": [
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "voidmark:post/glow_strip",
+            "inputs": [
+                {
+                    "sampler_name": "In",
+                    "target": "minecraft:entity_outline"
+                }
+            ],
+            "output": "esp"
+        },
         {
             "vertex_shader": "minecraft:core/screenquad",
             "fragment_shader": "voidmark:post/glow_blur",
             "inputs": [
                 {
                     "sampler_name": "In",
-                    "target": "minecraft:entity_outline",
+                    "target": "esp",
                     "bilinear": true
                 }
             ],

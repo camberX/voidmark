@@ -57,11 +57,15 @@ public final class MobGlowRenderer {
 	}
 
 	/**
-	 * True when this entity should enter Minecraft's outline pass, including
-	 * mobs that already have the vanilla GLOWING flag.
+	 * True when this entity should enter Minecraft's outline pass for Voidmark ESP.
+	 * Vanilla GLOWING (slayers, spectral arrows, the glowing effect) is left alone.
 	 */
 	public static boolean shouldForceGlow(Entity entity) {
 		return outlineColor(entity) != 0;
+	}
+
+	public static boolean hasVanillaGlow(Entity entity) {
+		return entity != null && entity.isCurrentlyGlowing();
 	}
 
 	public static int outlineColor(Entity entity) {
@@ -73,7 +77,7 @@ public final class MobGlowRenderer {
 		if (client.player == null || client.level == null || entity == client.player) {
 			return 0;
 		}
-		if (!isEspTarget(entity, client.player)) {
+		if (hasVanillaGlow(entity) || !isEspTarget(entity, client.player)) {
 			return 0;
 		}
 		Vec3 camera = client.gameRenderer.getMainCamera().position();
@@ -102,7 +106,7 @@ public final class MobGlowRenderer {
 	}
 
 	private static boolean isEspTarget(Entity entity, Entity player) {
-		if (entity == null || entity == player || entity.isRemoved()) {
+		if (entity == null || entity == player || entity.isRemoved() || hasVanillaGlow(entity)) {
 			return false;
 		}
 		if (entity instanceof LivingEntity living && !living.isAlive()) {
@@ -164,7 +168,9 @@ public final class MobGlowRenderer {
 			if (!nameMatches(entity, n)) {
 				continue;
 			}
-			ids.add(entity.getId());
+			if (!hasVanillaGlow(entity)) {
+				ids.add(entity.getId());
+			}
 			linkHologram(client, entity, ids);
 		}
 		nameIds = ids;
@@ -203,7 +209,8 @@ public final class MobGlowRenderer {
 			if (other instanceof LivingEntity living
 				&& living.isAlive()
 				&& other != client.player
-				&& other.getType() != EntityType.ARMOR_STAND) {
+				&& other.getType() != EntityType.ARMOR_STAND
+				&& !hasVanillaGlow(other)) {
 				ids.add(other.getId());
 			}
 		}

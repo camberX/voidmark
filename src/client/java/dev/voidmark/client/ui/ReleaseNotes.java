@@ -8,8 +8,11 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.148", new String[]{
+			"Glow ESP no longer covers slayers and other mobs that already have vanilla glow — they keep Minecraft's outline."
+		}),
 		new Entry("1.1.147", new String[]{
-			"/vm esp <text> glows every mob whose nametag contains that word, including holograms above the real mob. Glow ESP still applies on slayers and other entities that already have vanilla glow. Raw mats reads Ender Chest and backpacks from the profile API again — older inventory layouts, nested backpacks, and 1.21 item components included."
+			"/vm esp <text> glows every mob whose nametag contains that word, including holograms above the real mob. Raw mats reads Ender Chest and backpacks from the profile API again — older inventory layouts, nested backpacks, and 1.21 item components included."
 		}),
 		new Entry("1.1.146", new String[]{
 			"Theme has a Font picker for every menu and HUD label. It lists the TrueType fonts installed on your PC. The watermark VOIDMARK logo and the VOIDMARK Dev nametag stay on Nunito."

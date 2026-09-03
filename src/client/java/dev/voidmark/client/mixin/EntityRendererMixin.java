@@ -41,9 +41,7 @@ public class EntityRendererMixin {
 	private void voidmark$nickTag(Entity entity, EntityRenderState state, float tickDelta, CallbackInfo ci) {
 		if (VoidmarkConfig.get().mobGlowEnabled) {
 			int glow = MobGlowRenderer.outlineColor(entity);
-			if (glow != 0) {
-				// Always replace vanilla team/glow color so ESP wins on slayers
-				// and other entities that already have the GLOWING flag.
+			if (glow != 0 && !MobGlowRenderer.hasVanillaGlow(entity)) {
 				state.outlineColor = glow;
 			}
 		}
