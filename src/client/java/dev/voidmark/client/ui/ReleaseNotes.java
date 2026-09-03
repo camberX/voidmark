@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.161", new String[]{
+			"Click GUI cards no longer show faint vertical seams at the rounded corners. HUD fills stay on the cheap integer path."
+		}),
 		new Entry("1.1.160", new String[]{
 			"HUD chrome is cheaper with every pane on. Item wells are flat instead of rounded, fills no longer break the GUI batch, and raw mats / scoreboard stop rebuilding several times a frame. HUD stars skip the tiny bars."
 		}),
