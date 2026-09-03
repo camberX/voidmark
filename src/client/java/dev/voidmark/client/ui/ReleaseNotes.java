@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.162", new String[]{
+			"HUD panes no longer re-read the tab list, scoreboard, and inventory every frame to decide what to show. Mining commissions update a few times a second, and a pane that is off does not keep scanning."
+		}),
 		new Entry("1.1.161", new String[]{
 			"Click GUI cards no longer show faint vertical seams at the rounded corners. HUD fills stay on the cheap integer path."
 		}),

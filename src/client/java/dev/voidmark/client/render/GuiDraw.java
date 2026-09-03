@@ -500,6 +500,31 @@ public final class GuiDraw {
 		return font.width(MenuFont.brandSmall(value));
 	}
 
+	public static String ellipsize(Font font, String value, float max, boolean small) {
+		if (value == null || value.isEmpty()) {
+			return "";
+		}
+		int full = small ? smallWidth(font, value) : menuWidth(font, value);
+		if (full <= max) {
+			return value;
+		}
+		int lo = 1;
+		int hi = value.length();
+		String best = "..";
+		while (lo <= hi) {
+			int mid = (lo + hi) >>> 1;
+			String shown = value.substring(0, mid) + "..";
+			int width = small ? smallWidth(font, shown) : menuWidth(font, shown);
+			if (width <= max) {
+				best = shown;
+				lo = mid + 1;
+			} else {
+				hi = mid - 1;
+			}
+		}
+		return best;
+	}
+
 	public static int hudWidth(Font font, Component value) {
 		return font.width(MenuFont.applyBody(value));
 	}

@@ -8,6 +8,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public final class HudLayout {
@@ -82,7 +83,31 @@ public final class HudLayout {
 		return out;
 	}
 
+	private static int boxTick = Integer.MIN_VALUE;
+	private static int boxGuiW;
+	private static int boxGuiH;
+	private static final Box[] BOX = new Box[Id.values().length];
+
 	public static Box box(Id id, Font font, int guiW, int guiH) {
+		Minecraft client = Minecraft.getInstance();
+		int tick = client.player == null ? -1 : client.player.tickCount;
+		if (tick == boxTick && guiW == boxGuiW && guiH == boxGuiH) {
+			Box cached = BOX[id.ordinal()];
+			if (cached != null) {
+				return cached;
+			}
+		} else {
+			boxTick = tick;
+			boxGuiW = guiW;
+			boxGuiH = guiH;
+			Arrays.fill(BOX, null);
+		}
+		Box made = computeBox(id, font, guiW, guiH);
+		BOX[id.ordinal()] = made;
+		return made;
+	}
+
+	private static Box computeBox(Id id, Font font, int guiW, int guiH) {
 		float w = width(id, font);
 		float h = height(id, font);
 		float x;
@@ -152,6 +177,7 @@ public final class HudLayout {
 	}
 
 	public static void set(Id id, float x, float y) {
+		boxTick = Integer.MIN_VALUE;
 		VoidmarkConfig config = VoidmarkConfig.get();
 		VoidmarkConfig.HudSlot slot = slot(id);
 		if (slot != null) {
@@ -207,6 +233,7 @@ public final class HudLayout {
 	}
 
 	public static void setScale(Id id, float scale) {
+		boxTick = Integer.MIN_VALUE;
 		float value = VoidmarkConfig.clampHudScale(scale);
 		VoidmarkConfig config = VoidmarkConfig.get();
 		VoidmarkConfig.HudSlot slot = slot(id);
@@ -227,6 +254,7 @@ public final class HudLayout {
 	}
 
 	public static void reset(Id id) {
+		boxTick = Integer.MIN_VALUE;
 		VoidmarkConfig config = VoidmarkConfig.get();
 		VoidmarkConfig.HudSlot slot = slot(id);
 		if (slot != null) {

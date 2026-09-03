@@ -2,6 +2,7 @@ package dev.voidmark.client.mining;
 
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
+import dev.voidmark.client.ui.VoidmarkScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -47,6 +48,9 @@ public final class MiningTracker {
 	private static long cooldownTotal = BOOST_MS;
 	private static String alertName = "";
 	private static long alertUntil;
+	private static int parseTick = Integer.MIN_VALUE;
+	private static int snapTick = Integer.MIN_VALUE;
+	private static Snapshot snapCache;
 
 	private MiningTracker() {
 	}
@@ -56,16 +60,33 @@ public final class MiningTracker {
 			synchronized (LOCK) {
 				commissions = List.of();
 			}
+			parseTick = Integer.MIN_VALUE;
+			snapTick = Integer.MIN_VALUE;
+			snapCache = null;
 			return;
 		}
-		List<String> lines = tabLines(client);
-		List<Commission> parsed = parseCommissions(lines);
+		if (!needed(client)) {
+			return;
+		}
+		int t = client.player.tickCount;
+		boolean hot;
+		synchronized (LOCK) {
+			hot = !commissions.isEmpty() || !abilityReady;
+		}
+		hot = hot || inMiningIsland();
+		int interval = hot ? 10 : 20;
+		if (parseTick != Integer.MIN_VALUE && t - parseTick < interval && t >= parseTick) {
+			return;
+		}
+		parseTick = t;
+		List<Commission> parsed = readCommissions(client);
 		synchronized (LOCK) {
 			commissions = parsed;
 			if (!abilityReady && System.currentTimeMillis() >= cooldownUntil) {
 				abilityReady = true;
 			}
 		}
+		snapTick = Integer.MIN_VALUE;
 	}
 
 	public static void onChat(Component message) {
@@ -96,9 +117,18 @@ public final class MiningTracker {
 			alertName = "";
 			alertUntil = 0L;
 		}
+		parseTick = Integer.MIN_VALUE;
+		snapTick = Integer.MIN_VALUE;
+		snapCache = null;
 	}
 
 	public static Snapshot snapshot() {
+		Minecraft client = Minecraft.getInstance();
+		int tick = client.player == null ? -1 : client.player.tickCount;
+		if (snapCache != null && tick == snapTick) {
+			return snapCache;
+		}
+		Snapshot snap;
 		synchronized (LOCK) {
 			long now = System.currentTimeMillis();
 			boolean ready = abilityReady || now >= cooldownUntil;
@@ -113,7 +143,7 @@ public final class MiningTracker {
 			boolean alert = VoidmarkConfig.get().miningAbilityAlert && now < alertUntil && !alertName.isEmpty();
 			float alertT = alert ? Math.min(1f, (alertUntil - now) / (float) ALERT_MS) : 0f;
 			boolean mining = inMiningIsland() || !commissions.isEmpty() || !ready || alert;
-			return new Snapshot(
+			snap = new Snapshot(
 				mining,
 				SkyblockLocation.area,
 				List.copyOf(commissions),
@@ -125,6 +155,9 @@ public final class MiningTracker {
 				alertT
 			);
 		}
+		snapTick = tick;
+		snapCache = snap;
+		return snap;
 	}
 
 	public static boolean inMiningIsland() {
@@ -163,6 +196,7 @@ public final class MiningTracker {
 			cooldownTotal = duration;
 			cooldownUntil = System.currentTimeMillis() + duration;
 		}
+		snapTick = Integer.MIN_VALUE;
 	}
 
 	private static void markReady(String name) {
@@ -175,6 +209,7 @@ public final class MiningTracker {
 				alertUntil = System.currentTimeMillis() + ALERT_MS;
 			}
 		}
+		snapTick = Integer.MIN_VALUE;
 	}
 
 	private static String abilityIn(String text) {
@@ -214,12 +249,30 @@ public final class MiningTracker {
 		return MiningAreas.filter(copy);
 	}
 
-	private static List<Commission> parseCommissions(List<String> lines) {
-		List<Commission> out = new ArrayList<>();
+	private static boolean needed(Minecraft client) {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		if (config.miningHudEnabled || config.titaniumEsp) {
+			return true;
+		}
+		return client.screen instanceof VoidmarkScreen;
+	}
+
+	private static List<Commission> readCommissions(Minecraft client) {
+		if (client.player == null) {
+			return List.of();
+		}
+		ClientPacketListener connection = client.player.connection;
+		if (connection == null) {
+			return List.of();
+		}
+		List<PlayerInfo> infos = new ArrayList<>(connection.getListedOnlinePlayers());
+		infos.sort(TAB_ORDER);
+		List<Commission> out = new ArrayList<>(4);
 		boolean section = false;
 		String pending = null;
-		for (String raw : lines) {
-			String line = cleanName(raw);
+		int limit = Math.min(80, infos.size());
+		for (int i = 0; i < limit; i++) {
+			String line = cleanName(plain(tabName(infos.get(i))));
 			if (line.isEmpty()) {
 				continue;
 			}
@@ -249,24 +302,6 @@ public final class MiningTracker {
 			pending = line;
 		}
 		return List.copyOf(out);
-	}
-
-	private static List<String> tabLines(Minecraft client) {
-		if (client.player == null) {
-			return List.of();
-		}
-		ClientPacketListener connection = client.player.connection;
-		if (connection == null) {
-			return List.of();
-		}
-		List<PlayerInfo> infos = new ArrayList<>(connection.getListedOnlinePlayers());
-		infos.sort(TAB_ORDER);
-		int limit = Math.min(80, infos.size());
-		List<String> lines = new ArrayList<>(limit);
-		for (int i = 0; i < limit; i++) {
-			lines.add(plain(tabName(infos.get(i))));
-		}
-		return lines;
 	}
 
 	private static Component tabName(PlayerInfo info) {

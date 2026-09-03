@@ -37,6 +37,12 @@ public final class TitaniumTracker {
 	}
 
 	public void tick(Minecraft client) {
+		if (!VoidmarkConfig.get().titaniumEsp) {
+			if (!blocks.isEmpty() || filter.active()) {
+				clear();
+			}
+			return;
+		}
 		MiningAreas.TitaniumFilter next = MiningTracker.titaniumFilter();
 		boolean filterChanged = !next.equals(filter);
 		filter = next;

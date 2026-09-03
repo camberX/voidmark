@@ -66,8 +66,9 @@ public final class NodeHudRenderer {
 	public static void draw(GuiGraphicsExtractor graphics, Minecraft client, Font font, float x, float y, float scale, DeltaTracker deltaTracker) {
 		int count = EnderNodeTracker.get().count();
 		EnderNodeTracker.TrackedNode nearest = null;
+		Vec3 eyes = null;
 		if (client.player != null) {
-			Vec3 eyes = client.player.getEyePosition(deltaTracker.getGameTimeDeltaPartialTick(false));
+			eyes = client.player.getEyePosition(deltaTracker.getGameTimeDeltaPartialTick(false));
 			nearest = EnderNodeTracker.get().nearest(eyes);
 		}
 		float width = WIDTH;
@@ -85,8 +86,7 @@ public final class NodeHudRenderer {
 		String headline = count == 0 ? "No nodes in range" : count == 1 ? "1 ender node" : count + " ender nodes";
 		GuiDraw.menu(graphics, font, headline, 10, 18, Theme.TEXT);
 
-		if (nearest != null && client.player != null) {
-			Vec3 eyes = client.player.getEyePosition(deltaTracker.getGameTimeDeltaPartialTick(false));
+		if (nearest != null && eyes != null) {
 			double distance = nearest.distanceTo(eyes);
 			float yaw = nearest.yawTo(eyes);
 			float delta = GuiDraw.wrapDegrees(yaw - client.player.getYRot());

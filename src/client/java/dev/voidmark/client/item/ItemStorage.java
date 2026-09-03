@@ -92,6 +92,7 @@ public final class ItemStorage {
 		openTitle = title;
 		openCounts = counts;
 		PAGES.put(kind + ":" + title.trim().toLowerCase(Locale.ROOT), counts);
+		countTick = Integer.MIN_VALUE;
 	}
 
 	public static void applyApi(Map<String, Long> ender, Map<String, Long> backpacks) {
@@ -105,6 +106,7 @@ public final class ItemStorage {
 			apiBackpackReady = true;
 			backpackAdjust.clear();
 		}
+		countTick = Integer.MIN_VALUE;
 	}
 
 	public static boolean hasApiStorage() {
@@ -119,11 +121,20 @@ public final class ItemStorage {
 		return apiBackpackReady || hasPage("backpack");
 	}
 
+	private static int countTick = Integer.MIN_VALUE;
+	private static int countPlayer;
+	private static Map<String, Long> countCache = Map.of();
+
 	public static Map<String, Long> counts(Player player) {
-		Map<String, Long> out = new HashMap<>();
 		if (player == null) {
-			return out;
+			return Map.of();
 		}
+		int tick = player.tickCount;
+		int id = System.identityHashCode(player);
+		if (tick == countTick && id == countPlayer && countCache != null) {
+			return countCache;
+		}
+		Map<String, Long> out = new HashMap<>();
 		Inventory inventory = player.getInventory();
 		int size = inventory.getContainerSize();
 		for (int i = 0; i < size; i++) {
@@ -149,6 +160,9 @@ public final class ItemStorage {
 		if (!apiEnderReady && !apiBackpackReady) {
 			addPages(out, "storage");
 		}
+		countTick = tick;
+		countPlayer = id;
+		countCache = out;
 		return out;
 	}
 

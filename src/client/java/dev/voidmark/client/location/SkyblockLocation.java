@@ -10,15 +10,22 @@ import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 
+/**
+ * Hypixel / Skyblock / island flags. Tab and scoreboard are walked at most a
+ * few times a second, and each walk stops as soon as it has what it needs.
+ */
 public final class SkyblockLocation {
 	private static final String AREA_PREFIX = "Area: ";
 	private static final String DUNGEON_PREFIX = "Dungeon: ";
+	private static final int REFRESH_TICKS = 5;
 
 	public static boolean onHypixel;
 	public static boolean inSkyblock;
 	public static boolean inTheEnd;
 	public static String area = "";
 	public static String serverBrand = "";
+
+	private static int lastTick = Integer.MIN_VALUE;
 
 	private SkyblockLocation() {
 	}
@@ -29,12 +36,20 @@ public final class SkyblockLocation {
 			return;
 		}
 
+		int t = client.player.tickCount;
+		if (lastTick != Integer.MIN_VALUE && t - lastTick < REFRESH_TICKS && t >= lastTick) {
+			return;
+		}
+		lastTick = t;
+
 		ClientPacketListener connection = client.player.connection;
 		serverBrand = brand(connection);
 		onHypixel = serverBrand.toLowerCase().contains("hypixel");
-		inSkyblock = onHypixel && looksLikeSkyblock(client, connection);
-		area = readArea(connection, client);
-		inTheEnd = inSkyblock && isTheEnd(area, client);
+
+		Sidebar sidebar = readSidebar(client);
+		area = readArea(connection, sidebar);
+		inSkyblock = onHypixel && (sidebar.skyblock || !area.isEmpty());
+		inTheEnd = inSkyblock && isTheEnd(area, sidebar);
 	}
 
 	public static boolean shouldMarkNodes() {
@@ -57,6 +72,7 @@ public final class SkyblockLocation {
 		inTheEnd = false;
 		area = "";
 		serverBrand = "";
+		lastTick = Integer.MIN_VALUE;
 	}
 
 	private static String brand(ClientPacketListener connection) {
@@ -67,28 +83,7 @@ public final class SkyblockLocation {
 		return brand == null ? "" : brand;
 	}
 
-	private static boolean looksLikeSkyblock(Minecraft client, ClientPacketListener connection) {
-		Scoreboard scoreboard = client.level.getScoreboard();
-		Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
-		if (sidebar != null) {
-			if ("SBScoreboard".equals(sidebar.getName())) {
-				return true;
-			}
-			String title = plain(sidebar.getDisplayName()).toUpperCase();
-			if (title.contains("SKYBLOCK")) {
-				return true;
-			}
-			for (var score : scoreboard.listPlayerScores(sidebar)) {
-				Component line = PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(score.owner()), Component.literal(score.owner()));
-				if (plain(line).toUpperCase().contains("SKYBLOCK")) {
-					return true;
-				}
-			}
-		}
-		return !readArea(connection, client).isEmpty();
-	}
-
-	private static String readArea(ClientPacketListener connection, Minecraft client) {
+	private static String readArea(ClientPacketListener connection, Sidebar sidebar) {
 		if (connection != null) {
 			for (PlayerInfo info : connection.getListedOnlinePlayers()) {
 				Component display = info.getTabListDisplayName();
@@ -104,50 +99,64 @@ public final class SkyblockLocation {
 				}
 			}
 		}
-
-		if (client.level != null) {
-			Scoreboard scoreboard = client.level.getScoreboard();
-			Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
-			if (sidebar != null) {
-				for (var score : scoreboard.listPlayerScores(sidebar)) {
-					Component line = PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(score.owner()), Component.literal(score.owner()));
-					String text = plain(line);
-					if (text.contains("The End") || text.contains("End Island")) {
-						return "The End";
-					}
-				}
-			}
+		if (!sidebar.endArea.isEmpty()) {
+			return sidebar.endArea;
 		}
-
 		return area;
 	}
 
-	private static boolean isTheEnd(String currentArea, Minecraft client) {
+	private static boolean isTheEnd(String currentArea, Sidebar sidebar) {
 		if (currentArea.equalsIgnoreCase("The End") || currentArea.toLowerCase().contains("end island")) {
 			return true;
 		}
+		return sidebar.end;
+	}
+
+	private static Sidebar readSidebar(Minecraft client) {
 		if (client.level == null) {
-			return false;
+			return Sidebar.EMPTY;
 		}
 		Scoreboard scoreboard = client.level.getScoreboard();
 		Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
 		if (sidebar == null) {
-			return false;
+			return Sidebar.EMPTY;
 		}
+		boolean skyblock = "SBScoreboard".equals(sidebar.getName());
+		boolean end = false;
+		String endArea = "";
 		String title = plain(sidebar.getDisplayName());
+		String titleKey = title.toUpperCase();
+		if (titleKey.contains("SKYBLOCK")) {
+			skyblock = true;
+		}
 		if (title.contains("The End")) {
-			return true;
+			end = true;
+			endArea = "The End";
 		}
 		for (var score : scoreboard.listPlayerScores(sidebar)) {
-			Component line = PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(score.owner()), Component.literal(score.owner()));
-			if (plain(line).contains("The End")) {
-				return true;
+			Component line = PlayerTeam.formatNameForTeam(
+				scoreboard.getPlayersTeam(score.owner()),
+				Component.literal(score.owner())
+			);
+			String text = plain(line);
+			if (!skyblock && text.toUpperCase().contains("SKYBLOCK")) {
+				skyblock = true;
+			}
+			if (text.contains("The End") || text.contains("End Island")) {
+				end = true;
+				if (endArea.isEmpty()) {
+					endArea = "The End";
+				}
 			}
 		}
-		return false;
+		return new Sidebar(skyblock, end, endArea);
 	}
 
 	private static String plain(Component component) {
 		return component == null ? "" : component.getString().replaceAll("§.", "");
+	}
+
+	private record Sidebar(boolean skyblock, boolean end, String endArea) {
+		private static final Sidebar EMPTY = new Sidebar(false, false, "");
 	}
 }

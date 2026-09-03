@@ -74,6 +74,9 @@ public final class RawmatsTracker {
 	}
 
 	public static void tick(Minecraft client) {
+		if (!tracking()) {
+			return;
+		}
 		ItemStorage.tick(client);
 		SkyblockProfileApi.tick(client);
 	}

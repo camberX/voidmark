@@ -66,13 +66,7 @@ public final class WatermarkRenderer {
 
 		float pad = 7;
 		float gap = 8;
-		float w = pad * 2 + brandExtra(font);
-		for (int i = 0; i < parts.size(); i++) {
-			w += partWidth(font, parts.get(i), i == 0);
-			if (i + 1 < parts.size()) {
-				w += gap + 1;
-			}
-		}
+		float w = width(font);
 
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(x, y);
@@ -106,7 +100,15 @@ public final class WatermarkRenderer {
 		graphics.pose().popMatrix();
 	}
 
+	private static int widthTick = Integer.MIN_VALUE;
+	private static float widthCache;
+
 	public static float width(Font font) {
+		Minecraft client = Minecraft.getInstance();
+		int tick = client.player == null ? -1 : client.player.tickCount;
+		if (tick == widthTick && widthCache > 0f) {
+			return widthCache;
+		}
 		VoidmarkConfig config = VoidmarkConfig.get();
 		float w = 16 + brandExtra(font);
 		w += GuiDraw.brandWidth(font, "VOIDMARK");
@@ -122,6 +124,8 @@ public final class WatermarkRenderer {
 		if (config.watermarkName) {
 			w += 9 + GuiDraw.menuWidth(font, HudStats.playerName());
 		}
+		widthTick = tick;
+		widthCache = w;
 		return w;
 	}
 

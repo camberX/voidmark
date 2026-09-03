@@ -244,21 +244,7 @@ public final class RawmatsHudRenderer {
 	}
 
 	private static String ellipsize(Font font, String value, float max, boolean small) {
-		if (value == null || value.isBlank()) {
-			return "";
-		}
-		if ((small ? GuiDraw.smallWidth(font, value) : GuiDraw.menuWidth(font, value)) <= max) {
-			return value;
-		}
-		String trimmed = value;
-		while (trimmed.length() > 1) {
-			trimmed = trimmed.substring(0, trimmed.length() - 1);
-			String shown = trimmed + "..";
-			if ((small ? GuiDraw.smallWidth(font, shown) : GuiDraw.menuWidth(font, shown)) <= max) {
-				return shown;
-			}
-		}
-		return "..";
+		return GuiDraw.ellipsize(font, value, max, small);
 	}
 
 	private record Rect(float x, float y, float w, float h) {

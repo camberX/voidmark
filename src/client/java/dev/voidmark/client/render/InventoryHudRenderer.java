@@ -185,7 +185,14 @@ public final class InventoryHudRenderer {
 		graphics.itemDecorations(font, stack, ix, iy);
 	}
 
+	private static int filledTick = Integer.MIN_VALUE;
+	private static String filledCache = "0/41";
+
 	private static String filledLabel(LocalPlayer player, Inventory inventory) {
+		int tick = player.tickCount;
+		if (tick == filledTick) {
+			return filledCache;
+		}
 		int filled = 0;
 		for (int i = 0; i < 36; i++) {
 			if (!inventory.getItem(i).isEmpty()) {
@@ -200,7 +207,9 @@ public final class InventoryHudRenderer {
 		if (!player.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
 			filled++;
 		}
-		return filled + "/41";
+		filledTick = tick;
+		filledCache = filled + "/41";
+		return filledCache;
 	}
 
 	private record Metrics(int panelW, int panelH, int gridW, int armorY, int mainY, int hotbarY) {

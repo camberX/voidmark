@@ -169,16 +169,6 @@ public final class MiningHudRenderer {
 	}
 
 	private static String clip(Font font, String value, float max) {
-		if (value == null || value.isBlank()) {
-			return "";
-		}
-		if (GuiDraw.smallWidth(font, value) <= max) {
-			return value;
-		}
-		String trimmed = value;
-		while (trimmed.length() > 1 && GuiDraw.smallWidth(font, trimmed + "..") > max) {
-			trimmed = trimmed.substring(0, trimmed.length() - 1);
-		}
-		return trimmed + "..";
+		return GuiDraw.ellipsize(font, value, max, true);
 	}
 }
