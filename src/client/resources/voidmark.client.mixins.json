@@ -29,9 +29,15 @@
 		"ModelBlockRendererMixin",
 		"PlayerTabOverlayMixin",
 		"ProjectionMixin",
+		"RenderPipelinesAccessor",
+		"RenderPipelinesMixin",
+		"RenderSetupAccessor",
+		"RenderSetupTextureBindingAccessor",
+		"RenderTypeAccessor",
 		"ScreenMixin",
 		"SkyRendererMixin",
-		"StringWidgetMixin"
+		"StringWidgetMixin",
+		"SubmitNodeCollectionMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

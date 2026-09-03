@@ -2,6 +2,7 @@ package dev.voidmark.client.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.voidmark.client.config.VoidmarkConfig;
+import dev.voidmark.client.render.ChamsRenderer;
 import dev.voidmark.client.render.MobGlowRenderer;
 import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.visual.NickHider;
@@ -23,6 +24,7 @@ public class EntityRendererMixin {
 		at = @At("RETURN")
 	)
 	private void voidmark$nickTag(Entity entity, EntityRenderState state, float tickDelta, CallbackInfo ci) {
+		ChamsRenderer.rememberSelf(entity, state);
 		if (VoidmarkConfig.get().mobGlowEnabled) {
 			int glow = MobGlowRenderer.outlineColor(entity);
 			if (glow != 0) {

@@ -93,6 +93,7 @@ public class VoidmarkScreen extends Screen {
 		FOG("Fog", 5),
 		VIEW("Aspect", 3),
 		MOB("Mob glow", 4),
+		CHAMS("Chams", 4),
 		BLOCK("Block outline", 2),
 		NODE_ESP("Node ESP", 5),
 		WATERMARK("Watermark", 4),
@@ -118,7 +119,7 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private enum PickerTarget {
-		WORLD, SKY, FOG, NODE, THEME, PANE, MOB, BLOCK, TITANIUM
+		WORLD, SKY, FOG, NODE, THEME, PANE, MOB, CHAMS, BLOCK, TITANIUM
 	}
 
 	private record SearchEntry(String label, Tab tab, String hint) {
@@ -132,6 +133,9 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Aspect ratio", Tab.WORLD, "World"),
 		new SearchEntry("Custom fog", Tab.WORLD, "World"),
 		new SearchEntry("Mob glow", Tab.ESP, "ESP"),
+		new SearchEntry("Chams", Tab.ESP, "ESP"),
+		new SearchEntry("Chams fill", Tab.ESP, "ESP"),
+		new SearchEntry("Chams tint", Tab.ESP, "ESP"),
 		new SearchEntry("Block outline", Tab.ESP, "ESP"),
 		new SearchEntry("Block outline color", Tab.ESP, "ESP"),
 		new SearchEntry("Mobs", Tab.ESP, "ESP"),
@@ -511,11 +515,40 @@ public class VoidmarkScreen extends Screen {
 		VoidmarkConfig config = VoidmarkConfig.get();
 		config.normalizeMobGlowIds();
 
-		float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Glow");
+		float glowH = cardHeight(5);
+		float y = featureCard(graphics, font, left, top, col, glowH, "Glow");
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mob glow", config.mobGlowEnabled, v -> config.mobGlowEnabled = v, Feature.MOB);
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Chams", config.chamsEnabled, v -> config.chamsEnabled = v, Feature.CHAMS);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Block outline", config.blockOutlineGlow, v -> config.blockOutlineGlow = v, Feature.BLOCK);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Nametags", config.nametagsEnabled, v -> config.nametagsEnabled = v, Feature.NAMETAGS);
 		toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Own nametag", config.nametagSelf, v -> config.nametagSelf = v);
+
+		float previewTop = top + glowH + 6;
+		float previewCardH = Math.max(72f, windowY + windowH - PAD - previewTop);
+		featureCard(graphics, font, left, previewTop, col, previewCardH, "Preview");
+		spinPreview();
+		previewX = ix;
+		previewY = previewTop + CARD_HEAD;
+		previewW = iw;
+		previewH = Math.max(48, previewCardH - CARD_HEAD - CARD_PAD);
+		boolean previewHover = GuiDraw.hovered(mouseX, mouseY, previewX, previewY, previewW, previewH);
+		PlayerPreview.Drawn drawn = PlayerPreview.draw(
+			graphics,
+			previewX,
+			previewY,
+			previewW,
+			previewH,
+			previewYaw,
+			previewPitch,
+			new PlayerPreview.View(viewScale, viewCx, viewCy, viewLift),
+			true
+		);
+		if (drawn == null) {
+			GuiDraw.menu(graphics, font, "Join a world to preview", previewX + 4, previewY + previewH - 16, Theme.MUTED);
+		} else if (previewHover) {
+			GuiDraw.small(graphics, font, "Drag to rotate", previewX + 4, previewY + previewH - 12, Theme.MUTED);
+		}
+		hits.add(new Hit(previewX, previewY, previewW, previewH, () -> previewDrag = true));
 
 		List<MobCatalog.Entry> entries = MobCatalog.filtered(mobQuery);
 		float listH = windowY + windowH - PAD - top;
@@ -596,6 +629,15 @@ public class VoidmarkScreen extends Screen {
 		}
 	}
 
+	private void spinPreview() {
+		if (!previewDrag) {
+			previewYaw += dt * 22f;
+			if (previewYaw > 360f || previewYaw < -360f) {
+				previewYaw %= 360f;
+			}
+		}
+	}
+
 	private void drawPlayerTab(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		float left = contentX();
 		float top = windowY + TOOLBAR_H + 6;
@@ -606,16 +648,11 @@ public class VoidmarkScreen extends Screen {
 		VoidmarkConfig config = VoidmarkConfig.get();
 		float modelH = windowY + windowH - PAD - top;
 		featureCard(graphics, font, left, top, col, modelH, "You");
+		spinPreview();
 		previewX = ix;
 		previewY = top + CARD_HEAD;
 		previewW = iw;
 		previewH = Math.max(48, modelH - CARD_HEAD - CARD_PAD);
-		if (!previewDrag) {
-			previewYaw += dt * 22f;
-			if (previewYaw > 360f || previewYaw < -360f) {
-				previewYaw %= 360f;
-			}
-		}
 		boolean previewHover = GuiDraw.hovered(mouseX, mouseY, previewX, previewY, previewW, previewH);
 		PlayerPreview.Drawn drawn = PlayerPreview.draw(
 			graphics,
@@ -1278,6 +1315,15 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.mobGlowOpacity * 100) + "%", (config.mobGlowOpacity - 0.15f) / 0.75f, v -> config.mobGlowOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.mobGlowRgb, PickerTarget.MOB);
 			}
+			case CHAMS -> {
+				y = chipRow(graphics, font, ix, y, iw, mouseX, mouseY, new String[]{"Fill", "Default", "Tint"}, config.chamsModeIndex(), index -> {
+					config.setChamsMode(index);
+					UnloadState.markDirty();
+				});
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.chamsThroughWalls, v -> config.chamsThroughWalls = v);
+				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.chamsOpacity * 100) + "%", (config.chamsOpacity - 0.15f) / 0.85f, v -> config.chamsOpacity = VoidmarkConfig.clamp(0.15f + v * 0.85f, 0.15f, 1f));
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.chamsRgb, PickerTarget.CHAMS);
+			}
 			case BLOCK -> {
 				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.blockOutlineOpacity * 100) + "%", (config.blockOutlineOpacity - 0.15f) / 0.75f, v -> config.blockOutlineOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.blockOutlineRgb, PickerTarget.BLOCK);
@@ -1500,6 +1546,7 @@ public class VoidmarkScreen extends Screen {
 			case FOG -> config.fogRgb = packed;
 			case NODE -> config.colorRgb = packed;
 			case MOB -> config.mobGlowRgb = packed;
+			case CHAMS -> config.chamsRgb = packed;
 			case BLOCK -> config.blockOutlineRgb = packed;
 			case TITANIUM -> config.titaniumEspRgb = packed;
 			case THEME -> Theme.applyCustom(packed);
@@ -1537,7 +1584,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.138");
+			.orElse("1.1.139");
 	}
 
 	@Override

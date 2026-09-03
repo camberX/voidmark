@@ -1,5 +1,6 @@
 package dev.voidmark.client.render;
 
+import dev.voidmark.client.config.VoidmarkConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.model.HumanoidModel;
@@ -21,7 +22,8 @@ import org.joml.Vector3f;
  * pixels per block (vanilla inventory uses 30), and the clip box is only as
  * large as the model. Both are mapped through the menu scale because the PiP
  * pass ignores the 2D pose. Armor and held items are stripped from the
- * extracted state only — in-world rendering is unchanged.
+ * extracted state only — in-world rendering is unchanged. Pass
+ * {@code applyEsp} to live-apply glow outline and chams from the ESP tab.
  */
 public final class PlayerPreview {
 	private static final float NAME_PAD = 20f;
@@ -53,6 +55,20 @@ public final class PlayerPreview {
 		float pitch,
 		View view
 	) {
+		return draw(graphics, x, y, w, h, yaw, pitch, view, false);
+	}
+
+	public static Drawn draw(
+		GuiGraphicsExtractor graphics,
+		float x,
+		float y,
+		float w,
+		float h,
+		float yaw,
+		float pitch,
+		View view,
+		boolean applyEsp
+	) {
 		Minecraft client = Minecraft.getInstance();
 		LocalPlayer player = client.player;
 		if (player == null || view == null) {
@@ -67,6 +83,9 @@ public final class PlayerPreview {
 		state.shadowPieces.clear();
 		state.outlineColor = 0;
 		state.nameTag = null;
+		if (applyEsp && VoidmarkConfig.get().mobGlowEnabled) {
+			state.outlineColor = MobGlowRenderer.packColor(VoidmarkConfig.get());
+		}
 		freeze(state, yaw, pitch);
 		float body = Math.max(1.5f, state.boundingBoxHeight);
 		float size = Math.min(62f, Math.max(40f, h * 0.28f));
@@ -90,7 +109,16 @@ public final class PlayerPreview {
 		Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
 		Quaternionf camera = new Quaternionf().rotateX(pitch * ((float) Math.PI / 180f) * 0.35f);
 		Vector3f translation = new Vector3f(0f, body * 0.5f, 0f);
-		graphics.entity(state, size * scale, translation, pose, camera, x0, y0, x1, y1);
+		if (applyEsp) {
+			ChamsRenderer.pushPreview();
+		}
+		try {
+			graphics.entity(state, size * scale, translation, pose, camera, x0, y0, x1, y1);
+		} finally {
+			if (applyEsp) {
+				ChamsRenderer.popPreview();
+			}
+		}
 		float headX = boxX + boxW * 0.5f;
 		float headTop = boxY + boxH * 0.5f - visH * 0.5f;
 		return new Drawn(headX, headTop - 13f);

@@ -66,9 +66,17 @@ public final class MobGlowRenderer {
 		if (!config.mobGlowThroughWalls && occluded(client, camera, entity.getEyePosition())) {
 			return 0;
 		}
+		return packColor(config);
+	}
+
+	public static int packColor(VoidmarkConfig config) {
 		float opacity = VoidmarkConfig.clamp(config.mobGlowOpacity, 0.15f, 0.90f);
 		int alpha = Math.round(opacity * 255f);
 		return (alpha << 24) | (config.mobGlowRgb & 0xFFFFFF);
+	}
+
+	public static boolean listed(EntityType<?> type) {
+		return type != null && selectedTypes().contains(type);
 	}
 
 	private static Set<EntityType<?>> selectedTypes() {
