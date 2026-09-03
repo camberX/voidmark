@@ -9,7 +9,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -18,22 +17,21 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Live inventory plus Ender Chest / backpack counts from the Skyblock profile API.
- * Opened pages are only used as a fallback until the API has storage, or while
- * that container is open so the HUD can update immediately.
+ * <p>
+ * API storage is a snapshot. Pulling a stack into your inventory would count it
+ * twice if we added live inventory on top of that snapshot. While a bag or
+ * Ender Chest is open, slot deltas update an adjustment so moved items stay
+ * counted once. Armor is part of {@link Inventory#getContainerSize()} and is
+ * not counted a second time.
  */
 public final class ItemStorage {
-	private static final EquipmentSlot[] ARMOR = {
-		EquipmentSlot.HEAD,
-		EquipmentSlot.CHEST,
-		EquipmentSlot.LEGS,
-		EquipmentSlot.FEET,
-		EquipmentSlot.OFFHAND
-	};
 	private static final String[] CONTENT_KEYS = {
 		"backpack_contents",
 		"greater_backpack_contents",
@@ -52,27 +50,34 @@ public final class ItemStorage {
 	private static volatile Map<String, Long> apiBackpack = Map.of();
 	private static volatile boolean apiEnderReady;
 	private static volatile boolean apiBackpackReady;
+	private static final Map<String, Long> enderAdjust = new HashMap<>();
+	private static final Map<String, Long> backpackAdjust = new HashMap<>();
 	private static String openKind;
+	private static String openTitle = "";
+	private static Map<String, Long> openCounts = Map.of();
 
 	private ItemStorage() {
 	}
 
 	public static void tick(Minecraft client) {
-		openKind = null;
 		if (client == null || client.player == null) {
+			resetOpen();
 			return;
 		}
 		Screen screen = client.screen;
 		if (!(screen instanceof AbstractContainerScreen<?> container)) {
+			resetOpen();
 			return;
 		}
 		String title = screen.getTitle() == null ? "" : screen.getTitle().getString();
 		String kind = kind(title);
 		if (kind == null) {
+			resetOpen();
 			return;
 		}
 		AbstractContainerMenu menu = container.getMenu();
 		if (menu == null) {
+			resetOpen();
 			return;
 		}
 		Map<String, Long> counts = new HashMap<>();
@@ -80,19 +85,25 @@ public final class ItemStorage {
 		for (int i = 0; i < end; i++) {
 			addSlot(menu.slots.get(i), counts, 0, true);
 		}
-		String key = kind + ":" + title.trim().toLowerCase(Locale.ROOT);
-		PAGES.put(key, counts);
+		if (tracksMoves(kind) && kind.equals(openKind) && title.equals(openTitle)) {
+			nudge(adjust(kind), openCounts, counts);
+		}
 		openKind = kind;
+		openTitle = title;
+		openCounts = counts;
+		PAGES.put(kind + ":" + title.trim().toLowerCase(Locale.ROOT), counts);
 	}
 
 	public static void applyApi(Map<String, Long> ender, Map<String, Long> backpacks) {
 		if (ender != null) {
 			apiEnder = Map.copyOf(ender);
 			apiEnderReady = true;
+			enderAdjust.clear();
 		}
 		if (backpacks != null) {
 			apiBackpack = Map.copyOf(backpacks);
 			apiBackpackReady = true;
+			backpackAdjust.clear();
 		}
 	}
 
@@ -118,16 +129,20 @@ public final class ItemStorage {
 		for (int i = 0; i < size; i++) {
 			addStack(inventory.getItem(i), out, 0, false);
 		}
-		for (EquipmentSlot slot : ARMOR) {
-			addStack(player.getItemBySlot(slot), out, 0, false);
+		Minecraft client = Minecraft.getInstance();
+		if (client.screen instanceof AbstractContainerScreen<?> container) {
+			AbstractContainerMenu menu = container.getMenu();
+			if (menu != null) {
+				addStack(menu.getCarried(), out, 0, false);
+			}
 		}
 		if (apiEnderReady) {
-			merge(out, apiEnder);
+			mergeAdjusted(out, apiEnder, enderAdjust);
 		} else {
 			addPages(out, "ender");
 		}
 		if (apiBackpackReady) {
-			merge(out, apiBackpack);
+			mergeAdjusted(out, apiBackpack, backpackAdjust);
 		} else {
 			addPages(out, "backpack");
 		}
@@ -139,6 +154,45 @@ public final class ItemStorage {
 
 	public static void addCounts(Tag tag, Map<String, Long> out, boolean nestStorage) {
 		addTag(tag, out, 0, nestStorage);
+	}
+
+	private static void resetOpen() {
+		openKind = null;
+		openTitle = "";
+		openCounts = Map.of();
+	}
+
+	private static boolean tracksMoves(String kind) {
+		return "ender".equals(kind) || "backpack".equals(kind);
+	}
+
+	private static Map<String, Long> adjust(String kind) {
+		return "ender".equals(kind) ? enderAdjust : backpackAdjust;
+	}
+
+	/** Positive delta = items left the container (usually into inventory). */
+	private static void nudge(Map<String, Long> adjust, Map<String, Long> previous, Map<String, Long> current) {
+		Set<String> ids = new HashSet<>();
+		ids.addAll(previous.keySet());
+		ids.addAll(current.keySet());
+		for (String id : ids) {
+			long delta = previous.getOrDefault(id, 0L) - current.getOrDefault(id, 0L);
+			if (delta != 0L) {
+				adjust.merge(id, delta, Long::sum);
+			}
+		}
+	}
+
+	private static void mergeAdjusted(Map<String, Long> out, Map<String, Long> snapshot, Map<String, Long> adjust) {
+		Set<String> ids = new HashSet<>();
+		ids.addAll(snapshot.keySet());
+		ids.addAll(adjust.keySet());
+		for (String id : ids) {
+			long n = snapshot.getOrDefault(id, 0L) - adjust.getOrDefault(id, 0L);
+			if (n > 0L) {
+				out.merge(id, n, Long::sum);
+			}
+		}
 	}
 
 	private static void addPages(Map<String, Long> out, String kind) {
@@ -217,8 +271,9 @@ public final class ItemStorage {
 		if (tag instanceof CompoundTag compound) {
 			if (looksLikeItem(compound)) {
 				String id = itemId(compound);
-				if (id != null) {
-					out.merge(id, (long) itemCount(compound), Long::sum);
+				long count = itemCount(compound);
+				if (id != null && count > 0L) {
+					out.merge(id, count, Long::sum);
 				}
 				addNested(compound.getCompoundOrEmpty("tag").getCompoundOrEmpty("ExtraAttributes"), out, depth + 1, nestStorage);
 				addNested(compound.getCompoundOrEmpty("ExtraAttributes"), out, depth + 1, nestStorage);
@@ -249,7 +304,7 @@ public final class ItemStorage {
 	}
 
 	private static boolean looksLikeItem(CompoundTag tag) {
-		if (tag.contains("id") || tag.contains("Count") || tag.contains("count")) {
+		if (tag.contains("Count") || tag.contains("count")) {
 			return true;
 		}
 		return !tag.getCompoundOrEmpty("tag").getCompoundOrEmpty("ExtraAttributes").isEmpty()
@@ -276,12 +331,14 @@ public final class ItemStorage {
 		return null;
 	}
 
-	private static int itemCount(CompoundTag tag) {
-		int count = intOr(tag, "Count", 0);
-		if (count <= 0) {
-			count = intOr(tag, "count", 0);
+	private static long itemCount(CompoundTag tag) {
+		if (tag.contains("Count")) {
+			return Math.max(0, intOr(tag, "Count", 0));
 		}
-		return Math.max(1, count);
+		if (tag.contains("count")) {
+			return Math.max(0, intOr(tag, "count", 0));
+		}
+		return 1L;
 	}
 
 	private static int intOr(CompoundTag tag, String key, int fallback) {
