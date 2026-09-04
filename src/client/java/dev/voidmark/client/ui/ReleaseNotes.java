@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.169", new String[]{
+			"Ships a verified hitsound jar. 1.1.168 was a truncated zip for some downloads (zip END header not found); delete that file from mods or Fabric will not launch."
+		}),
 		new Entry("1.1.168", new String[]{
 			"Hitsounds actually play on Hypixel. The first version skipped every mob whose client health was 0 (most Skyblock mobs), used the Players slider, and had no backup when an arrow or hologram click did not collide locally."
 		}),
