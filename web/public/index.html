@@ -33,6 +33,9 @@
 		.handle b { font-size: 20px; letter-spacing: 0.02em; }
 		.copy { border: 0; border-radius: 9px; background: var(--accent); color: #041018; font: inherit; font-weight: 800; padding: 8px 12px; cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
 		.copy:hover { filter: brightness(1.08); }
+		.download { display: block; margin: 14px 0 8px; text-align: center; text-decoration: none; border-radius: 10px; background: var(--accent); color: #041018; font-weight: 800; padding: 12px 14px; letter-spacing: 0.08em; text-transform: uppercase; }
+		.download:hover { filter: brightness(1.08); }
+		.download.dead { pointer-events: none; opacity: 0.5; }
 		.note { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 		.steps { display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; text-align: left; }
 		.steps li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
@@ -57,6 +60,12 @@
 			<h1>VOIDMARK</h1>
 			<div class="rule"></div>
 			<p class="lede">A cape every Voidmark user can see in Skyblock. Not a Hypixel cosmetic — it only shows in the client.</p>
+			<article class="card">
+				<p class="kicker">The mod</p>
+				<p class="note">Fabric for Minecraft 26.1.2. Drop the jar in your mods folder. This button always serves the current build.</p>
+				<a class="download" id="mod-download" href="/download">Download Voidmark</a>
+				<p class="note" id="mod-ver">Checking latest build…</p>
+			</article>
 			<article class="card">
 				<p class="kicker">Want one</p>
 				<div class="handle">
@@ -110,6 +119,23 @@
 				btn.textContent = "Copy failed";
 			});
 		};
+		(function loadMod() {
+			var ver = document.getElementById("mod-ver");
+			var link = document.getElementById("mod-download");
+			fetch("/mod/latest.json", { cache: "no-store" }).then(function (response) {
+				return response.ok ? response.json() : null;
+			}).then(function (data) {
+				if (!data || !data.version) {
+					ver.textContent = "Build not published yet.";
+					link.classList.add("dead");
+					return;
+				}
+				ver.textContent = "v" + data.version + " · Minecraft " + (data.minecraft || "26.1.2");
+				link.setAttribute("download", data.file || ("voidmark-" + data.version + ".jar"));
+			}).catch(function () {
+				ver.textContent = "Could not read the latest build.";
+			});
+		})();
 	</script>
 </body>
 </html>

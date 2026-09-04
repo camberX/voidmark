@@ -23,6 +23,12 @@ async function route(request, env) {
 		const state = await loadState(env);
 		return json(200, shopConfig(state, env));
 	}
+	if (request.method === "GET" && path === "/api/mod") {
+		return serveModInfo(request, env);
+	}
+	if (request.method === "GET" && (path === "/download" || path === "/voidmark.jar")) {
+		return serveModJar(request, env);
+	}
 	if (request.method === "PUT" && path === "/api/config") {
 		return handleShopConfig(request, env);
 	}
@@ -72,7 +78,7 @@ async function route(request, env) {
 	if (request.method === "DELETE" && path === "/api/cape") {
 		return handleDelete(request, env);
 	}
-	if ((request.method === "POST" || request.method === "PUT" || request.method === "DELETE") && path === "/api/whitelist") {
+	if ((request.method === "GET" || request.method === "POST" || request.method === "PUT" || request.method === "DELETE") && path === "/api/whitelist") {
 		return handleWhitelist(request, env);
 	}
 	if ((request.method === "PUT" || request.method === "DELETE") && path === "/api/tag") {
@@ -132,7 +138,7 @@ async function handlePublish(request, env) {
 	if (!state.whitelist.includes(uuid)) {
 		return json(403, { error: "uuid not whitelisted" });
 	}
-	const adminOk = adminHeaderOk(request, env);
+	const adminOk = await adminCapeOk(request, env);
 	const locked = capeRetryMs(state, uuid);
 	if (!adminOk && locked > 0) {
 		return json(429, { error: "Cape can be changed once per 24 hours", retryIn: Math.ceil(locked / 1000) });
@@ -157,8 +163,8 @@ async function handlePublish(request, env) {
 }
 
 async function handleImport(request, env) {
-	if (!adminHeaderOk(request, env)) {
-		return json(403, { error: "Bad admin key" });
+	if (!(await adminCapeOk(request, env))) {
+		return json(403, { error: "Not authorized" });
 	}
 	let payload;
 	try {
@@ -200,7 +206,7 @@ async function handleDelete(request, env) {
 	if (!state.whitelist.includes(uuid)) {
 		return json(403, { error: "uuid not whitelisted" });
 	}
-	const adminOk = adminHeaderOk(request, env);
+	const adminOk = await adminCapeOk(request, env);
 	const locked = capeRetryMs(state, uuid);
 	if (!adminOk && locked > 0) {
 		return json(429, { error: "Cape can be changed once per 24 hours", retryIn: Math.ceil(locked / 1000) });
@@ -218,6 +224,15 @@ async function handleWhitelist(request, env) {
 	if (!admin) {
 		return json(500, { error: "Admin key is not set on the Worker" });
 	}
+	if (request.method === "GET") {
+		if (!(await deskSessionOk(request, env))) {
+			return json(403, { error: "Not authorized" });
+		}
+		const state = await loadState(env);
+		const players = await playersFor(env, state, true);
+		await saveState(env, state);
+		return json(200, { uuids: state.whitelist, players });
+	}
 	let body;
 	try {
 		body = await request.json();
@@ -227,12 +242,13 @@ async function handleWhitelist(request, env) {
 	if ((body.admin || "") !== admin) {
 		return json(403, { error: "Bad admin key" }, { "Set-Cookie": deskCookieHeader(request, "", true) });
 	}
-	const state = await loadState(env);
 	if (request.method === "POST" && !body.uuid && !body.name) {
-		const players = await playersFor(env, state, true);
-		await saveState(env, state);
-		return adminJson(request, env, 200, { uuids: state.whitelist, players });
+		return adminJson(request, env, 200, { ok: true });
 	}
+	if (!(await deskCookieOk(request, env))) {
+		return json(403, { error: "Not authorized" });
+	}
+	const state = await loadState(env);
 	const resolved = await resolvePlayer(body.uuid || body.name);
 	if (!resolved.uuid) {
 		const raw = String(body.uuid || body.name || "").trim();
@@ -265,20 +281,11 @@ async function handleWhitelist(request, env) {
 }
 
 async function handleTag(request, env) {
-	const admin = env.ADMIN || "";
-	if (!admin) {
-		return json(500, { error: "Admin key is not set on the Worker" });
+	const checked = await adminBody(request, env);
+	if (checked.error) {
+		return checked.error;
 	}
-	let body;
-	try {
-		body = await request.json();
-	} catch {
-		body = {};
-	}
-	if ((body.admin || "") !== admin) {
-		return json(403, { error: "Bad admin key" });
-	}
-	const uuid = normalizeUuid(body.uuid);
+	const uuid = normalizeUuid(checked.body.uuid);
 	if (!uuid) {
 		return json(400, { error: "Need a valid UUID" });
 	}
@@ -287,7 +294,7 @@ async function handleTag(request, env) {
 		return json(403, { error: "uuid not whitelisted" });
 	}
 	state.tags = state.tags && typeof state.tags === "object" && !Array.isArray(state.tags) ? state.tags : {};
-	const tag = request.method === "DELETE" ? "" : sanitizeTag(body.tag);
+	const tag = request.method === "DELETE" ? "" : sanitizeTag(checked.body.tag);
 	if (tag) {
 		state.tags[uuid] = tag;
 	} else {
@@ -298,20 +305,11 @@ async function handleTag(request, env) {
 }
 
 async function handleBypass(request, env) {
-	const admin = env.ADMIN || "";
-	if (!admin) {
-		return json(500, { error: "Admin key is not set on the Worker" });
+	const checked = await adminBody(request, env);
+	if (checked.error) {
+		return checked.error;
 	}
-	let body;
-	try {
-		body = await request.json();
-	} catch {
-		body = {};
-	}
-	if ((body.admin || "") !== admin) {
-		return json(403, { error: "Bad admin key" });
-	}
-	const uuid = normalizeUuid(body.uuid);
+	const uuid = normalizeUuid(checked.body.uuid);
 	if (!uuid) {
 		return json(400, { error: "Need a valid UUID" });
 	}
@@ -320,7 +318,7 @@ async function handleBypass(request, env) {
 		return json(403, { error: "uuid not whitelisted" });
 	}
 	state.bypass = objectMap(state.bypass);
-	if (body.bypass) {
+	if (checked.body.bypass) {
 		state.bypass[uuid] = true;
 	} else {
 		delete state.bypass[uuid];
@@ -459,6 +457,9 @@ async function adminBody(request, env) {
 	if (!admin) {
 		return { error: json(500, { error: "Admin key is not set on the Worker" }) };
 	}
+	if (!(await deskCookieOk(request, env))) {
+		return { error: json(403, { error: "Not authorized" }) };
+	}
 	let body;
 	try {
 		body = await request.json();
@@ -466,7 +467,7 @@ async function adminBody(request, env) {
 		body = {};
 	}
 	if ((body.admin || "") !== admin) {
-		return { error: json(403, { error: "Bad admin key" }) };
+		return { error: json(403, { error: "Not authorized" }) };
 	}
 	return { body };
 }
@@ -633,6 +634,14 @@ function touchCapeAt(state, uuid) {
 function adminHeaderOk(request, env) {
 	const admin = env.ADMIN || "";
 	return Boolean(admin) && (request.headers.get("x-admin") || "") === admin;
+}
+
+async function adminCapeOk(request, env) {
+	return adminHeaderOk(request, env) && await deskCookieOk(request, env);
+}
+
+async function deskSessionOk(request, env) {
+	return adminHeaderOk(request, env) && await deskCookieOk(request, env);
 }
 
 async function playersFor(env, state, forceNames) {
@@ -1016,6 +1025,55 @@ async function serveManage(request, env) {
 	return page(MANAGE_HTML);
 }
 
+async function readModMeta(request, env) {
+	if (!env.ASSETS) {
+		return null;
+	}
+	try {
+		const response = await env.ASSETS.fetch(new URL("/mod/latest.json", request.url));
+		if (!response.ok) {
+			return null;
+		}
+		return await response.json();
+	} catch {
+		return null;
+	}
+}
+
+async function serveModInfo(request, env) {
+	const meta = await readModMeta(request, env);
+	if (!meta || !meta.version) {
+		return json(404, { error: "Mod build is not published yet" });
+	}
+	return json(200, {
+		version: String(meta.version),
+		minecraft: String(meta.minecraft || "26.1.2"),
+		file: String(meta.file || ("voidmark-" + meta.version + ".jar")),
+		url: "/download"
+	});
+}
+
+async function serveModJar(request, env) {
+	if (!env.ASSETS) {
+		return json(404, { error: "Mod build is not published yet" });
+	}
+	const meta = await readModMeta(request, env);
+	const asset = await env.ASSETS.fetch(new URL("/mod/voidmark.jar", request.url));
+	if (!asset.ok) {
+		return json(404, { error: "Mod build is not published yet" });
+	}
+	const name = String((meta && meta.file) || "voidmark.jar").replace(/"/g, "");
+	const headers = new Headers(asset.headers);
+	headers.set("Content-Type", "application/java-archive");
+	headers.set("Content-Disposition", "attachment; filename=\"" + name + "\"");
+	headers.set("Cache-Control", "no-store");
+	const extra = cors();
+	for (const key of Object.keys(extra)) {
+		headers.set(key, extra[key]);
+	}
+	return new Response(asset.body, { status: 200, headers });
+}
+
 function cors() {
 	return {
 		"Access-Control-Allow-Origin": "*",
@@ -1071,6 +1129,9 @@ const STORE_HTML = `<!DOCTYPE html>
 		.handle b { font-size: 20px; letter-spacing: 0.02em; }
 		.copy { border: 0; border-radius: 9px; background: var(--accent); color: #041018; font: inherit; font-weight: 800; padding: 8px 12px; cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
 		.copy:hover { filter: brightness(1.08); }
+		.download { display: block; margin: 14px 0 8px; text-align: center; text-decoration: none; border-radius: 10px; background: var(--accent); color: #041018; font-weight: 800; padding: 12px 14px; letter-spacing: 0.08em; text-transform: uppercase; }
+		.download:hover { filter: brightness(1.08); }
+		.download.dead { pointer-events: none; opacity: 0.5; }
 		.note { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 		.steps { display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; text-align: left; }
 		.steps li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
@@ -1095,6 +1156,12 @@ const STORE_HTML = `<!DOCTYPE html>
 			<h1>VOIDMARK</h1>
 			<div class="rule"></div>
 			<p class="lede">A cape every Voidmark user can see in Skyblock. Not a Hypixel cosmetic — it only shows in the client.</p>
+			<article class="card">
+				<p class="kicker">The mod</p>
+				<p class="note">Fabric for Minecraft 26.1.2. Drop the jar in your mods folder. This button always serves the current build.</p>
+				<a class="download" id="mod-download" href="/download">Download Voidmark</a>
+				<p class="note" id="mod-ver">Checking latest build…</p>
+			</article>
 			<article class="card">
 				<p class="kicker">Want one</p>
 				<div class="handle">
@@ -1148,6 +1215,23 @@ const STORE_HTML = `<!DOCTYPE html>
 				btn.textContent = "Copy failed";
 			});
 		};
+		(function loadMod() {
+			var ver = document.getElementById("mod-ver");
+			var link = document.getElementById("mod-download");
+			fetch("/mod/latest.json", { cache: "no-store" }).then(function (response) {
+				return response.ok ? response.json() : null;
+			}).then(function (data) {
+				if (!data || !data.version) {
+					ver.textContent = "Build not published yet.";
+					link.classList.add("dead");
+					return;
+				}
+				ver.textContent = "v" + data.version + " · Minecraft " + (data.minecraft || "26.1.2");
+				link.setAttribute("download", data.file || ("voidmark-" + data.version + ".jar"));
+			}).catch(function () {
+				ver.textContent = "Could not read the latest build.";
+			});
+		})();
 	</script>
 </body>
 </html>
@@ -1260,7 +1344,7 @@ const LOGIN_HTML = `<!DOCTYPE html>
 `;
 
 const MANAGE_HTML = `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="locked">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1351,6 +1435,8 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		.preview-plate { background: rgba(0, 0, 0, 0.25); min-height: 22px; display: flex; align-items: center; justify-content: center; padding: 4px 8px; margin: 0 0 14px; font-family: "Minecraft", monospace; font-size: 16px; line-height: 1; image-rendering: pixelated; -webkit-font-smoothing: none; }
 		.field { margin: 0 0 12px; }
 		.bypass { display: flex; align-items: center; gap: 8px; font-weight: 800; cursor: pointer; }
+		html.locked .app, html.locked .overlay { visibility: hidden !important; pointer-events: none !important; user-select: none !important; }
+		html.locked button, html.locked input, html.locked textarea, html.locked select, html.locked a { pointer-events: none !important; }
 		@media (max-width: 860px) {
 			.app { grid-template-columns: 1fr; }
 			.rail { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -1363,7 +1449,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 </head>
 <body>
 	<canvas id="stars"></canvas>
-	<div class="app">
+	<div class="app" inert>
 		<aside class="rail">
 			<div class="brand">VOID<span>MARK</span></div>
 			<div class="sub">Cape desk</div>
@@ -1421,7 +1507,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			</section>
 		</main>
 	</div>
-	<div class="overlay" id="drawer" hidden>
+	<div class="overlay" id="drawer" hidden inert>
 		<div class="drawer">
 			<div class="top">
 				<h1 style="font-size:16px">PLAYER</h1>
@@ -1468,7 +1554,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			<button type="button" class="danger" id="d-kick" style="margin-top:12px">Dewhitelist</button>
 		</div>
 	</div>
-	<div class="overlay center" id="tagbox" hidden>
+	<div class="overlay center" id="tagbox" hidden inert>
 		<div class="sheet">
 			<h1 style="font-size:16px">HEAD TAG</h1>
 			<p class="who" id="tagwho"></p>
@@ -1488,7 +1574,29 @@ const MANAGE_HTML = `<!DOCTYPE html>
 	<script src="/cape-crop.js"></script>
 	<script>
 		const key = sessionStorage.getItem("voidmark-admin") || "";
-		if (!key) location.replace("/admin");
+		if (!key) {
+			location.replace("/admin");
+		}
+		let deskLive = false;
+		function armDesk() {
+			deskLive = true;
+			document.documentElement.classList.remove("locked");
+			document.querySelectorAll(".app, .overlay").forEach(function (el) { el.inert = false; });
+		}
+		function disarmDesk() {
+			deskLive = false;
+			document.documentElement.classList.add("locked");
+			document.querySelectorAll(".app, .overlay").forEach(function (el) { el.inert = true; });
+		}
+		function blockDesk(event) {
+			if (deskLive) return;
+			event.preventDefault();
+			event.stopPropagation();
+			event.stopImmediatePropagation();
+		}
+		["click", "pointerdown", "mousedown", "mouseup", "keydown", "keyup", "input", "change", "submit", "touchstart", "drop", "paste", "contextmenu"].forEach(function (type) {
+			document.addEventListener(type, blockDesk, true);
+		});
 		const status = document.getElementById("status");
 		const list = document.getElementById("list");
 		const empty = document.getElementById("empty");
@@ -1648,8 +1756,9 @@ const MANAGE_HTML = `<!DOCTYPE html>
 
 		function kickAuth(response) {
 			if (response.status === 403) {
+				disarmDesk();
 				sessionStorage.removeItem("voidmark-admin");
-				fetch("/api/logout", { method: "POST" }).finally(function () {
+				fetch("/api/logout", { method: "POST", credentials: "same-origin" }).finally(function () {
 					location.replace("/admin");
 				});
 				return true;
@@ -1660,11 +1769,12 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		async function api(method, id) {
 			const response = await fetch("/api/whitelist", {
 				method: method,
+				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ admin: key, uuid: id || undefined })
 			});
 			const data = await response.json();
-			if (kickAuth(response)) throw new Error("Bad admin key");
+			if (kickAuth(response)) throw new Error("Not authorized");
 			if (!response.ok) throw new Error(data.error || "Failed");
 			return data;
 		}
@@ -1672,11 +1782,12 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		async function admin(path, method, payload) {
 			const response = await fetch(path, {
 				method: method,
+				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(Object.assign({ admin: key }, payload || {}))
 			});
 			const data = await response.json().catch(function () { return {}; });
-			if (kickAuth(response)) throw new Error("Bad admin key");
+			if (kickAuth(response)) throw new Error("Not authorized");
 			if (!response.ok) throw new Error(data.error || "Failed");
 			return data;
 		}
@@ -2127,7 +2238,15 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		}
 
 		async function loadPlayers(force) {
-			const data = await api("POST");
+			const response = await fetch("/api/whitelist", {
+				method: "GET",
+				credentials: "same-origin",
+				headers: { "X-Admin": key }
+			});
+			const data = await response.json().catch(function () { return {}; });
+			if (kickAuth(response)) throw new Error("Not authorized");
+			if (!response.ok) throw new Error(data.error || "Failed");
+			armDesk();
 			draw(data.players || []);
 			if (force) setStatus(true, "Names refreshed from Mojang.");
 			else setStatus(true, "Loaded " + cache.length + " players.");
@@ -2170,8 +2289,9 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			}).catch(function (error) { setStatus(false, error.message); });
 		};
 		document.getElementById("out").onclick = function () {
+			disarmDesk();
 			sessionStorage.removeItem("voidmark-admin");
-			fetch("/api/logout", { method: "POST" }).finally(function () {
+			fetch("/api/logout", { method: "POST", credentials: "same-origin" }).finally(function () {
 				location.replace("/admin");
 			});
 		};
@@ -2186,8 +2306,14 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			navigator.clipboard.writeText(selected).then(function () { setStatus(true, "UUID copied."); });
 		};
 		function uploadCapeBlob(blob) {
-			return fetch("/api/cape", { method: "PUT", headers: { "X-UUID": selected, "X-Admin": key }, body: blob })
-				.then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || "Upload failed"); }); })
+			if (!deskLive) return Promise.reject(new Error("Not authorized"));
+			return fetch("/api/cape", { method: "PUT", credentials: "same-origin", headers: { "X-UUID": selected, "X-Admin": key }, body: blob })
+				.then(function (response) {
+					return response.json().then(function (data) {
+						if (kickAuth(response)) throw new Error("Not authorized");
+						if (!response.ok) throw new Error(data.error || "Upload failed");
+					});
+				})
 				.then(function () { return loadPlayers(false); })
 				.then(function () { setStatus(true, "Cape updated."); });
 		}
@@ -2208,9 +2334,11 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			if (!url || !selected) return;
 			fetch("/api/cape/import", {
 				method: "POST",
+				credentials: "same-origin",
 				headers: { "Content-Type": "application/json", "X-Admin": key },
 				body: JSON.stringify({ url: url })
 			}).then(function (response) {
+				if (kickAuth(response)) throw new Error("Not authorized");
 				if (!response.ok) {
 					return response.json().then(function (data) { throw new Error(data.error || "Fetch failed"); });
 				}
@@ -2301,7 +2429,9 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		document.getElementById("tagclear").onclick = function () { saveTag(true); };
 		document.getElementById("tagcancel").onclick = closeTag;
 		tagbox.addEventListener("click", function (event) { if (event.target === tagbox) closeTag(); });
-		loadPlayers(false).catch(function (error) { setStatus(false, error.message); });
+		if (key) {
+			loadPlayers(false).catch(function (error) { setStatus(false, error.message); });
+		}
 	</script>
 </body>
 </html>

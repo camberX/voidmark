@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { createReadStream, existsSync, readFileSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, relative, resolve, sep } from "node:path";
@@ -60,7 +60,8 @@ const MIME = {
 	".js": "text/javascript; charset=utf-8",
 	".png": "image/png",
 	".svg": "image/svg+xml",
-	".json": "application/json; charset=utf-8"
+	".json": "application/json; charset=utf-8",
+	".jar": "application/java-archive"
 };
 
 const server = createServer(async (req, res) => {
@@ -82,6 +83,24 @@ async function route(req, res) {
 	}
 	if (req.method === "GET" && path === "/api/config") {
 		json(res, 200, shopConfig());
+		return;
+	}
+	if (req.method === "GET" && path === "/api/mod") {
+		const meta = loadModMeta();
+		if (!meta || !meta.version) {
+			json(res, 404, { error: "Mod build is not published yet" });
+			return;
+		}
+		json(res, 200, {
+			version: String(meta.version),
+			minecraft: String(meta.minecraft || "26.1.2"),
+			file: String(meta.file || ("voidmark-" + meta.version + ".jar")),
+			url: "/download"
+		});
+		return;
+	}
+	if (req.method === "GET" && (path === "/download" || path === "/voidmark.jar")) {
+		serveModJar(res);
 		return;
 	}
 	if (req.method === "PUT" && path === "/api/config") {
@@ -142,7 +161,7 @@ async function route(req, res) {
 		json(res, 410, { error: "Codes are gone. Whitelist the UUID instead." });
 		return;
 	}
-	if ((req.method === "POST" || req.method === "PUT" || req.method === "DELETE") && path === "/api/whitelist") {
+	if ((req.method === "GET" || req.method === "POST" || req.method === "PUT" || req.method === "DELETE") && path === "/api/whitelist") {
 		await handleWhitelist(req, res);
 		return;
 	}
@@ -210,7 +229,7 @@ async function handlePublish(req, res) {
 		json(res, 403, { error: "uuid not whitelisted" });
 		return;
 	}
-	const adminOk = adminHeaderOk(req);
+	const adminOk = adminCapeOk(req);
 	const locked = capeRetryMs(uuid);
 	if (!adminOk && locked > 0) {
 		json(res, 429, { error: "Cape can be changed once per 24 hours", retryIn: Math.ceil(locked / 1000) });
@@ -233,8 +252,8 @@ async function handlePublish(req, res) {
 }
 
 async function handleImport(req, res) {
-	if (!adminHeaderOk(req)) {
-		json(res, 403, { error: "Bad admin key" });
+	if (!adminCapeOk(req)) {
+		json(res, 403, { error: "Not authorized" });
 		return;
 	}
 	let payload;
@@ -281,7 +300,7 @@ async function handleDelete(req, res) {
 		json(res, 403, { error: "uuid not whitelisted" });
 		return;
 	}
-	const adminOk = adminHeaderOk(req);
+	const adminOk = adminCapeOk(req);
 	const locked = capeRetryMs(uuid);
 	if (!adminOk && locked > 0) {
 		json(res, 429, { error: "Cape can be changed once per 24 hours", retryIn: Math.ceil(locked / 1000) });
@@ -299,6 +318,14 @@ async function handleDelete(req, res) {
 }
 
 async function handleWhitelist(req, res) {
+	if (req.method === "GET") {
+		if (!deskSessionOk(req)) {
+			json(res, 403, { error: "Not authorized" });
+			return;
+		}
+		json(res, 200, { uuids: store.whitelist, players: await playersFor(store.whitelist, true) });
+		return;
+	}
 	let body;
 	try {
 		body = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}");
@@ -310,7 +337,11 @@ async function handleWhitelist(req, res) {
 		return;
 	}
 	if (req.method === "POST" && !body.uuid && !body.name) {
-		json(res, 200, { uuids: store.whitelist, players: await playersFor(store.whitelist, true) }, { "Set-Cookie": deskCookieHeader(req, mintDeskToken(), false) });
+		json(res, 200, { ok: true }, { "Set-Cookie": deskCookieHeader(req, mintDeskToken(), false) });
+		return;
+	}
+	if (!deskCookieOk(req)) {
+		json(res, 403, { error: "Not authorized" });
 		return;
 	}
 	const resolved = await resolvePlayer(body.uuid || body.name);
@@ -351,14 +382,8 @@ async function handleWhitelist(req, res) {
 }
 
 async function handleTag(req, res) {
-	let body;
-	try {
-		body = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}");
-	} catch {
-		body = {};
-	}
-	if ((body.admin || "") !== ADMIN) {
-		json(res, 403, { error: "Bad admin key" });
+	const body = await readAdminBody(req, res);
+	if (!body) {
 		return;
 	}
 	const uuid = normalizeUuid(body.uuid);
@@ -381,14 +406,8 @@ async function handleTag(req, res) {
 }
 
 async function handleBypass(req, res) {
-	let body;
-	try {
-		body = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}");
-	} catch {
-		body = {};
-	}
-	if ((body.admin || "") !== ADMIN) {
-		json(res, 403, { error: "Bad admin key" });
+	const body = await readAdminBody(req, res);
+	if (!body) {
 		return;
 	}
 	const uuid = normalizeUuid(body.uuid);
@@ -531,6 +550,10 @@ async function handleShopConfig(req, res) {
 }
 
 async function readAdminBody(req, res, max) {
+	if (!deskCookieOk(req)) {
+		json(res, 403, { error: "Not authorized" });
+		return null;
+	}
 	let body;
 	try {
 		body = JSON.parse((await readBody(req, max || 4096)).toString("utf8") || "{}");
@@ -538,7 +561,7 @@ async function readAdminBody(req, res, max) {
 		body = {};
 	}
 	if ((body.admin || "") !== ADMIN) {
-		json(res, 403, { error: "Bad admin key" });
+		json(res, 403, { error: "Not authorized" });
 		return null;
 	}
 	return body;
@@ -855,6 +878,41 @@ async function touchCapeAt(uuid) {
 
 function adminHeaderOk(req) {
 	return Boolean(ADMIN) && header(req, "x-admin") === ADMIN;
+}
+
+function adminCapeOk(req) {
+	return adminHeaderOk(req) && deskCookieOk(req);
+}
+
+function deskSessionOk(req) {
+	return adminHeaderOk(req) && deskCookieOk(req);
+}
+
+function loadModMeta() {
+	try {
+		return JSON.parse(readFileSync(join(PUBLIC, "mod", "latest.json"), "utf8"));
+	} catch {
+		return null;
+	}
+}
+
+function serveModJar(res) {
+	const file = join(PUBLIC, "mod", "voidmark.jar");
+	if (!existsSync(file)) {
+		json(res, 404, { error: "Mod build is not published yet" });
+		return;
+	}
+	const meta = loadModMeta() || {};
+	const name = String(meta.file || "voidmark.jar").replace(/"/g, "");
+	const size = statSync(file).size;
+	res.writeHead(200, {
+		...cors(),
+		"Content-Type": "application/java-archive",
+		"Content-Disposition": "attachment; filename=\"" + name + "\"",
+		"Cache-Control": "no-store",
+		"Content-Length": size
+	});
+	createReadStream(file).pipe(res);
 }
 
 async function servePublic(res, requestPath) {

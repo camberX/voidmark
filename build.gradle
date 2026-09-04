@@ -72,6 +72,38 @@ jar {
 	}
 }
 
+def webModDir = layout.projectDirectory.dir("web/public/mod")
+
+tasks.register("syncWebMod") {
+	group = "build"
+	description = "Copy the built jar to the shop download path and write latest.json."
+	dependsOn "assemble"
+	outputs.file(webModDir.file("voidmark.jar"))
+	outputs.file(webModDir.file("latest.json"))
+	doLast {
+		def libs = layout.buildDirectory.dir("libs").get().asFile
+		def jarFile = new File(libs, "voidmark-${project.version}.jar")
+		if (!jarFile.file) {
+			throw new GradleException("Missing ${jarFile}")
+		}
+		def destDir = webModDir.asFile
+		destDir.mkdirs()
+		new File(destDir, "voidmark.jar").bytes = jarFile.bytes
+		def versionedName = "voidmark-${project.version}.jar"
+		new File(layout.projectDirectory.asFile, versionedName).bytes = jarFile.bytes
+		def meta = [
+			version  : project.version.toString(),
+			minecraft: project.minecraft_version.toString(),
+			file     : versionedName
+		]
+		new File(destDir, "latest.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(meta)) + "\n"
+	}
+}
+
+tasks.named("build") {
+	finalizedBy "syncWebMod"
+}
+
 publishing {
 	publications {
 		create("mavenJava", MavenPublication) {

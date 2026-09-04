@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="locked">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -90,6 +90,8 @@
 		.preview-plate { background: rgba(0, 0, 0, 0.25); min-height: 22px; display: flex; align-items: center; justify-content: center; padding: 4px 8px; margin: 0 0 14px; font-family: "Minecraft", monospace; font-size: 16px; line-height: 1; image-rendering: pixelated; -webkit-font-smoothing: none; }
 		.field { margin: 0 0 12px; }
 		.bypass { display: flex; align-items: center; gap: 8px; font-weight: 800; cursor: pointer; }
+		html.locked .app, html.locked .overlay { visibility: hidden !important; pointer-events: none !important; user-select: none !important; }
+		html.locked button, html.locked input, html.locked textarea, html.locked select, html.locked a { pointer-events: none !important; }
 		@media (max-width: 860px) {
 			.app { grid-template-columns: 1fr; }
 			.rail { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -102,7 +104,7 @@
 </head>
 <body>
 	<canvas id="stars"></canvas>
-	<div class="app">
+	<div class="app" inert>
 		<aside class="rail">
 			<div class="brand">VOID<span>MARK</span></div>
 			<div class="sub">Cape desk</div>
@@ -160,7 +162,7 @@
 			</section>
 		</main>
 	</div>
-	<div class="overlay" id="drawer" hidden>
+	<div class="overlay" id="drawer" hidden inert>
 		<div class="drawer">
 			<div class="top">
 				<h1 style="font-size:16px">PLAYER</h1>
@@ -207,7 +209,7 @@
 			<button type="button" class="danger" id="d-kick" style="margin-top:12px">Dewhitelist</button>
 		</div>
 	</div>
-	<div class="overlay center" id="tagbox" hidden>
+	<div class="overlay center" id="tagbox" hidden inert>
 		<div class="sheet">
 			<h1 style="font-size:16px">HEAD TAG</h1>
 			<p class="who" id="tagwho"></p>
@@ -227,7 +229,29 @@
 	<script src="/cape-crop.js"></script>
 	<script>
 		const key = sessionStorage.getItem("voidmark-admin") || "";
-		if (!key) location.replace("/admin");
+		if (!key) {
+			location.replace("/admin");
+		}
+		let deskLive = false;
+		function armDesk() {
+			deskLive = true;
+			document.documentElement.classList.remove("locked");
+			document.querySelectorAll(".app, .overlay").forEach(function (el) { el.inert = false; });
+		}
+		function disarmDesk() {
+			deskLive = false;
+			document.documentElement.classList.add("locked");
+			document.querySelectorAll(".app, .overlay").forEach(function (el) { el.inert = true; });
+		}
+		function blockDesk(event) {
+			if (deskLive) return;
+			event.preventDefault();
+			event.stopPropagation();
+			event.stopImmediatePropagation();
+		}
+		["click", "pointerdown", "mousedown", "mouseup", "keydown", "keyup", "input", "change", "submit", "touchstart", "drop", "paste", "contextmenu"].forEach(function (type) {
+			document.addEventListener(type, blockDesk, true);
+		});
 		const status = document.getElementById("status");
 		const list = document.getElementById("list");
 		const empty = document.getElementById("empty");
@@ -387,8 +411,9 @@
 
 		function kickAuth(response) {
 			if (response.status === 403) {
+				disarmDesk();
 				sessionStorage.removeItem("voidmark-admin");
-				fetch("/api/logout", { method: "POST" }).finally(function () {
+				fetch("/api/logout", { method: "POST", credentials: "same-origin" }).finally(function () {
 					location.replace("/admin");
 				});
 				return true;
@@ -399,11 +424,12 @@
 		async function api(method, id) {
 			const response = await fetch("/api/whitelist", {
 				method: method,
+				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ admin: key, uuid: id || undefined })
 			});
 			const data = await response.json();
-			if (kickAuth(response)) throw new Error("Bad admin key");
+			if (kickAuth(response)) throw new Error("Not authorized");
 			if (!response.ok) throw new Error(data.error || "Failed");
 			return data;
 		}
@@ -411,11 +437,12 @@
 		async function admin(path, method, payload) {
 			const response = await fetch(path, {
 				method: method,
+				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(Object.assign({ admin: key }, payload || {}))
 			});
 			const data = await response.json().catch(function () { return {}; });
-			if (kickAuth(response)) throw new Error("Bad admin key");
+			if (kickAuth(response)) throw new Error("Not authorized");
 			if (!response.ok) throw new Error(data.error || "Failed");
 			return data;
 		}
@@ -866,7 +893,15 @@
 		}
 
 		async function loadPlayers(force) {
-			const data = await api("POST");
+			const response = await fetch("/api/whitelist", {
+				method: "GET",
+				credentials: "same-origin",
+				headers: { "X-Admin": key }
+			});
+			const data = await response.json().catch(function () { return {}; });
+			if (kickAuth(response)) throw new Error("Not authorized");
+			if (!response.ok) throw new Error(data.error || "Failed");
+			armDesk();
 			draw(data.players || []);
 			if (force) setStatus(true, "Names refreshed from Mojang.");
 			else setStatus(true, "Loaded " + cache.length + " players.");
@@ -909,8 +944,9 @@
 			}).catch(function (error) { setStatus(false, error.message); });
 		};
 		document.getElementById("out").onclick = function () {
+			disarmDesk();
 			sessionStorage.removeItem("voidmark-admin");
-			fetch("/api/logout", { method: "POST" }).finally(function () {
+			fetch("/api/logout", { method: "POST", credentials: "same-origin" }).finally(function () {
 				location.replace("/admin");
 			});
 		};
@@ -925,8 +961,14 @@
 			navigator.clipboard.writeText(selected).then(function () { setStatus(true, "UUID copied."); });
 		};
 		function uploadCapeBlob(blob) {
-			return fetch("/api/cape", { method: "PUT", headers: { "X-UUID": selected, "X-Admin": key }, body: blob })
-				.then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || "Upload failed"); }); })
+			if (!deskLive) return Promise.reject(new Error("Not authorized"));
+			return fetch("/api/cape", { method: "PUT", credentials: "same-origin", headers: { "X-UUID": selected, "X-Admin": key }, body: blob })
+				.then(function (response) {
+					return response.json().then(function (data) {
+						if (kickAuth(response)) throw new Error("Not authorized");
+						if (!response.ok) throw new Error(data.error || "Upload failed");
+					});
+				})
 				.then(function () { return loadPlayers(false); })
 				.then(function () { setStatus(true, "Cape updated."); });
 		}
@@ -947,9 +989,11 @@
 			if (!url || !selected) return;
 			fetch("/api/cape/import", {
 				method: "POST",
+				credentials: "same-origin",
 				headers: { "Content-Type": "application/json", "X-Admin": key },
 				body: JSON.stringify({ url: url })
 			}).then(function (response) {
+				if (kickAuth(response)) throw new Error("Not authorized");
 				if (!response.ok) {
 					return response.json().then(function (data) { throw new Error(data.error || "Fetch failed"); });
 				}
@@ -1040,7 +1084,9 @@
 		document.getElementById("tagclear").onclick = function () { saveTag(true); };
 		document.getElementById("tagcancel").onclick = closeTag;
 		tagbox.addEventListener("click", function (event) { if (event.target === tagbox) closeTag(); });
-		loadPlayers(false).catch(function (error) { setStatus(false, error.message); });
+		if (key) {
+			loadPlayers(false).catch(function (error) { setStatus(false, error.message); });
+		}
 	</script>
 </body>
 </html>

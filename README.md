@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.170.jar` in `mods`. Delete any older `voidmark-*.jar` in that folder first — a truncated zip (`zip END header not found`) makes Fabric refuse to start even if a good jar is also there.
+3. Download the current jar from [voidmark.cloud](https://voidmark.cloud) (`Download Voidmark`) and put it in `mods`. That link always serves the latest `./gradlew build`. Or build this project yourself and use `build/libs/voidmark-*.jar`. Delete any older `voidmark-*.jar` in that folder first — a truncated zip (`zip END header not found`) makes Fabric refuse to start even if a good jar is also there.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -79,7 +79,7 @@ Local testing only:
 node web/server.mjs
 ```
 
-- Site: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`). Public shop is `/`. Admin is `/admin`. `/manage` is only served after that login.
+- Site: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`). Public shop is `/`, including a download of the latest jar at `/download`. Admin is `/admin`. `/manage` is only served after that login. Desk APIs also require that login cookie, so a copied panel cannot whitelist, tag, or publish.
 - After they message on Discord, open `/admin`, enter `VOIDMARK_CAPE_ADMIN` (default `change-me`), and add their username or UUID.
 - Keep `web/data/whitelist.json` off git.
 
@@ -90,5 +90,6 @@ Developer builds stamp a small **DEV** tag on the watermark next to VOIDMARK.
 ```bash
 # Java 25
 ./gradlew build
+# copies build/libs/voidmark-*.jar to web/public/mod/voidmark.jar and writes web/public/mod/latest.json
 ./gradlew runClient
 ```
