@@ -388,7 +388,9 @@
 		function kickAuth(response) {
 			if (response.status === 403) {
 				sessionStorage.removeItem("voidmark-admin");
-				location.replace("/admin.html");
+				fetch("/api/logout", { method: "POST" }).finally(function () {
+					location.replace("/admin.html");
+				});
 				return true;
 			}
 			return false;
@@ -908,7 +910,9 @@
 		};
 		document.getElementById("out").onclick = function () {
 			sessionStorage.removeItem("voidmark-admin");
-			location.replace("/admin.html");
+			fetch("/api/logout", { method: "POST" }).finally(function () {
+				location.replace("/admin.html");
+			});
 		};
 		document.getElementById("close").onclick = closeDrawer;
 		drawer.addEventListener("click", function (event) { if (event.target === drawer) closeDrawer(); });

@@ -93,6 +93,12 @@ async function route(request, env) {
 	if (request.method === "PUT" && path === "/api/bulk") {
 		return handleBulk(request, env);
 	}
+	if (request.method === "POST" && path === "/api/logout") {
+		return json(200, { ok: true }, { "Set-Cookie": deskCookieHeader(request, "", true) });
+	}
+	if (request.method === "GET" && isManagePath(path)) {
+		return serveManage(request, env);
+	}
 	if (request.method === "GET" && env.ASSETS) {
 		const asset = await env.ASSETS.fetch(request);
 		if (asset.status !== 404) {
@@ -103,9 +109,6 @@ async function route(request, env) {
 		return new Response(CAPE_CROP_JS, {
 			headers: { ...cors(), "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" }
 		});
-	}
-	if (request.method === "GET" && path === "/manage.html") {
-		return page(MANAGE_HTML);
 	}
 	if (request.method === "GET" && path === "/admin.html") {
 		return page(LOGIN_HTML);
@@ -218,13 +221,13 @@ async function handleWhitelist(request, env) {
 		body = {};
 	}
 	if ((body.admin || "") !== admin) {
-		return json(403, { error: "Bad admin key" });
+		return json(403, { error: "Bad admin key" }, { "Set-Cookie": deskCookieHeader(request, "", true) });
 	}
 	const state = await loadState(env);
 	if (request.method === "POST" && !body.uuid && !body.name) {
 		const players = await playersFor(env, state, true);
 		await saveState(env, state);
-		return json(200, { uuids: state.whitelist, players });
+		return adminJson(request, env, 200, { uuids: state.whitelist, players });
 	}
 	const resolved = await resolvePlayer(body.uuid || body.name);
 	if (!resolved.uuid) {
@@ -254,7 +257,7 @@ async function handleWhitelist(request, env) {
 		rememberName(state, uuid, resolved.name);
 		await saveState(env, state);
 	}
-	return json(200, { ok: true, uuids: state.whitelist, players });
+	return adminJson(request, env, 200, { ok: true, uuids: state.whitelist, players });
 }
 
 async function handleTag(request, env) {
@@ -837,15 +840,158 @@ function isPng(bytes) {
 	return bytes.length >= 24 && bytes.length <= MAX_BYTES && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
 }
 
-function json(status, body) {
+function json(status, body, extraHeaders) {
 	return new Response(JSON.stringify(body), {
 		status,
 		headers: {
 			...cors(),
 			"Content-Type": "application/json; charset=utf-8",
-			"Cache-Control": "no-store"
+			"Cache-Control": "no-store",
+			...(extraHeaders || {})
 		}
 	});
+}
+
+const DESK_COOKIE = "voidmark_desk";
+const DESK_TTL_SEC = 60 * 60 * 24 * 7;
+
+function isManagePath(path) {
+	try {
+		path = decodeURIComponent(path);
+	} catch {
+		return false;
+	}
+	const p = path.replace(/\/+$/, "").toLowerCase();
+	return p === "/manage.html" || p === "/manage";
+}
+
+function cookieOf(request, name) {
+	const raw = request.headers.get("Cookie") || "";
+	const parts = raw.split(";");
+	for (let i = 0; i < parts.length; i++) {
+		const piece = parts[i].trim();
+		const eq = piece.indexOf("=");
+		if (eq < 0) {
+			continue;
+		}
+		if (piece.slice(0, eq) === name) {
+			return piece.slice(eq + 1);
+		}
+	}
+	return "";
+}
+
+function deskSecure(request) {
+	try {
+		return new URL(request.url).protocol === "https:";
+	} catch {
+		return true;
+	}
+}
+
+function deskCookieHeader(request, token, clear) {
+	const parts = [
+		DESK_COOKIE + "=" + (clear ? "" : token),
+		"Path=/",
+		"HttpOnly",
+		"SameSite=Lax",
+		clear ? "Max-Age=0" : ("Max-Age=" + DESK_TTL_SEC)
+	];
+	if (deskSecure(request)) {
+		parts.push("Secure");
+	}
+	return parts.join("; ");
+}
+
+function bytesToHex(bytes) {
+	const arr = new Uint8Array(bytes);
+	let out = "";
+	for (let i = 0; i < arr.length; i++) {
+		out += arr[i].toString(16).padStart(2, "0");
+	}
+	return out;
+}
+
+function timingSafeEqualStr(a, b) {
+	if (a.length !== b.length) {
+		return false;
+	}
+	let diff = 0;
+	for (let i = 0; i < a.length; i++) {
+		diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+	}
+	return diff === 0;
+}
+
+async function hmacHex(secret, msg) {
+	const key = await crypto.subtle.importKey(
+		"raw",
+		new TextEncoder().encode(secret),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"]
+	);
+	const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
+	return bytesToHex(sig);
+}
+
+async function mintDeskToken(secret) {
+	const exp = Math.floor(Date.now() / 1000) + DESK_TTL_SEC;
+	const msg = "v1." + exp;
+	return msg + "." + await hmacHex(secret, msg);
+}
+
+async function verifyDeskToken(secret, token) {
+	const parts = String(token || "").split(".");
+	if (parts.length !== 3 || parts[0] !== "v1") {
+		return false;
+	}
+	const exp = Number(parts[1]);
+	if (!Number.isFinite(exp) || exp < Date.now() / 1000) {
+		return false;
+	}
+	const sig = await hmacHex(secret, "v1." + parts[1]);
+	return timingSafeEqualStr(sig, parts[2]);
+}
+
+async function deskCookieOk(request, env) {
+	const secret = env.ADMIN || "";
+	if (!secret) {
+		return false;
+	}
+	return verifyDeskToken(secret, cookieOf(request, DESK_COOKIE));
+}
+
+async function adminJson(request, env, status, body) {
+	const token = await mintDeskToken(env.ADMIN || "");
+	return json(status, body, { "Set-Cookie": deskCookieHeader(request, token, false) });
+}
+
+function redirectLogin() {
+	return new Response(null, {
+		status: 302,
+		headers: {
+			Location: "/admin.html",
+			"Cache-Control": "no-store",
+			Pragma: "no-cache"
+		}
+	});
+}
+
+async function serveManage(request, env) {
+	if (!(await deskCookieOk(request, env))) {
+		return redirectLogin();
+	}
+	if (env.ASSETS) {
+		const asset = await env.ASSETS.fetch(request);
+		if (asset.status !== 404) {
+			const headers = new Headers(asset.headers);
+			headers.set("Cache-Control", "private, no-store, no-cache");
+			headers.set("Pragma", "no-cache");
+			return new Response(asset.body, { status: asset.status, headers });
+		}
+	}
+	return page(MANAGE_HTML);
 }
 
 function cors() {
@@ -858,7 +1004,11 @@ function cors() {
 
 function page(html) {
 	return new Response(html, {
-		headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }
+		headers: {
+			"Content-Type": "text/html; charset=utf-8",
+			"Cache-Control": "private, no-store, no-cache",
+			Pragma: "no-cache"
+		}
 	});
 }
 
@@ -1480,7 +1630,9 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		function kickAuth(response) {
 			if (response.status === 403) {
 				sessionStorage.removeItem("voidmark-admin");
-				location.replace("/admin.html");
+				fetch("/api/logout", { method: "POST" }).finally(function () {
+					location.replace("/admin.html");
+				});
 				return true;
 			}
 			return false;
@@ -2000,7 +2152,9 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		};
 		document.getElementById("out").onclick = function () {
 			sessionStorage.removeItem("voidmark-admin");
-			location.replace("/admin.html");
+			fetch("/api/logout", { method: "POST" }).finally(function () {
+				location.replace("/admin.html");
+			});
 		};
 		document.getElementById("close").onclick = closeDrawer;
 		drawer.addEventListener("click", function (event) { if (event.target === drawer) closeDrawer(); });

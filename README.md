@@ -79,7 +79,7 @@ Local testing only:
 node web/server.mjs
 ```
 
-- Site: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`). Public shop is `/`. Admin is `/admin.html`.
+- Site: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`). Public shop is `/`. Admin is `/admin.html`. `/manage.html` is only served after that login.
 - After a payment, open `/admin.html`, enter `VOIDMARK_CAPE_ADMIN` (default `change-me`), and add their username or UUID.
 - Keep `web/data/whitelist.json` off git.
 

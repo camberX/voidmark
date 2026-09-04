@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -170,6 +170,19 @@ async function route(req, res) {
 		await handleBulk(req, res);
 		return;
 	}
+	if (req.method === "POST" && path === "/api/logout") {
+		json(res, 200, { ok: true }, { "Set-Cookie": deskCookieHeader(req, "", true) });
+		return;
+	}
+	if (req.method === "GET" && isManagePath(path)) {
+		if (!deskCookieOk(req)) {
+			res.writeHead(302, { Location: "/admin.html", "Cache-Control": "no-store", Pragma: "no-cache" });
+			res.end();
+			return;
+		}
+		await servePublic(res, "/manage.html");
+		return;
+	}
 	if (req.method === "GET") {
 		await servePublic(res, path === "/" ? "/index.html" : path);
 		return;
@@ -283,11 +296,11 @@ async function handleWhitelist(req, res) {
 		body = {};
 	}
 	if ((body.admin || "") !== ADMIN) {
-		json(res, 403, { error: "Bad admin key" });
+		json(res, 403, { error: "Bad admin key" }, { "Set-Cookie": deskCookieHeader(req, "", true) });
 		return;
 	}
 	if (req.method === "POST" && !body.uuid && !body.name) {
-		json(res, 200, { uuids: store.whitelist, players: await playersFor(store.whitelist, true) });
+		json(res, 200, { uuids: store.whitelist, players: await playersFor(store.whitelist, true) }, { "Set-Cookie": deskCookieHeader(req, mintDeskToken(), false) });
 		return;
 	}
 	const resolved = await resolvePlayer(body.uuid || body.name);
@@ -324,7 +337,7 @@ async function handleWhitelist(req, res) {
 		rememberName(uuid, resolved.name);
 	}
 	await persistStore();
-	json(res, 200, { ok: true, uuids: store.whitelist, players });
+	json(res, 200, { ok: true, uuids: store.whitelist, players }, { "Set-Cookie": deskCookieHeader(req, mintDeskToken(), false) });
 }
 
 async function handleTag(req, res) {
@@ -843,8 +856,91 @@ async function servePublic(res, requestPath) {
 		return;
 	}
 	const type = MIME[extname(file).toLowerCase()] || "application/octet-stream";
-	res.writeHead(200, { "Content-Type": type });
+	const headers = { "Content-Type": type };
+	if (safe.replace(/\\/g, "/").toLowerCase().endsWith("manage.html")) {
+		headers["Cache-Control"] = "private, no-store, no-cache";
+		headers.Pragma = "no-cache";
+	}
+	res.writeHead(200, headers);
 	createReadStream(file).pipe(res);
+}
+
+const DESK_COOKIE = "voidmark_desk";
+const DESK_TTL_SEC = 60 * 60 * 24 * 7;
+
+function isManagePath(path) {
+	try {
+		path = decodeURIComponent(path);
+	} catch {
+		return false;
+	}
+	const p = path.replace(/\/+$/, "").toLowerCase();
+	return p === "/manage.html" || p === "/manage";
+}
+
+function cookieOf(req, name) {
+	const raw = header(req, "cookie");
+	const parts = raw.split(";");
+	for (const piece of parts) {
+		const trimmed = piece.trim();
+		const eq = trimmed.indexOf("=");
+		if (eq < 0) {
+			continue;
+		}
+		if (trimmed.slice(0, eq) === name) {
+			return trimmed.slice(eq + 1);
+		}
+	}
+	return "";
+}
+
+function deskSecure(req) {
+	return header(req, "x-forwarded-proto") === "https" || Boolean(req.socket?.encrypted);
+}
+
+function deskCookieHeader(req, token, clear) {
+	const parts = [
+		`${DESK_COOKIE}=${clear ? "" : token}`,
+		"Path=/",
+		"HttpOnly",
+		"SameSite=Lax",
+		clear ? "Max-Age=0" : `Max-Age=${DESK_TTL_SEC}`
+	];
+	if (deskSecure(req)) {
+		parts.push("Secure");
+	}
+	return parts.join("; ");
+}
+
+function mintDeskToken() {
+	const exp = Math.floor(Date.now() / 1000) + DESK_TTL_SEC;
+	const msg = `v1.${exp}`;
+	const sig = createHmac("sha256", ADMIN).update(msg).digest("hex");
+	return `${msg}.${sig}`;
+}
+
+function verifyDeskToken(token) {
+	const parts = String(token || "").split(".");
+	if (parts.length !== 3 || parts[0] !== "v1") {
+		return false;
+	}
+	const exp = Number(parts[1]);
+	if (!Number.isFinite(exp) || exp < Date.now() / 1000) {
+		return false;
+	}
+	const msg = `v1.${parts[1]}`;
+	const sig = createHmac("sha256", ADMIN).update(msg).digest("hex");
+	try {
+		const a = Buffer.from(sig, "hex");
+		const b = Buffer.from(parts[2], "hex");
+		return a.length === b.length && timingSafeEqual(a, b);
+	} catch {
+		return false;
+	}
+}
+
+function deskCookieOk(req) {
+	return Boolean(ADMIN) && verifyDeskToken(cookieOf(req, DESK_COOKIE));
 }
 
 function capePath(uuid) {
@@ -873,13 +969,14 @@ function isPng(bytes) {
 	return bytes.length >= 24 && bytes.length <= MAX_BYTES && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
 }
 
-function json(res, status, body) {
+function json(res, status, body, extra) {
 	const payload = JSON.stringify(body);
 	res.writeHead(status, {
 		...cors(),
 		"Content-Type": "application/json; charset=utf-8",
 		"Cache-Control": "no-store",
-		"Content-Length": Buffer.byteLength(payload)
+		"Content-Length": Buffer.byteLength(payload),
+		...(extra || {})
 	});
 	res.end(payload);
 }
