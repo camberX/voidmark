@@ -128,14 +128,16 @@ The jar always uses `https://voidmark.cloud`, so that hostname must be on the Wo
 
 ## Updating later
 
-After you change `web/worker.js`, `web/public/`, or `wrangler.toml`:
+The shop download does **not** need a Worker deploy for each new jar. `./gradlew build` writes `web/public/mod/latest.json` and the jar; `git push` to the public GitHub repo in `MOD_GITHUB` (`Shora/voidmark` by default) is enough. The Worker fetches that on `/download` and `/api/mod`.
+
+After you change `web/worker.js`, the cape desk HTML, or `wrangler.toml` (Worker code, not the jar):
 
 ```bash
 cd web
 npx wrangler deploy
 ```
 
-Changing the `ADMIN` secret is another `npx wrangler secret put ADMIN`. The UUID list and cape PNGs stay in the R2 bucket.
+Change `MOD_GITHUB` in `wrangler.toml` if the jar lives in a different public repo. Changing the `ADMIN` secret is another `npx wrangler secret put ADMIN`. The UUID list and cape PNGs stay in the R2 bucket.
 
 ## Local testing (not Cloudflare)
 

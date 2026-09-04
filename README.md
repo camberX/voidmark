@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Download the current jar from [voidmark.cloud](https://voidmark.cloud) (`Download Voidmark`) and put it in `mods`. That link always serves the latest `./gradlew build`. Or build this project yourself and use `build/libs/voidmark-*.jar`. Delete any older `voidmark-*.jar` in that folder first — a truncated zip (`zip END header not found`) makes Fabric refuse to start even if a good jar is also there.
+3. Download the current jar from [voidmark.cloud](https://voidmark.cloud) (`Download Voidmark`) and put it in `mods`. That link pulls the latest jar from the public GitHub repo (`Shora/voidmark` by default) after each `./gradlew build` + `git push`. Or build this project yourself and use `build/libs/voidmark-*.jar`. Delete any older `voidmark-*.jar` in that folder first — a truncated zip (`zip END header not found`) makes Fabric refuse to start even if a good jar is also there.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -90,6 +90,7 @@ Developer builds stamp a small **DEV** tag on the watermark next to VOIDMARK.
 ```bash
 # Java 25
 ./gradlew build
-# copies build/libs/voidmark-*.jar to web/public/mod/voidmark.jar and writes web/public/mod/latest.json
+# copies the jar to web/public/mod/ and writes latest.json
+# git push to the public GitHub repo; voidmark.cloud/download picks it up
 ./gradlew runClient
 ```

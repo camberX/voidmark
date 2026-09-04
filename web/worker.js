@@ -1026,6 +1026,10 @@ async function serveManage(request, env) {
 }
 
 async function readModMeta(request, env) {
+	const github = await readGithubMeta(env);
+	if (github && github.version) {
+		return github;
+	}
 	if (!env.ASSETS) {
 		return null;
 	}
@@ -1040,6 +1044,76 @@ async function readModMeta(request, env) {
 	}
 }
 
+function modGithubRepo(env) {
+	return String(env.MOD_GITHUB || "")
+		.trim()
+		.replace(/^https?:\/\/github\.com\//i, "")
+		.replace(/\.git$/i, "")
+		.replace(/\/+$/, "");
+}
+
+function githubModFileUrl(env, meta, fileName) {
+	const repo = (meta && meta.repo) || modGithubRepo(env);
+	if (!repo) {
+		return "";
+	}
+	const branch = (meta && meta.branch) || env.MOD_GITHUB_BRANCH || "main";
+	const dir = String((meta && meta.dir) || env.MOD_GITHUB_PATH || "web/public/mod").replace(/^\/+|\/+$/g, "");
+	const file = String(fileName || "voidmark.jar").replace(/^\/+/, "");
+	return "https://raw.githubusercontent.com/" + repo + "/" + branch + "/" + dir + "/" + file;
+}
+
+async function readGithubMeta(env) {
+	const repo = modGithubRepo(env);
+	if (!repo) {
+		return null;
+	}
+	const branch = env.MOD_GITHUB_BRANCH || "main";
+	const dir = String(env.MOD_GITHUB_PATH || "web/public/mod").replace(/^\/+|\/+$/g, "");
+	const loader = async () => {
+		const url = "https://raw.githubusercontent.com/" + repo + "/" + branch + "/" + dir + "/latest.json";
+		const response = await fetch(url, {
+			headers: { "User-Agent": "Voidmark-Shop", Accept: "application/json" },
+			redirect: "follow"
+		});
+		if (!response.ok) {
+			return null;
+		}
+		const meta = await response.json();
+		if (!meta || !meta.version) {
+			return null;
+		}
+		meta.repo = repo;
+		meta.branch = branch;
+		meta.dir = dir;
+		meta.source = "github";
+		return meta;
+	};
+	try {
+		if (typeof caches !== "undefined" && caches.default) {
+			const cacheReq = new Request("https://voidmark.mod.cache/github/" + repo + "/" + branch);
+			const hit = await caches.default.match(cacheReq);
+			if (hit) {
+				return await hit.json();
+			}
+			const meta = await loader();
+			if (meta) {
+				await caches.default.put(cacheReq, new Response(JSON.stringify(meta), {
+					headers: { "Content-Type": "application/json", "Cache-Control": "max-age=60" }
+				}));
+			}
+			return meta;
+		}
+	} catch {
+		// fall through
+	}
+	try {
+		return await loader();
+	} catch {
+		return null;
+	}
+}
+
 async function serveModInfo(request, env) {
 	const meta = await readModMeta(request, env);
 	if (!meta || !meta.version) {
@@ -1049,21 +1123,59 @@ async function serveModInfo(request, env) {
 		version: String(meta.version),
 		minecraft: String(meta.minecraft || "26.1.2"),
 		file: String(meta.file || ("voidmark-" + meta.version + ".jar")),
-		url: "/download"
+		url: "/download",
+		source: meta.source || "assets"
 	});
 }
 
+async function fetchModBytes(request, env, meta) {
+	const names = [];
+	if (meta && meta.file) {
+		names.push(String(meta.file));
+	}
+	names.push("voidmark.jar");
+	if (meta && meta.repo) {
+		for (let i = 0; i < names.length; i++) {
+			const url = githubModFileUrl(env, meta, names[i]);
+			if (!url) {
+				continue;
+			}
+			try {
+				const upstream = await fetch(url, {
+					headers: { "User-Agent": "Voidmark-Shop" },
+					redirect: "follow"
+				});
+				if (upstream.ok) {
+					return { body: upstream.body, file: names[i] };
+				}
+			} catch {
+				// try next
+			}
+		}
+	}
+	if (env.ASSETS) {
+		for (let i = 0; i < names.length; i++) {
+			try {
+				const asset = await env.ASSETS.fetch(new URL("/mod/" + names[i], request.url));
+				if (asset.ok) {
+					return { body: asset.body, file: names[i] };
+				}
+			} catch {
+				// try next
+			}
+		}
+	}
+	return null;
+}
+
 async function serveModJar(request, env) {
-	if (!env.ASSETS) {
-		return json(404, { error: "Mod build is not published yet" });
-	}
 	const meta = await readModMeta(request, env);
-	const asset = await env.ASSETS.fetch(new URL("/mod/voidmark.jar", request.url));
-	if (!asset.ok) {
+	const got = await fetchModBytes(request, env, meta);
+	if (!got) {
 		return json(404, { error: "Mod build is not published yet" });
 	}
-	const name = String((meta && meta.file) || "voidmark.jar").replace(/"/g, "");
-	const headers = new Headers(asset.headers);
+	const name = String((meta && meta.file) || got.file || "voidmark.jar").replace(/"/g, "");
+	const headers = new Headers();
 	headers.set("Content-Type", "application/java-archive");
 	headers.set("Content-Disposition", "attachment; filename=\"" + name + "\"");
 	headers.set("Cache-Control", "no-store");
@@ -1071,7 +1183,7 @@ async function serveModJar(request, env) {
 	for (const key of Object.keys(extra)) {
 		headers.set(key, extra[key]);
 	}
-	return new Response(asset.body, { status: 200, headers });
+	return new Response(got.body, { status: 200, headers });
 }
 
 function cors() {
@@ -1218,7 +1330,7 @@ const STORE_HTML = `<!DOCTYPE html>
 		(function loadMod() {
 			var ver = document.getElementById("mod-ver");
 			var link = document.getElementById("mod-download");
-			fetch("/mod/latest.json", { cache: "no-store" }).then(function (response) {
+			fetch("/api/mod", { cache: "no-store" }).then(function (response) {
 				return response.ok ? response.json() : null;
 			}).then(function (data) {
 				if (!data || !data.version) {

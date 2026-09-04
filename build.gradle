@@ -90,6 +90,12 @@ tasks.register("syncWebMod") {
 		destDir.mkdirs()
 		new File(destDir, "voidmark.jar").bytes = jarFile.bytes
 		def versionedName = "voidmark-${project.version}.jar"
+		destDir.listFiles()?.each { f ->
+			if (f.name.endsWith(".jar") && f.name != "voidmark.jar" && f.name != versionedName) {
+				f.delete()
+			}
+		}
+		new File(destDir, versionedName).bytes = jarFile.bytes
 		new File(layout.projectDirectory.asFile, versionedName).bytes = jarFile.bytes
 		def meta = [
 			version  : project.version.toString(),

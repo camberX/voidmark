@@ -122,7 +122,7 @@
 		(function loadMod() {
 			var ver = document.getElementById("mod-ver");
 			var link = document.getElementById("mod-download");
-			fetch("/mod/latest.json", { cache: "no-store" }).then(function (response) {
+			fetch("/api/mod", { cache: "no-store" }).then(function (response) {
 				return response.ok ? response.json() : null;
 			}).then(function (data) {
 				if (!data || !data.version) {
