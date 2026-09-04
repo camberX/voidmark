@@ -547,9 +547,8 @@ function randomBanId() {
 function shopConfig(state, env) {
 	const stored = objectMap(state.config);
 	return {
-		paypal: stored.paypal || env.PAYPAL || "your-paypal@email.com",
-		price: stored.price || env.PRICE || "$1",
 		title: stored.title || env.TITLE || "VOIDMARK Capes",
+		discord: "@evilkitten911",
 		blurb: stored.blurb || ""
 	};
 }
@@ -1023,68 +1022,73 @@ const STORE_HTML = `<!DOCTYPE html>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 	<style>
-		:root { --bg:#03050a; --pane:#0a0e18; --card:#10151f; --line:#1a2336; --text:#e8edf5; --muted:#8b95a8; --accent:#2fb5ff; --warn:#e8b86d; }
+		:root { --bg:#03050a; --pane:#0a0e18; --line:#1a2336; --text:#e8edf5; --muted:#8b95a8; --accent:#2fb5ff; }
 		* { box-sizing: border-box; }
 		html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: "Nunito Sans", sans-serif; }
 		#stars { position: fixed; inset: 0; z-index: 0; }
-		.vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(1200px 700px at 50% -10%, rgba(47,181,255,0.18), transparent 55%), linear-gradient(180deg, transparent, #03050ad9 92%); }
-		.wrap { position: relative; z-index: 2; width: min(980px, calc(100% - 28px)); margin: 0 auto; padding: 28px 0 64px; }
-		.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-		.mark { letter-spacing: 0.34em; font-weight: 800; font-size: 13px; }
+		.glow { position: fixed; inset: 0; z-index: 1; pointer-events: none; background:
+			radial-gradient(720px 420px at 50% 18%, rgba(47,181,255,0.20), transparent 58%),
+			radial-gradient(900px 700px at 50% 110%, rgba(47,181,255,0.06), transparent 50%); }
+		.page { position: relative; z-index: 2; min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; width: min(720px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 28px; }
+		.top { display: flex; justify-content: space-between; align-items: center; }
+		.mark { letter-spacing: 0.34em; font-weight: 800; font-size: 12px; }
 		.mark span { color: var(--accent); }
-		.admin { color: var(--muted); text-decoration: none; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; border: 1px solid var(--line); padding: 8px 12px; border-radius: 8px; background: color-mix(in srgb, var(--pane) 80%, transparent); }
-		.admin:hover { color: var(--text); border-color: var(--accent); }
-		.hero { margin: 72px 0 36px; }
-		.hero h1 { margin: 0 0 10px; font-size: clamp(40px, 7vw, 72px); letter-spacing: 0.18em; line-height: 0.95; }
-		.rule { width: 28px; height: 3px; background: var(--accent); border-radius: 2px; margin: 14px 0 18px; box-shadow: 0 0 18px var(--accent); }
-		.lede { max-width: 520px; color: var(--muted); font-size: 16px; line-height: 1.6; }
-		.grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; }
-		.card { background: color-mix(in srgb, var(--pane) 88%, transparent); border: 1px solid var(--line); border-radius: 18px; padding: 22px; box-shadow: 0 24px 80px #0008, inset 0 1px 0 #ffffff10; backdrop-filter: blur(16px); }
-		.price { font-size: 42px; font-weight: 800; color: var(--accent); letter-spacing: 0.04em; }
-		.kicker { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-		.steps { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
-		.steps li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; color: var(--muted); font-size: 14px; line-height: 1.45; }
-		.num { width: 28px; height: 28px; border-radius: 8px; background: #041018; border: 1px solid var(--accent); color: var(--accent); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
-		.paypal { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: #041018; border: 1px dashed var(--line); font-weight: 800; word-break: break-all; }
-		.warn { color: var(--warn); font-size: 13px; margin-top: 14px; line-height: 1.5; }
-		.foot { margin-top: 28px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-		@media (max-width: 800px) {
-			.hero { margin-top: 40px; }
-			.grid { grid-template-columns: 1fr; }
+		.admin { color: var(--muted); text-decoration: none; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+		.admin:hover { color: var(--text); }
+		.hero { display: grid; justify-items: center; text-align: center; align-content: center; padding: 32px 0 40px; }
+		.cape { width: 52px; height: 82px; margin-bottom: 22px; background:
+			linear-gradient(180deg, #7ad4ff 0%, var(--accent) 38%, #14608a 100%);
+			clip-path: polygon(18% 0, 82% 0, 100% 8%, 92% 100%, 8% 100%, 0 8%);
+			box-shadow: 0 18px 40px rgba(47,181,255,0.28); }
+		.kicker { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
+		h1 { margin: 0; font-size: clamp(48px, 12vw, 84px); letter-spacing: 0.16em; line-height: 0.92; }
+		.rule { width: 28px; height: 3px; background: var(--accent); border-radius: 2px; margin: 16px auto 18px; box-shadow: 0 0 18px var(--accent); }
+		.lede { margin: 0; max-width: 460px; color: var(--muted); font-size: 16px; line-height: 1.65; }
+		.card { width: min(440px, 100%); margin-top: 28px; padding: 22px 22px 18px; border-radius: 20px; border: 1px solid var(--line); background: color-mix(in srgb, var(--pane) 88%, transparent); box-shadow: 0 28px 80px #0008, inset 0 1px 0 #ffffff12; backdrop-filter: blur(18px); }
+		.card .kicker { margin-bottom: 8px; }
+		.handle { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0 10px; padding: 12px 14px; border-radius: 12px; background: #070b12; border: 1px solid var(--line); }
+		.handle b { font-size: 20px; letter-spacing: 0.02em; }
+		.copy { border: 0; border-radius: 9px; background: var(--accent); color: #041018; font: inherit; font-weight: 800; padding: 8px 12px; cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
+		.copy:hover { filter: brightness(1.08); }
+		.note { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+		.steps { display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; text-align: left; }
+		.steps li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+		.num { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--accent); color: var(--accent); display: grid; place-items: center; font-size: 11px; font-weight: 800; }
+		.foot { color: var(--muted); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; text-align: center; }
+		@media (max-width: 520px) {
+			.handle { flex-direction: column; align-items: stretch; }
+			.handle b { font-size: 18px; }
 		}
 	</style>
 </head>
 <body>
 	<canvas id="stars"></canvas>
-	<div class="vignette"></div>
-	<div class="wrap">
+	<div class="glow"></div>
+	<div class="page">
 		<div class="top">
 			<div class="mark">VOID<span>MARK</span></div>
 			<a class="admin" href="/admin.html">Admin</a>
 		</div>
 		<section class="hero">
-			<div class="kicker">Hypixel Skyblock client capes</div>
-			<h1 id="title">VOIDMARK</h1>
+			<div class="cape" aria-hidden="true"></div>
+			<p class="kicker">Custom client capes</p>
+			<h1>VOIDMARK</h1>
 			<div class="rule"></div>
-			<p class="lede" id="blurb">A custom cape that every Voidmark user sees. Pay Friends and Family, send your Minecraft name, and it shows in-game after you are added to the list.</p>
-		</section>
-		<div class="grid">
+			<p class="lede">A cape every Voidmark user can see in Skyblock. Not a Hypixel cosmetic — it only shows in the client.</p>
 			<article class="card">
-				<div class="kicker">How it works</div>
+				<p class="kicker">Want one</p>
+				<div class="handle">
+					<b>@evilkitten911</b>
+					<button type="button" class="copy" id="copy">Copy</button>
+				</div>
+				<p class="note">Message that Discord user with your Minecraft name. After you are on the list, open the Cape card in Voidmark and crop a photo or paste a PNG.</p>
 				<ol class="steps">
-					<li><span class="num">1</span><span>Send the listed amount as PayPal Friends and Family. Include your Minecraft username in the note.</span></li>
-					<li><span class="num">2</span><span>You get whitelisted. In Voidmark, open the Cape card and click Create cape to crop any photo onto the cape, or paste a PNG URL.</span></li>
-					<li><span class="num">3</span><span>Other Voidmark clients pick it up when they join a world. Capes only show for Voidmark users.</span></li>
+					<li><span class="num">1</span><span>Message @evilkitten911 on Discord.</span></li>
+					<li><span class="num">2</span><span>You get added. Create cape from the Cape card in-game.</span></li>
+					<li><span class="num">3</span><span>Other Voidmark clients pick it up when they join a world.</span></li>
 				</ol>
-				<p class="warn">Friends and Family has no PayPal purchase protection. This is a cape for a client mod, not a Hypixel cosmetic.</p>
 			</article>
-			<article class="card">
-				<div class="kicker">PayPal Friends and Family</div>
-				<div class="price" id="price">$1</div>
-				<p class="lede" style="margin: 8px 0 0;">Send to this address, then wait to be added.</p>
-				<div class="paypal" id="paypal">Loading…</div>
-			</article>
-		</div>
+		</section>
 		<p class="foot">voidmark.cloud</p>
 	</div>
 	<script>
@@ -1102,11 +1106,6 @@ const STORE_HTML = `<!DOCTYPE html>
 			function tick() {
 				ctx.fillStyle = "#03050a";
 				ctx.fillRect(0, 0, c.width, c.height);
-				var g = ctx.createRadialGradient(c.width * 0.5, 0, 10, c.width * 0.5, 180, Math.max(c.width, 800) * 0.55);
-				g.addColorStop(0, "rgba(47,181,255,0.16)");
-				g.addColorStop(1, "rgba(3,5,10,0)");
-				ctx.fillStyle = g;
-				ctx.fillRect(0, 0, c.width, c.height);
 				for (var i = 0; i < list.length; i++) {
 					var st = list[i];
 					st.y += st.z * 0.16;
@@ -1120,15 +1119,15 @@ const STORE_HTML = `<!DOCTYPE html>
 			resize();
 			tick();
 		})();
-		fetch("/api/config").then(function (response) { return response.json(); }).then(function (data) {
-			if (data.title) document.getElementById("title").textContent = data.title.replace(/ capes$/i, "") || "VOIDMARK";
-			if (data.price) document.getElementById("price").textContent = data.price;
-			if (data.paypal) document.getElementById("paypal").textContent = data.paypal;
-			if (data.blurb) document.getElementById("blurb").textContent = data.blurb;
-			if (data.title) document.title = data.title;
-		}).catch(function () {
-			document.getElementById("paypal").textContent = "Unavailable";
-		});
+		document.getElementById("copy").onclick = function () {
+			var btn = this;
+			navigator.clipboard.writeText("@evilkitten911").then(function () {
+				btn.textContent = "Copied";
+				setTimeout(function () { btn.textContent = "Copy"; }, 1400);
+			}).catch(function () {
+				btn.textContent = "Copy failed";
+			});
+		};
 	</script>
 </body>
 </html>

@@ -768,9 +768,8 @@ function noteFor(uuid) {
 function shopConfig() {
 	const stored = store.config && typeof store.config === "object" ? store.config : {};
 	return {
-		paypal: stored.paypal || "your-paypal@email.com",
-		price: stored.price || "$1",
 		title: stored.title || "VOIDMARK Capes",
+		discord: "@evilkitten911",
 		blurb: stored.blurb || ""
 	};
 }

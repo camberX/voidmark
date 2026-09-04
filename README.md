@@ -67,11 +67,11 @@ Config is saved to `.minecraft/config/voidmark.json`, including click-GUI positi
 
 ## Cape shop
 
-Paid custom capes ($1 via PayPal Friends and Family). You whitelist their Minecraft username or UUID on the cape site. They crop a photo with **Create cape** in Voidmark (or you do it on the cape desk). Other Voidmark clients fetch `/capes/{uuid}.png`. Changing the cape in the menu overwrites that file; others pick it up the next time they join a world, or when they click **Refresh capes** (once every 5 minutes). Players can change their own cape once per 24 hours unless **Upload bypass** is checked on the admin list. Admin cape uploads skip that limit. If a UUID is not on the list, the in-game Cape card stays locked. The shop still answers `uuid not whitelisted` if someone bypasses the lock. **Head tag** on the admin list is custom text above their nametag for Voidmark users (`&6` `&l` and the rest of the nick color codes). It refreshes on the same join or refresh.
+Custom capes for Voidmark users. Message **@evilkitten911** on Discord with a Minecraft username; you whitelist that name or UUID on the cape desk. They crop a photo with **Create cape** in Voidmark (or you do it on the cape desk). Other Voidmark clients fetch `/capes/{uuid}.png`. Changing the cape in the menu overwrites that file; others pick it up the next time they join a world, or when they click **Refresh capes** (once every 5 minutes). Players can change their own cape once per 24 hours unless **Upload bypass** is checked on the admin list. Admin cape uploads skip that limit. If a UUID is not on the list, the in-game Cape card stays locked. The shop still answers `uuid not whitelisted` if someone bypasses the lock. **Head tag** on the admin list is custom text above their nametag for Voidmark users (`&6` `&l` and the rest of the nick color codes). It refreshes on the same join or refresh.
 
 The mod always talks to `https://voidmark.cloud`. That host is not a config option. Hosting notes are in **[web/CLOUDFLARE.md](web/CLOUDFLARE.md)**.
 
-Friends and Family has no PayPal purchase protection. Capes only show for Voidmark users.
+Capes only show for Voidmark users.
 
 Local testing only:
 
@@ -80,7 +80,7 @@ node web/server.mjs
 ```
 
 - Site: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`). Public shop is `/`. Admin is `/admin.html`. `/manage.html` is only served after that login.
-- After a payment, open `/admin.html`, enter `VOIDMARK_CAPE_ADMIN` (default `change-me`), and add their username or UUID.
+- After they message on Discord, open `/admin.html`, enter `VOIDMARK_CAPE_ADMIN` (default `change-me`), and add their username or UUID.
 - Keep `web/data/whitelist.json` off git.
 
 Developer builds stamp a small **DEV** tag on the watermark next to VOIDMARK.

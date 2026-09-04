@@ -8,8 +8,6 @@ binding = "ASSETS"
 run_worker_first = true
 
 [vars]
-PAYPAL = "your-paypal@email.com"
-PRICE = "$1"
 TITLE = "VOIDMARK Capes"
 
 [[r2_buckets]]

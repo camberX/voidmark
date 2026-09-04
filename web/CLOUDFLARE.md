@@ -2,7 +2,7 @@
 
 This puts the UUID list and cape files on Cloudflare Workers + R2. You are not running a VPS. The free tier is enough for Voidmark: 10 GB of PNGs, no bandwidth bill.
 
-**R2 asks for a card even on the free plan.** That is verification, not a charge. Stay under the free limits and the bill is $0. After you add a card, set a spending cap (step 10 in the CLI path).
+**R2 asks for a card even on the free plan.** That is verification, not a charge. Stay under the free limits and the bill is $0. After you add a card, set a spending cap (step 9 in the CLI path).
 
 The admin key never goes in the HTML. It is a Worker **secret**.
 
@@ -16,8 +16,6 @@ Origin has no Download ZIP. Do not type your Google password into Git.
 4. Worker **Settings** → **Bindings** → **R2** → Add. Variable name must be `CAPES`. Bucket: `voidmark-capes`. Save.
 5. Worker **Settings** → **Variables and Secrets**:
    - `ADMIN` → Encrypt / Secret. Paste a long random string and save it in a password manager.
-   - `PAYPAL` → your Friends and Family email (plain text).
-   - `PRICE` → `$1` (plain text).
 6. Deploy again if it asks.
 7. Open the Worker URL (`https://voidmark.cloud` or the `workers.dev` URL). The public shop is `/`. Admin login is `/admin.html`. After the key is accepted, the Worker sets an HttpOnly cookie and then serves the cape desk. `/manage.html` is not sent at all without that cookie — hiding the page in the browser is not the lock. That desk is players, bulk add, notes, cooldown reset, cape upload, and fake ban.
 8. The shipped mod always uses `https://voidmark.cloud`. Attach that custom domain to this Worker (Workers & Pages → `voidmark-capes` → Settings → Domains & Routes). Restart Minecraft after a domain change.
@@ -70,18 +68,7 @@ openssl rand -hex 16
 
 Save that string in a password manager. That is what you type on `/admin.html`. It is not in the HTML or in git.
 
-## 5. Put your PayPal address on the public page
-
-Edit `web/wrangler.toml` and change:
-
-```toml
-PAYPAL = "your-paypal@email.com"
-PRICE = "$1"
-```
-
-to your Friends and Family email and price.
-
-## 6. Deploy
+## 5. Deploy
 
 ```bash
 npx wrangler deploy
@@ -93,32 +80,32 @@ Wrangler prints a URL like:
 https://voidmark-capes.YOURNAME.workers.dev
 ```
 
-Open it. You should see the UUID whitelist page.
+Open it. You should see the cape landing page (message @evilkitten911 on Discord).
 
 If deploy fails with a bucket error, the bucket name in the dashboard does not match `voidmark-capes`. Rename it or change `bucket_name` in `wrangler.toml` to match.
 
-## 7. Point Voidmark at that URL
+## 6. Point Voidmark at that URL
 
 The jar is hardcoded to `https://voidmark.cloud`. There is no `capeServerUrl` in `.minecraft/config/voidmark.json`. Launch drops that key if an older config still has it.
 
 Attach `voidmark.cloud` to the Worker (Settings → Domains & Routes). The `workers.dev` URL still works in a browser for the admin list if you want it.
 
-## 8. After someone pays
+## 7. After someone messages on Discord
 
-1. They send $1 Friends and Family with their Minecraft name.
+1. They message **@evilkitten911** with their Minecraft name.
 2. Open `https://voidmark.cloud/admin.html` (or your Worker `/admin.html`), enter the admin key, and you land on the cape desk. Visiting `/manage.html` without logging in redirects to the login page and does not include the desk HTML.
 3. Type their username or UUID and click **Add**, or use Bulk add. You should see their current name, skin, and cape.
 4. Click a player to change cape, head tag, note, bypass, or reset the 24 hour cooldown. **Dewhitelist** drops them.
 
-Friends and Family has no PayPal purchase protection. Capes only show for Voidmark users.
+Capes only show for Voidmark users.
 
-## 9. Check it worked
+## 8. Check it worked
 
 ```bash
 curl https://voidmark-capes.YOURNAME.workers.dev/api/config
 ```
 
-You should see your PayPal and price. After they set a cape in-game:
+You should see a title and the Discord handle. After they set a cape in-game:
 
 ```bash
 curl https://voidmark-capes.YOURNAME.workers.dev/api/cape/THEIR-UUID
@@ -126,7 +113,7 @@ curl https://voidmark-capes.YOURNAME.workers.dev/api/cape/THEIR-UUID
 
 should return `"has":true` and a hash. Changing the cape in the Voidmark menu overwrites that file; other clients pick it up the next time they join a world.
 
-## 10. Cap the bill (do this once)
+## 9. Cap the bill (do this once)
 
 1. Cloudflare dashboard → **Billing** (or account **Manage Account** → **Billing**).
 2. Add a budget / spending notification, ideally **$5**.
