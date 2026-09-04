@@ -14,7 +14,7 @@ export default {
 
 async function route(request, env) {
 	const url = new URL(request.url);
-	const path = url.pathname;
+	const path = canonicalizePath(url.pathname);
 
 	if (request.method === "OPTIONS") {
 		return new Response(null, { status: 204, headers: cors() });
@@ -854,14 +854,33 @@ function json(status, body, extraHeaders) {
 const DESK_COOKIE = "voidmark_desk";
 const DESK_TTL_SEC = 60 * 60 * 24 * 7;
 
-function isManagePath(path) {
+function canonicalizePath(pathname) {
+	let raw = String(pathname || "/");
 	try {
-		path = decodeURIComponent(path);
+		raw = decodeURIComponent(raw);
 	} catch {
-		return false;
+		return "/";
 	}
-	const p = path.replace(/\/+$/, "").toLowerCase();
-	return p === "/manage.html" || p === "/manage";
+	raw = raw.replace(/\\/g, "/");
+	const parts = [];
+	for (const seg of raw.split("/")) {
+		if (!seg || seg === ".") {
+			continue;
+		}
+		if (seg === "..") {
+			parts.pop();
+			continue;
+		}
+		if (seg.includes("\0")) {
+			return "/";
+		}
+		parts.push(seg);
+	}
+	return "/" + parts.join("/");
+}
+
+function isManagePath(path) {
+	return path === "/manage.html" || path === "/manage";
 }
 
 function cookieOf(request, name) {

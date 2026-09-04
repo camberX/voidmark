@@ -2,7 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import { extname, join, normalize } from "node:path";
+import { extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -73,8 +73,8 @@ const server = createServer(async (req, res) => {
 });
 
 async function route(req, res) {
-	const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
-	const path = url.pathname;
+	const url = new URL(safeRequestUrl(req), `http://${req.headers.host || "127.0.0.1"}`);
+	const path = canonicalizePath(url.pathname);
 
 	if (req.method === "OPTIONS") {
 		res.writeHead(204, cors()).end();
@@ -848,15 +848,25 @@ function adminHeaderOk(req) {
 }
 
 async function servePublic(res, requestPath) {
-	const safe = normalize(requestPath).replace(/^(\.\.[/\\])+/, "");
-	const file = join(PUBLIC, safe);
-	if (!file.startsWith(PUBLIC) || !existsSync(file)) {
+	const rel = canonicalizePath(requestPath).replace(/^\/+/, "");
+	if (!rel || rel.endsWith("/") || rel.includes("\0")) {
+		json(res, 404, { error: "Not found" });
+		return;
+	}
+	const root = resolve(PUBLIC);
+	const file = resolve(root, rel);
+	const inside = relative(root, file);
+	if (!inside || inside.startsWith("..") || inside.includes(`..${sep}`)) {
+		json(res, 404, { error: "Not found" });
+		return;
+	}
+	if (!existsSync(file)) {
 		json(res, 404, { error: "Not found" });
 		return;
 	}
 	const type = MIME[extname(file).toLowerCase()] || "application/octet-stream";
 	const headers = { "Content-Type": type };
-	if (safe.replace(/\\/g, "/").toLowerCase().endsWith("manage.html")) {
+	if (rel.toLowerCase() === "manage.html") {
 		headers["Cache-Control"] = "private, no-store, no-cache";
 		headers.Pragma = "no-cache";
 	}
@@ -864,17 +874,44 @@ async function servePublic(res, requestPath) {
 	createReadStream(file).pipe(res);
 }
 
+function canonicalizePath(pathname) {
+	let raw = String(pathname || "/");
+	try {
+		raw = decodeURIComponent(raw);
+	} catch {
+		return "/";
+	}
+	raw = raw.replace(/\\/g, "/");
+	const parts = [];
+	for (const seg of raw.split("/")) {
+		if (!seg || seg === ".") {
+			continue;
+		}
+		if (seg === "..") {
+			parts.pop();
+			continue;
+		}
+		if (seg.includes("\0")) {
+			return "/";
+		}
+		parts.push(seg);
+	}
+	return "/" + parts.join("/");
+}
+
+function safeRequestUrl(req) {
+	let raw = req.url || "/";
+	if (raw.startsWith("//")) {
+		raw = "/" + raw.replace(/^\/+/, "");
+	}
+	return raw;
+}
+
 const DESK_COOKIE = "voidmark_desk";
 const DESK_TTL_SEC = 60 * 60 * 24 * 7;
 
 function isManagePath(path) {
-	try {
-		path = decodeURIComponent(path);
-	} catch {
-		return false;
-	}
-	const p = path.replace(/\/+$/, "").toLowerCase();
-	return p === "/manage.html" || p === "/manage";
+	return path === "/manage.html" || path === "/manage";
 }
 
 function cookieOf(req, name) {
