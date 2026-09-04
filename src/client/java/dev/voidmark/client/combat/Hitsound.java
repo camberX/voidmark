@@ -25,8 +25,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Plays a hitsound as soon as the client sees a melee swing or an arrow
- * overlap a mob, instead of waiting for the server to confirm damage.
+ * Plays a hitsound as soon as this client lands a melee swing or one of
+ * its own arrows overlaps a mob. Other players' hits are ignored.
  * Hypixel often reports mob health as 0, so we never gate on {@code isAlive()}.
  */
 public final class Hitsound {
@@ -38,7 +38,6 @@ public final class Hitsound {
 	private static final Int2IntOpenHashMap TARGETS = new Int2IntOpenHashMap();
 	private static int gameTick;
 	private static int lastVanillaSuppressTick = Integer.MIN_VALUE;
-	private static int lastMeleeTick = Integer.MIN_VALUE;
 
 	private Hitsound() {
 	}
@@ -48,7 +47,6 @@ public final class Hitsound {
 		TARGETS.clear();
 		gameTick = 0;
 		lastVanillaSuppressTick = Integer.MIN_VALUE;
-		lastMeleeTick = Integer.MIN_VALUE;
 	}
 
 	public static void tick(Minecraft client) {
@@ -83,7 +81,6 @@ public final class Hitsound {
 		if (!isMeleeTarget(target, player)) {
 			return;
 		}
-		lastMeleeTick = gameTick;
 		play(config);
 		stampNearby(player, target);
 	}
@@ -100,76 +97,6 @@ public final class Hitsound {
 		if (markHit(arrow.getId(), target.getId())) {
 			play(config);
 		}
-	}
-
-	/** Backup when client collision missed but the server still hurt a nearby mob. */
-	public static void onHurt(int entityId) {
-		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.hitsoundEnabled) {
-			return;
-		}
-		Minecraft client = Minecraft.getInstance();
-		LocalPlayer player = client.player;
-		if (player == null || client.level == null) {
-			return;
-		}
-		Entity entity = client.level.getEntity(entityId);
-		if (entity == null || entity == player || (!isArrowTarget(entity, player) && !isMeleeTarget(entity, player))) {
-			return;
-		}
-		if (recentTarget(entityId)) {
-			return;
-		}
-		if (config.hitsoundMelee && gameTick - lastMeleeTick <= 8) {
-			if (markHit(-1, entityId)) {
-				play(config);
-			}
-			return;
-		}
-		if (!config.hitsoundArrows) {
-			return;
-		}
-		AABB around = entity.getBoundingBox().inflate(8.0);
-		boolean ours = false;
-		for (Entity other : player.level().getEntities(entity, around, Hitsound::isArrow)) {
-			if (shotByLocalPlayer((AbstractArrow) other, player)) {
-				ours = true;
-				break;
-			}
-		}
-		if (ours && markHit(-2, entityId)) {
-			play(config);
-		}
-	}
-
-	/** Confirmed vanilla damage with the local player as the cause. */
-	public static void onDamage(int entityId, int causeId) {
-		Minecraft client = Minecraft.getInstance();
-		LocalPlayer player = client.player;
-		if (player == null) {
-			return;
-		}
-		if (causeId == player.getId()) {
-			VoidmarkConfig config = VoidmarkConfig.get();
-			if (!config.hitsoundEnabled) {
-				return;
-			}
-			if (client.level == null) {
-				return;
-			}
-			Entity entity = client.level.getEntity(entityId);
-			if (entity == null || entity == player) {
-				return;
-			}
-			if (!isMeleeTarget(entity, player) && !isArrowTarget(entity, player)) {
-				return;
-			}
-			if (markHit(-3, entityId)) {
-				play(config);
-			}
-			return;
-		}
-		onHurt(entityId);
 	}
 
 	public static boolean suppressVanillaArrowPing() {
@@ -245,19 +172,14 @@ public final class Hitsound {
 		if (owner != null) {
 			return owner.getUUID().equals(player.getUUID());
 		}
-		if (arrow.tickCount > 50) {
-			return false;
-		}
-		double dx = arrow.getX() - player.getX();
-		double dz = arrow.getZ() - player.getZ();
-		if (dx * dx + dz * dz > 36.0) {
+		if (arrow.tickCount > 4 || player.distanceToSqr(arrow) > 6.25) {
 			return false;
 		}
 		Vec3 vel = arrow.getDeltaMovement();
-		if (vel.lengthSqr() < 0.01) {
-			return player.distanceToSqr(arrow) < 9.0 && arrow.tickCount < 8;
+		if (vel.lengthSqr() < 0.04) {
+			return false;
 		}
-		return vel.normalize().dot(player.getLookAngle()) > 0.2;
+		return vel.normalize().dot(player.getLookAngle()) > 0.75;
 	}
 
 	private static boolean recentTarget(int entityId) {

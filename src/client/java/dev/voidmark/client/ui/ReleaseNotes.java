@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.170", new String[]{
+			"Hitsound uses the agpa2 clip, and only plays when you land the hit. Nearby players punching the same mob no longer trigger it."
+		}),
 		new Entry("1.1.169", new String[]{
 			"Ships a verified hitsound jar. 1.1.168 was a truncated zip for some downloads (zip END header not found); delete that file from mods or Fabric will not launch."
 		}),
