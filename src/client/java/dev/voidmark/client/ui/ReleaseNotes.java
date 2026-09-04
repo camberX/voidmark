@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.167", new String[]{
+			"Theme Font Minecraft is smaller and sits on the same baseline as Nunito. The last pass still left it high and a bit large in the click GUI rows."
+		}),
 		new Entry("1.1.166", new String[]{
 			"Theme Font Minecraft is drawn at the same body, small, and title sizes as Nunito. It no longer fills the click GUI and HUD like vanilla 8px chat text."
 		}),

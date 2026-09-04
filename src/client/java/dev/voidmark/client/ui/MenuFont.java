@@ -90,27 +90,40 @@ public final class MenuFont {
 	}
 
 	/**
-	 * Vanilla bitmap glyphs are 8px. Nunito body / small / title are 6.5 / 5.25 / 8,
-	 * so Minecraft-as-UI-font has to be scaled or every label looks oversized.
+	 * Vanilla bitmap letters are ~8px with a heavy stroke, so they read larger
+	 * than Nunito at the same em. These sit in the same 16px rows as body/small.
 	 */
+	private static final float MC_BODY = 0.70f;
+	private static final float MC_SMALL = 0.56f;
+	private static final float MC_TITLE = 0.80f;
+	private static final float LINE = 9.0f;
+	private static final float GLYPH = 8.0f;
+
 	public static float bodyScale() {
-		return minecraft() ? 6.5f / 8.0f : 1.0f;
+		return minecraft() ? MC_BODY : 1.0f;
 	}
 
 	public static float smallScale() {
-		return minecraft() ? 5.25f / 8.0f : 1.0f;
+		return minecraft() ? MC_SMALL : 1.0f;
 	}
 
 	public static float titleScale() {
-		return minecraft() ? 7.0f / 8.0f : 1.0f;
+		return minecraft() ? MC_TITLE : 1.0f;
 	}
 
-	/** Drop scaled vanilla text so it stays centered in the same row as Nunito. */
-	public static float align(float scale) {
-		if (scale >= 0.999f) {
-			return 0f;
+	/** Nunito uses a -1 nudge; scaled vanilla is centered in the 9px line box. */
+	public static float menuY(float y, float scale) {
+		if (!minecraft()) {
+			return y - 1.0f;
 		}
-		return (1.0f - scale) * 4.0f;
+		return y + (LINE - GLYPH * scale) * 0.5f;
+	}
+
+	public static float hudY(float y, float scale) {
+		if (!minecraft()) {
+			return y;
+		}
+		return y + (LINE - GLYPH * scale) * 0.5f;
 	}
 
 	public static Component body(String value) {

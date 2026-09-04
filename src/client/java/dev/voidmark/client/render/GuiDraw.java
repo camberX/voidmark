@@ -473,17 +473,17 @@ public final class GuiDraw {
 
 	public static void menu(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
 		float scale = MenuFont.bodyScale();
-		text(graphics, font, MenuFont.body(value), x, y - 1.0f + MenuFont.align(scale), scale, color, false);
+		text(graphics, font, MenuFont.body(value), x, MenuFont.menuY(y, scale), scale, color, false);
 	}
 
 	public static void small(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
 		float scale = MenuFont.smallScale();
-		text(graphics, font, MenuFont.small(value), x, y - 1.0f + MenuFont.align(scale), scale, color, false);
+		text(graphics, font, MenuFont.small(value), x, MenuFont.menuY(y, scale), scale, color, false);
 	}
 
 	public static void title(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
 		float scale = MenuFont.titleScale();
-		text(graphics, font, MenuFont.title(value), x, y - 1.0f + MenuFont.align(scale), scale, color, false);
+		text(graphics, font, MenuFont.title(value), x, MenuFont.menuY(y, scale), scale, color, false);
 	}
 
 	public static void brand(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
@@ -496,7 +496,7 @@ public final class GuiDraw {
 
 	public static void hud(GuiGraphicsExtractor graphics, Font font, Component value, float x, float y, int color) {
 		float scale = MenuFont.bodyScale();
-		text(graphics, font, MenuFont.applyBody(value), x, y + MenuFont.align(scale), scale, color, false);
+		text(graphics, font, MenuFont.applyBody(value), x, MenuFont.hudY(y, scale), scale, color, false);
 	}
 
 	public static void icon(GuiGraphicsExtractor graphics, Font font, String glyph, float x, float y, int color) {
