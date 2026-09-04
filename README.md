@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.167.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.168.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -38,7 +38,7 @@ Java **25** is required.
 
 Recolors terrain toward a color you pick. Strength goes from a light wash to a full client-style paint. **Mode** (World tint cog) picks how: **Shader** (default) paints in Sodium's chunk shader, so fullbright cannot cancel it; **Lightmap** is the older lighting wash. Lightmap mode shows a reminder that **fullbright must be off** or the wash will not appear. Skybox and fog cogs can match the world color or use their own. Aspect chips are on the Aspect cog.
 
-**Hitsound** plays a short tick as soon as the client sees a hit — left-click on a mob, or your arrow overlapping one — instead of waiting for the server hurt packet. That keeps melee and bows feeling instant on high ping. Armor-stand holograms resolve to the mob under them. Other players are skipped. **Melee** and **Arrows** are separate switches; volume and pitch are on the cog. Turning Enable on plays a preview. The delayed vanilla arrow ping is muted if Voidmark already predicted that shot.
+**Hitsound** plays a short tick as soon as the client sees a hit — left-click on a mob or hologram, or your arrow overlapping a mob — instead of waiting for the server hurt packet. That keeps melee and bows feeling instant on high ping. Hypixel often syncs mob health as 0, so Voidmark does not wait for the client to think the mob is alive; a delayed hurt packet still dings if the swing or arrow was missed. Real players (UUID v4) are skipped; Hypixel NPCs still count. **Melee** and **Arrows** are separate switches; volume and pitch are on the cog. Turning Enable on plays a preview. The delayed vanilla arrow ping is muted if Voidmark already predicted that shot.
 
 ### Visuals → ESP
 
