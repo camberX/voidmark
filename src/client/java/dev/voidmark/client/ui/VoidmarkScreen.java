@@ -1,6 +1,7 @@
 package dev.voidmark.client.ui;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.voidmark.client.combat.Hitsound;
 import dev.voidmark.client.config.UnloadState;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
@@ -97,6 +98,7 @@ public class VoidmarkScreen extends Screen {
 		SKY("Skybox", 3),
 		FOG("Fog", 5),
 		VIEW("Aspect", 3),
+		HITSOUND("Hitsound", 2),
 		MOB("Mob glow", 4),
 		BLOCK("Block outline", 2),
 		NODE_ESP("Node ESP", 5),
@@ -136,6 +138,11 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Skybox tint", Tab.WORLD, "World"),
 		new SearchEntry("Aspect ratio", Tab.WORLD, "World"),
 		new SearchEntry("Custom fog", Tab.WORLD, "World"),
+		new SearchEntry("Hitsound", Tab.WORLD, "Hitsound"),
+		new SearchEntry("Melee hitsound", Tab.WORLD, "Hitsound"),
+		new SearchEntry("Arrow hitsound", Tab.WORLD, "Hitsound"),
+		new SearchEntry("Hit volume", Tab.WORLD, "Hitsound"),
+		new SearchEntry("Hit pitch", Tab.WORLD, "Hitsound"),
 		new SearchEntry("Mob glow", Tab.ESP, "ESP"),
 		new SearchEntry("Nametag ESP", Tab.ESP, "ESP"),
 		new SearchEntry("Block outline", Tab.ESP, "ESP"),
@@ -1232,6 +1239,16 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "World tint", config.worldTintEnabled, v -> config.worldTintEnabled = v, Feature.WORLD);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Skybox", config.skyTintEnabled, v -> config.skyTintEnabled = v, Feature.SKY);
 
+				y = featureCard(graphics, font, left, top + cardHeight(2) + 8, col, cardHeight(3), "Hitsound");
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.hitsoundEnabled, v -> {
+					config.hitsoundEnabled = v;
+					if (v) {
+						Hitsound.playPreview();
+					}
+				}, Feature.HITSOUND);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Melee", config.hitsoundMelee, v -> config.hitsoundMelee = v);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Arrows", config.hitsoundArrows, v -> config.hitsoundArrows = v);
+
 				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Camera");
 				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Fog", config.fogEnabled, v -> config.fogEnabled = v, Feature.FOG);
 				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v, Feature.VIEW);
@@ -1513,6 +1530,10 @@ public class VoidmarkScreen extends Screen {
 					config.aspectRatio = values[index];
 				});
 			}
+			case HITSOUND -> {
+				y = slider(graphics, font, ix, y, iw, "Volume", Math.round(config.hitsoundVolume * 100) + "%", config.hitsoundVolume, v -> config.hitsoundVolume = VoidmarkConfig.clamp(v, 0f, 1f));
+				slider(graphics, font, ix, y, iw, "Pitch", String.format(Locale.ROOT, "%.2f", config.hitsoundPitch), (config.hitsoundPitch - 0.50f) / 1.00f, v -> config.hitsoundPitch = VoidmarkConfig.clamp(0.50f + v, 0.50f, 1.50f));
+			}
 			case MOB -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.mobGlowThroughWalls, v -> config.mobGlowThroughWalls = v);
 				y = slider(graphics, font, ix, y, iw, "Radius", String.format(Locale.ROOT, "%.0f", config.mobGlowRadius), (config.mobGlowRadius - GlowBlurRadius.MIN) / (GlowBlurRadius.MAX - GlowBlurRadius.MIN), v -> config.mobGlowRadius = VoidmarkConfig.clamp(GlowBlurRadius.MIN + v * (GlowBlurRadius.MAX - GlowBlurRadius.MIN), GlowBlurRadius.MIN, GlowBlurRadius.MAX));
@@ -1778,7 +1799,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.164");
+			.orElse("1.1.165");
 	}
 
 	@Override

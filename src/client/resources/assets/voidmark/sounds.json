@@ -1,0 +1,10 @@
+{
+	"hit": {
+		"sounds": [
+			{
+				"name": "voidmark:hit",
+				"stream": false
+			}
+		]
+	}
+}

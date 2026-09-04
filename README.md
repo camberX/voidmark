@@ -8,7 +8,7 @@ Ender Nodes look like purple stained clay (magenta terracotta on modern versions
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.164.jar` in `mods`.
+3. Build this project (`./gradlew build`) and put `build/libs/voidmark-1.1.165.jar` in `mods`.
 4. Launch the Fabric 26.1.2 profile.
 
 Java **25** is required.
@@ -38,6 +38,8 @@ Java **25** is required.
 
 Recolors terrain toward a color you pick. Strength goes from a light wash to a full client-style paint. **Mode** (World tint cog) picks how: **Shader** (default) paints in Sodium's chunk shader, so fullbright cannot cancel it; **Lightmap** is the older lighting wash. Lightmap mode shows a reminder that **fullbright must be off** or the wash will not appear. Skybox and fog cogs can match the world color or use their own. Aspect chips are on the Aspect cog.
 
+**Hitsound** plays a short tick as soon as the client sees a hit — left-click on a mob, or your arrow overlapping one — instead of waiting for the server hurt packet. That keeps melee and bows feeling instant on high ping. Armor-stand holograms resolve to the mob under them. Other players are skipped. **Melee** and **Arrows** are separate switches; volume and pitch are on the cog. Turning Enable on plays a preview. The delayed vanilla arrow ping is muted if Voidmark already predicted that shot.
+
 ### Visuals → ESP
 
 Click one or more types in the scrollable list of every living vanilla type plus players. Click a selected row again to deselect it. Matching entities are drawn into the outline buffer as a silhouette, then a custom post shader blurs that mask and keeps only the outside so you get a clean rim plus an outward gradient. `/vm esp <text>` does the same for nametags that contain that word; you can add several. They show under **Nametag ESP** with an **x** beside each one. After you see one named copy in this world, Voidmark remembers that mob's type and armor and glows the rest at render distance, even before their hologram plate draws. Changing worlds forgets that look so you have to see one named copy again. A nametag only counts for the mob under it, so Seers and Obsidian Defenders do not share a look. Entities that already glow in vanilla are left on Minecraft’s sobel outline. **Block outline** applies the same glow to the block under your crosshair; its color and opacity are on the Block outline cog. Through-walls, radius, opacity, and color for mobs are on the Mob glow cog. The radius slider is how far the halo reaches; the edge stays the glow color instead of fading to black.
@@ -54,7 +56,7 @@ Commission lines come from the Skyblock tab list (`Commissions:` widget) in the 
 
 | Tab | What it does |
 | --- | --- |
-| World | World tint, skybox, fog, aspect — extra options on each cog |
+| World | World tint, skybox, fog, aspect, hitsound — extra options on each cog |
 | ESP | Mob list, nametag ESP filters, glow, block outline, nametags |
 | Overlay | Watermark / music / raw mats / inventory HUDs |
 | Bars | Custom vanilla HUD: hotbar, bars, scoreboard, boss, effects, held item |

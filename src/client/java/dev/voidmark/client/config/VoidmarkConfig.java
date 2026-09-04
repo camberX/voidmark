@@ -66,6 +66,11 @@ public final class VoidmarkConfig {
 	public boolean miningAbilityAlert = true;
 	public boolean titaniumEsp = true;
 	public boolean titaniumEspThroughWalls = true;
+	public boolean hitsoundEnabled = true;
+	public boolean hitsoundMelee = true;
+	public boolean hitsoundArrows = true;
+	public float hitsoundVolume = 0.80f;
+	public float hitsoundPitch = 1.00f;
 	public int titaniumEspRange = 48;
 	public int titaniumEspRgb = 0xE8ECF2;
 	public boolean rawmatsEnchanted = false;
@@ -395,6 +400,21 @@ public final class VoidmarkConfig {
 				} else if (loaded.uiFont.equalsIgnoreCase("minecraft")) {
 					loaded.uiFont = "Minecraft";
 				}
+				if (!json.has("hitsoundEnabled")) {
+					loaded.hitsoundEnabled = true;
+				}
+				if (!json.has("hitsoundMelee")) {
+					loaded.hitsoundMelee = true;
+				}
+				if (!json.has("hitsoundArrows")) {
+					loaded.hitsoundArrows = true;
+				}
+				loaded.hitsoundVolume = json.has("hitsoundVolume")
+					? clamp(loaded.hitsoundVolume, 0f, 1f)
+					: 0.80f;
+				loaded.hitsoundPitch = json.has("hitsoundPitch")
+					? clamp(loaded.hitsoundPitch, 0.50f, 1.50f)
+					: 1.00f;
 				loaded.musicApiPort = loaded.musicApiPort < 0 || loaded.musicApiPort > 65535
 					? 0
 					: loaded.musicApiPort;

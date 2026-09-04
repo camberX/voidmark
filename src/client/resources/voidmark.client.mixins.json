@@ -3,6 +3,7 @@
 	"package": "dev.voidmark.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"AbstractArrowMixin",
 		"AbstractButtonMixin",
 		"AbstractClientPlayerMixin",
 		"AbstractSelectionListMixin",
@@ -13,6 +14,7 @@
 		"ChatComponentMixin",
 		"ChatScreenMixin",
 		"ClientLevelAccessor",
+		"ClientPacketListenerMixin",
 		"ConnectScreenInvoker",
 		"ConnectScreenMixin",
 		"ConnectionMixin",
@@ -27,6 +29,7 @@
 		"LivingEntityRendererMixin",
 		"MinecraftMixin",
 		"ModelBlockRendererMixin",
+		"MultiPlayerGameModeMixin",
 		"PlayerTabOverlayMixin",
 		"PostPassMixin",
 		"ProjectionMixin",

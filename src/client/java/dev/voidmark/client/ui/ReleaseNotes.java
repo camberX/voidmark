@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.165", new String[]{
+			"Hitsounds play the instant a melee swing or your arrow overlaps a mob on the client, instead of waiting for Hypixel to confirm the hit. Melee and arrows are separate toggles on the World tab; volume and pitch sit on the cog."
+		}),
 		new Entry("1.1.164", new String[]{
 			"HUD panes no longer show seam lines or darker bands at the rounded corners. Item wells and stars stay on the cheap fill path."
 		}),
