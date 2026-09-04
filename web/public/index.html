@@ -15,11 +15,9 @@
 			radial-gradient(720px 420px at 50% 18%, rgba(47,181,255,0.20), transparent 58%),
 			radial-gradient(900px 700px at 50% 110%, rgba(47,181,255,0.06), transparent 50%); }
 		.page { position: relative; z-index: 2; min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; width: min(720px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 28px; }
-		.top { display: flex; justify-content: space-between; align-items: center; }
+		.top { display: flex; align-items: center; }
 		.mark { letter-spacing: 0.34em; font-weight: 800; font-size: 12px; }
 		.mark span { color: var(--accent); }
-		.admin { color: var(--muted); text-decoration: none; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
-		.admin:hover { color: var(--text); }
 		.hero { display: grid; justify-items: center; text-align: center; align-content: center; padding: 32px 0 40px; }
 		.cape { width: 52px; height: 82px; margin-bottom: 22px; background:
 			linear-gradient(180deg, #7ad4ff 0%, var(--accent) 38%, #14608a 100%);
@@ -52,7 +50,6 @@
 	<div class="page">
 		<div class="top">
 			<div class="mark">VOID<span>MARK</span></div>
-			<a class="admin" href="/admin.html">Admin</a>
 		</div>
 		<section class="hero">
 			<div class="cape" aria-hidden="true"></div>

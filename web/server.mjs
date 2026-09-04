@@ -174,9 +174,19 @@ async function route(req, res) {
 		json(res, 200, { ok: true }, { "Set-Cookie": deskCookieHeader(req, "", true) });
 		return;
 	}
+	if (req.method === "GET" && (path === "/admin.html" || path === "/manage.html" || path === "/index.html")) {
+		const pretty = path === "/admin.html" ? "/admin" : path === "/manage.html" ? "/manage" : "/";
+		res.writeHead(302, { Location: pretty, "Cache-Control": "no-store" });
+		res.end();
+		return;
+	}
+	if (req.method === "GET" && path === "/admin") {
+		await servePublic(res, "/admin.html");
+		return;
+	}
 	if (req.method === "GET" && isManagePath(path)) {
 		if (!deskCookieOk(req)) {
-			res.writeHead(302, { Location: "/admin.html", "Cache-Control": "no-store", Pragma: "no-cache" });
+			res.writeHead(302, { Location: "/admin", "Cache-Control": "no-store", Pragma: "no-cache" });
 			res.end();
 			return;
 		}
@@ -911,7 +921,7 @@ const DESK_COOKIE = "voidmark_desk";
 const DESK_TTL_SEC = 60 * 60 * 24 * 7;
 
 function isManagePath(path) {
-	return path === "/manage.html" || path === "/manage";
+	return path === "/manage";
 }
 
 function cookieOf(req, name) {

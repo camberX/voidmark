@@ -96,8 +96,15 @@ async function route(request, env) {
 	if (request.method === "POST" && path === "/api/logout") {
 		return json(200, { ok: true }, { "Set-Cookie": deskCookieHeader(request, "", true) });
 	}
+	if (request.method === "GET" && (path === "/admin.html" || path === "/manage.html" || path === "/index.html")) {
+		const pretty = path === "/admin.html" ? "/admin" : path === "/manage.html" ? "/manage" : "/";
+		return new Response(null, { status: 302, headers: { Location: pretty, "Cache-Control": "no-store" } });
+	}
 	if (request.method === "GET" && isManagePath(path)) {
 		return serveManage(request, env);
+	}
+	if (request.method === "GET" && path === "/admin") {
+		return page(LOGIN_HTML);
 	}
 	if (request.method === "GET" && env.ASSETS) {
 		const asset = await env.ASSETS.fetch(request);
@@ -109,9 +116,6 @@ async function route(request, env) {
 		return new Response(CAPE_CROP_JS, {
 			headers: { ...cors(), "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" }
 		});
-	}
-	if (request.method === "GET" && path === "/admin.html") {
-		return page(LOGIN_HTML);
 	}
 	if (request.method === "GET" && (path === "/" || path === "/index.html")) {
 		return page(STORE_HTML);
@@ -880,7 +884,7 @@ function canonicalizePath(pathname) {
 }
 
 function isManagePath(path) {
-	return path === "/manage.html" || path === "/manage";
+	return path === "/manage";
 }
 
 function cookieOf(request, name) {
@@ -989,7 +993,7 @@ function redirectLogin() {
 	return new Response(null, {
 		status: 302,
 		headers: {
-			Location: "/admin.html",
+			Location: "/admin",
 			"Cache-Control": "no-store",
 			Pragma: "no-cache"
 		}
@@ -1049,11 +1053,9 @@ const STORE_HTML = `<!DOCTYPE html>
 			radial-gradient(720px 420px at 50% 18%, rgba(47,181,255,0.20), transparent 58%),
 			radial-gradient(900px 700px at 50% 110%, rgba(47,181,255,0.06), transparent 50%); }
 		.page { position: relative; z-index: 2; min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; width: min(720px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 28px; }
-		.top { display: flex; justify-content: space-between; align-items: center; }
+		.top { display: flex; align-items: center; }
 		.mark { letter-spacing: 0.34em; font-weight: 800; font-size: 12px; }
 		.mark span { color: var(--accent); }
-		.admin { color: var(--muted); text-decoration: none; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
-		.admin:hover { color: var(--text); }
 		.hero { display: grid; justify-items: center; text-align: center; align-content: center; padding: 32px 0 40px; }
 		.cape { width: 52px; height: 82px; margin-bottom: 22px; background:
 			linear-gradient(180deg, #7ad4ff 0%, var(--accent) 38%, #14608a 100%);
@@ -1086,7 +1088,6 @@ const STORE_HTML = `<!DOCTYPE html>
 	<div class="page">
 		<div class="top">
 			<div class="mark">VOID<span>MARK</span></div>
-			<a class="admin" href="/admin.html">Admin</a>
 		</div>
 		<section class="hero">
 			<div class="cape" aria-hidden="true"></div>
@@ -1241,7 +1242,7 @@ const LOGIN_HTML = `<!DOCTYPE html>
 				const data = await response.json();
 				if (!response.ok) throw new Error(data.error || "Bad admin key");
 				sessionStorage.setItem("voidmark-admin", key);
-				location.href = "/manage.html";
+				location.href = "/manage";
 			} catch (error) {
 				sessionStorage.removeItem("voidmark-admin");
 				status.className = "status err";
@@ -1487,7 +1488,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 	<script src="/cape-crop.js"></script>
 	<script>
 		const key = sessionStorage.getItem("voidmark-admin") || "";
-		if (!key) location.replace("/admin.html");
+		if (!key) location.replace("/admin");
 		const status = document.getElementById("status");
 		const list = document.getElementById("list");
 		const empty = document.getElementById("empty");
@@ -1649,7 +1650,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 			if (response.status === 403) {
 				sessionStorage.removeItem("voidmark-admin");
 				fetch("/api/logout", { method: "POST" }).finally(function () {
-					location.replace("/admin.html");
+					location.replace("/admin");
 				});
 				return true;
 			}
@@ -2171,7 +2172,7 @@ const MANAGE_HTML = `<!DOCTYPE html>
 		document.getElementById("out").onclick = function () {
 			sessionStorage.removeItem("voidmark-admin");
 			fetch("/api/logout", { method: "POST" }).finally(function () {
-				location.replace("/admin.html");
+				location.replace("/admin");
 			});
 		};
 		document.getElementById("close").onclick = closeDrawer;

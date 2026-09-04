@@ -87,7 +87,7 @@
 				const data = await response.json();
 				if (!response.ok) throw new Error(data.error || "Bad admin key");
 				sessionStorage.setItem("voidmark-admin", key);
-				location.href = "/manage.html";
+				location.href = "/manage";
 			} catch (error) {
 				sessionStorage.removeItem("voidmark-admin");
 				status.className = "status err";

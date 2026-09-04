@@ -79,8 +79,8 @@ Local testing only:
 node web/server.mjs
 ```
 
-- Site: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`). Public shop is `/`. Admin is `/admin.html`. `/manage.html` is only served after that login.
-- After they message on Discord, open `/admin.html`, enter `VOIDMARK_CAPE_ADMIN` (default `change-me`), and add their username or UUID.
+- Site: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`). Public shop is `/`. Admin is `/admin`. `/manage` is only served after that login.
+- After they message on Discord, open `/admin`, enter `VOIDMARK_CAPE_ADMIN` (default `change-me`), and add their username or UUID.
 - Keep `web/data/whitelist.json` off git.
 
 Developer builds stamp a small **DEV** tag on the watermark next to VOIDMARK.
