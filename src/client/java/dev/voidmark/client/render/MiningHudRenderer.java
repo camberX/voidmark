@@ -132,7 +132,7 @@ public final class MiningHudRenderer {
 		float fade = t > 0.75f ? 1f : t / 0.75f;
 		Component title = alertLine("READY");
 		Component name = alertLine(snap.alertName());
-		float w = Math.max(132, font.width(name) + 24);
+		float w = Math.max(132, GuiDraw.hudWidth(font, name) + 24);
 		float h = 36;
 		float x = (guiW - w) * 0.5f;
 		float y = guiH * 0.28f;
@@ -140,8 +140,8 @@ public final class MiningHudRenderer {
 		int accent = Anim.fade(Theme.ACCENT, fade);
 		graphics.pose().pushMatrix();
 		GuiDraw.rounded(graphics, x, y, w, h, 6, pane);
-		GuiDraw.text(graphics, font, title, x + (w - font.width(title)) * 0.5f, y + 6, accent, false);
-		GuiDraw.text(graphics, font, name, x + (w - font.width(name)) * 0.5f, y + 18, accent, false);
+		GuiDraw.hud(graphics, font, title, x + (w - GuiDraw.hudWidth(font, title)) * 0.5f, y + 6, accent);
+		GuiDraw.hud(graphics, font, name, x + (w - GuiDraw.hudWidth(font, name)) * 0.5f, y + 18, accent);
 		graphics.pose().popMatrix();
 	}
 

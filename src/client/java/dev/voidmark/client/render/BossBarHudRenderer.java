@@ -101,8 +101,8 @@ public final class BossBarHudRenderer {
 			GuiDraw.rounded(graphics, x + 8, y + BAR_H - 4, Math.max(2f, (BAR_W - 16f) * t), 2.5f, 1.2f, fill);
 		}
 		Component name = MenuFont.applyBody(event.getName());
-		float nx = x + (BAR_W - font.width(name)) * 0.5f;
-		GuiDraw.text(graphics, font, name, nx, y + 2, 0xFFFFFFFF, false);
+		float nx = x + (BAR_W - GuiDraw.hudWidth(font, name)) * 0.5f;
+		GuiDraw.hud(graphics, font, name, nx, y + 2, 0xFFFFFFFF);
 	}
 
 	private static int barColor(LerpingBossEvent event) {

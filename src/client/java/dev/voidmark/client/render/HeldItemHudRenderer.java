@@ -27,10 +27,10 @@ public final class HeldItemHudRenderer {
 		Component name = MenuFont.applyBody(stack == null || stack.isEmpty()
 			? Component.literal("Held item")
 			: stack.getStyledHoverName());
-		float w = Math.max(MIN_W, font.width(name) + 16);
+		float w = Math.max(MIN_W, GuiDraw.hudWidth(font, name) + 16);
 		HudLayout.apply(graphics, font, HudLayout.Id.HELD_ITEM, () -> {
 			HudChrome.panel(graphics, 0, 0, w, HEIGHT, 5, Theme.WINDOW, Theme.LINE);
-			GuiDraw.text(graphics, font, name, 8, 3, 0xFFFFFFFF, false);
+			GuiDraw.hud(graphics, font, name, 8, 3, 0xFFFFFFFF);
 		});
 	}
 

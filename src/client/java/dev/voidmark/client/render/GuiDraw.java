@@ -459,16 +459,31 @@ public final class GuiDraw {
 		graphics.text(font, value, Math.round(x), Math.round(y), color, shadow);
 	}
 
+	public static void text(GuiGraphicsExtractor graphics, Font font, Component value, float x, float y, float scale, int color, boolean shadow) {
+		if (scale >= 0.999f) {
+			text(graphics, font, value, x, y, color, shadow);
+			return;
+		}
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x, y);
+		graphics.pose().scale(scale, scale);
+		graphics.text(font, value, 0, 0, color, shadow);
+		graphics.pose().popMatrix();
+	}
+
 	public static void menu(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
-		text(graphics, font, MenuFont.body(value), x, y - 1.0f, color, false);
+		float scale = MenuFont.bodyScale();
+		text(graphics, font, MenuFont.body(value), x, y - 1.0f + MenuFont.align(scale), scale, color, false);
 	}
 
 	public static void small(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
-		text(graphics, font, MenuFont.small(value), x, y - 1.0f, color, false);
+		float scale = MenuFont.smallScale();
+		text(graphics, font, MenuFont.small(value), x, y - 1.0f + MenuFont.align(scale), scale, color, false);
 	}
 
 	public static void title(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
-		text(graphics, font, MenuFont.title(value), x, y - 1.0f, color, false);
+		float scale = MenuFont.titleScale();
+		text(graphics, font, MenuFont.title(value), x, y - 1.0f + MenuFont.align(scale), scale, color, false);
 	}
 
 	public static void brand(GuiGraphicsExtractor graphics, Font font, String value, float x, float y, int color) {
@@ -480,7 +495,8 @@ public final class GuiDraw {
 	}
 
 	public static void hud(GuiGraphicsExtractor graphics, Font font, Component value, float x, float y, int color) {
-		text(graphics, font, MenuFont.applyBody(value), x, y, color, false);
+		float scale = MenuFont.bodyScale();
+		text(graphics, font, MenuFont.applyBody(value), x, y + MenuFont.align(scale), scale, color, false);
 	}
 
 	public static void icon(GuiGraphicsExtractor graphics, Font font, String glyph, float x, float y, int color) {
@@ -496,15 +512,15 @@ public final class GuiDraw {
 	}
 
 	public static int menuWidth(Font font, String value) {
-		return font.width(MenuFont.body(value));
+		return scaledWidth(font.width(MenuFont.body(value)), MenuFont.bodyScale());
 	}
 
 	public static int smallWidth(Font font, String value) {
-		return font.width(MenuFont.small(value));
+		return scaledWidth(font.width(MenuFont.small(value)), MenuFont.smallScale());
 	}
 
 	public static int titleWidth(Font font, String value) {
-		return font.width(MenuFont.title(value));
+		return scaledWidth(font.width(MenuFont.title(value)), MenuFont.titleScale());
 	}
 
 	public static int brandWidth(Font font, String value) {
@@ -541,7 +557,14 @@ public final class GuiDraw {
 	}
 
 	public static int hudWidth(Font font, Component value) {
-		return font.width(MenuFont.applyBody(value));
+		return scaledWidth(font.width(MenuFont.applyBody(value)), MenuFont.bodyScale());
+	}
+
+	private static int scaledWidth(int width, float scale) {
+		if (scale >= 0.999f) {
+			return width;
+		}
+		return Math.max(0, Math.round(width * scale));
 	}
 
 	public static boolean hovered(double mouseX, double mouseY, float x, float y, float w, float h) {

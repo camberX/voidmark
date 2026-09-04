@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.166", new String[]{
+			"Theme Font Minecraft is drawn at the same body, small, and title sizes as Nunito. It no longer fills the click GUI and HUD like vanilla 8px chat text."
+		}),
 		new Entry("1.1.165", new String[]{
 			"Hitsounds play the instant a melee swing or your arrow overlaps a mob on the client, instead of waiting for Hypixel to confirm the hit. Melee and arrows are separate toggles on the World tab; volume and pitch sit on the cog."
 		}),

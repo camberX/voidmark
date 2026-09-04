@@ -102,7 +102,7 @@ public final class EffectsHudRenderer {
 		MobEffect effect = instance.getEffect().value();
 		Component name = MenuFont.applyBody(effect.getDisplayName());
 		String extra = extra(instance);
-		return ICON + 14 + font.width(name) + GuiDraw.smallWidth(font, extra);
+		return ICON + 14 + GuiDraw.hudWidth(font, name) + GuiDraw.smallWidth(font, extra);
 	}
 
 	private static void drawChip(GuiGraphicsExtractor graphics, Font font, MobEffectInstance instance, float x, float y, float w) {
@@ -116,9 +116,9 @@ public final class EffectsHudRenderer {
 		graphics.blitSprite(RenderPipelines.GUI_TEXTURED, Gui.getMobEffectSprite(instance.getEffect()), 0, 0, 18, 18);
 		graphics.pose().popMatrix();
 		float tx = x + 6 + ICON + 3;
-		GuiDraw.text(graphics, font, name, tx, y + 3, 0xFFFFFFFF, false);
+		GuiDraw.hud(graphics, font, name, tx, y + 3, 0xFFFFFFFF);
 		if (!extra.isEmpty()) {
-			GuiDraw.small(graphics, font, extra, tx + font.width(name), y + 4, Theme.MUTED);
+			GuiDraw.small(graphics, font, extra, tx + GuiDraw.hudWidth(font, name), y + 4, Theme.MUTED);
 		}
 	}
 

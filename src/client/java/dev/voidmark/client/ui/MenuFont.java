@@ -89,6 +89,30 @@ public final class MenuFont {
 		return custom() ? UI_TITLE : TITLE;
 	}
 
+	/**
+	 * Vanilla bitmap glyphs are 8px. Nunito body / small / title are 6.5 / 5.25 / 8,
+	 * so Minecraft-as-UI-font has to be scaled or every label looks oversized.
+	 */
+	public static float bodyScale() {
+		return minecraft() ? 6.5f / 8.0f : 1.0f;
+	}
+
+	public static float smallScale() {
+		return minecraft() ? 5.25f / 8.0f : 1.0f;
+	}
+
+	public static float titleScale() {
+		return minecraft() ? 7.0f / 8.0f : 1.0f;
+	}
+
+	/** Drop scaled vanilla text so it stays centered in the same row as Nunito. */
+	public static float align(float scale) {
+		if (scale >= 0.999f) {
+			return 0f;
+		}
+		return (1.0f - scale) * 4.0f;
+	}
+
 	public static Component body(String value) {
 		return withFallback(value == null ? "" : value, bodyStyle());
 	}

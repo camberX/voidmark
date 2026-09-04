@@ -54,13 +54,13 @@ public final class ScoreboardHudRenderer {
 	private static void draw(GuiGraphicsExtractor graphics, Font font, Layout layout, float x, float y) {
 		HudChrome.panel(graphics, x, y, layout.w, layout.h, 6, Theme.WINDOW, Theme.LINE);
 		GuiDraw.small(graphics, font, "SCOREBOARD", x + PAD + 4, y + PAD - 1, Theme.ACCENT);
-		GuiDraw.text(graphics, font, layout.title, x + PAD + 4, y + PAD + 8, 0xFFFFFFFF, false);
+		GuiDraw.hud(graphics, font, layout.title, x + PAD + 4, y + PAD + 8, 0xFFFFFFFF);
 		float ly = y + PAD + HEAD + 2;
 		for (Line line : layout.lines) {
-			GuiDraw.text(graphics, font, line.name, x + PAD + 4, ly, 0xFFFFFFFF, false);
-			if (line.score != null && font.width(line.score) > 0 && !line.score.getString().isBlank()) {
-				float sx = x + layout.w - PAD - font.width(line.score);
-				GuiDraw.text(graphics, font, line.score, sx, ly, 0xFFFFFFFF, false);
+			GuiDraw.hud(graphics, font, line.name, x + PAD + 4, ly, 0xFFFFFFFF);
+			if (line.score != null && GuiDraw.hudWidth(font, line.score) > 0 && !line.score.getString().isBlank()) {
+				float sx = x + layout.w - PAD - GuiDraw.hudWidth(font, line.score);
+				GuiDraw.hud(graphics, font, line.score, sx, ly, 0xFFFFFFFF);
 			}
 			ly += ROW;
 		}
@@ -88,7 +88,7 @@ public final class ScoreboardHudRenderer {
 		}
 		List<Line> lines = lines(objective.getScoreboard(), objective, font);
 		Component title = MenuFont.applyBody(objective.getDisplayName());
-		float maxLine = font.width(title);
+		float maxLine = GuiDraw.hudWidth(font, title);
 		for (Line line : lines) {
 			maxLine = Math.max(maxLine, line.width);
 		}
@@ -129,7 +129,7 @@ public final class ScoreboardHudRenderer {
 			Component raw = entry.display() != null ? entry.display() : Component.literal(entry.owner());
 			Component name = MenuFont.applyBody(PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(entry.owner()), raw));
 			Component score = MenuFont.applyBody(entry.formatValue(objective.numberFormatOrDefault(StyledFormat.SIDEBAR_DEFAULT)));
-			float width = font.width(name) + 8 + font.width(score);
+			float width = GuiDraw.hudWidth(font, name) + 8 + GuiDraw.hudWidth(font, score);
 			out.add(new Line(name, score, width));
 		}
 		return out;
