@@ -128,7 +128,7 @@ The jar always uses `https://voidmark.cloud`, so that hostname must be on the Wo
 
 ## Updating later
 
-The shop download does **not** need a Worker deploy for each new jar. `./gradlew build` writes `web/public/mod/latest.json` and the jar; `git push` to the public GitHub repo in `MOD_GITHUB` (`Shora/voidmark` by default) is enough. The Worker fetches that on `/download` and `/api/mod`.
+The shop download does **not** need a Worker deploy for each new jar. `./gradlew build` writes `web/public/mod/latest.json` and the jar; `git push` to [camberX/voidmark](https://github.com/camberX/voidmark) is enough. The Worker fetches that on `/download` and `/api/mod`.
 
 After you change `web/worker.js`, the cape desk HTML, or `wrangler.toml` (Worker code, not the jar):
 
