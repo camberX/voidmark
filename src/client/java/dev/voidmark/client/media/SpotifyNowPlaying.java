@@ -9,6 +9,7 @@ import dev.voidmark.client.config.VoidmarkConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Util;
 
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -31,8 +32,15 @@ public final class SpotifyNowPlaying {
 	private static final String TOKEN = "https://accounts.spotify.com/api/token";
 	private static final String PLAYER = "https://api.spotify.com/v1/me/player";
 	private static final String CURRENT = PLAYER + "/currently-playing";
-	private static final String SHOP_CLIENT = "https://voidmark.cloud/api/spotify";
 	private static final String REDIRECT = "http://127.0.0.1:43821/callback";
+	private static final String[] CLIENT_ID_URLS = {
+		"https://raw.githubusercontent.com/camberX/voidmark/main/web/public/spotify.json",
+		"https://cdn.jsdelivr.net/gh/camberX/voidmark@main/web/public/spotify.json",
+		"https://cdn.statically.io/gh/camberX/voidmark/main/web/public/spotify.json",
+		"https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/latest.json",
+		"https://voidmark.cloud/api/spotify"
+	};
+	private static final String BUILT_IN_CLIENT_ID = readBuiltInClientId();
 	private static final int REDIRECT_PORT = 43821;
 	private static final String SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state";
 	private static final long POLL_MS = 900L;
@@ -73,6 +81,12 @@ public final class SpotifyNowPlaying {
 			return lastError;
 		}
 		return "Connect";
+	}
+
+	public static void prefetch() {
+		Thread thread = new Thread(SpotifyNowPlaying::clientId, "voidmark-spotify-id");
+		thread.setDaemon(true);
+		thread.start();
 	}
 
 	public static void toggleLogin() {
@@ -377,8 +391,7 @@ public final class SpotifyNowPlaying {
 	}
 
 	private static void adoptClipboardClientId() {
-		VoidmarkConfig config = VoidmarkConfig.get();
-		if (config.spotifyClientId != null && !config.spotifyClientId.isBlank()) {
+		if (!sanitizeClientId(VoidmarkConfig.get().spotifyClientId).isBlank()) {
 			return;
 		}
 		try {
@@ -386,42 +399,87 @@ public final class SpotifyNowPlaying {
 			if (minecraft == null || minecraft.keyboardHandler == null) {
 				return;
 			}
-			String clip = minecraft.keyboardHandler.getClipboard();
-			if (clip == null) {
-				return;
-			}
-			String id = clip.trim();
-			if (!id.matches("[0-9a-fA-F]{32}")) {
-				return;
-			}
-			config.spotifyClientId = id;
-			config.save();
+			rememberClientId(minecraft.keyboardHandler.getClipboard());
 		} catch (Exception ignored) {
 		}
 	}
 
-	private static String clientId() {
-		VoidmarkConfig config = VoidmarkConfig.get();
-		if (config.spotifyClientId != null && !config.spotifyClientId.isBlank()) {
-			return config.spotifyClientId.trim();
+	private static synchronized String clientId() {
+		String saved = sanitizeClientId(VoidmarkConfig.get().spotifyClientId);
+		if (!saved.isBlank()) {
+			return saved;
+		}
+		String builtIn = sanitizeClientId(BUILT_IN_CLIENT_ID);
+		if (!builtIn.isBlank()) {
+			return rememberClientId(builtIn);
 		}
 		if (shopClientId != null && !shopClientId.isBlank()) {
 			return shopClientId;
 		}
+		for (String url : CLIENT_ID_URLS) {
+			String remote = fetchClientId(url);
+			if (!remote.isBlank()) {
+				return rememberClientId(remote);
+			}
+		}
+		return "";
+	}
+
+	private static String fetchClientId(String url) {
 		try {
-			HttpRequest request = HttpRequest.newBuilder(URI.create(SHOP_CLIENT))
-				.timeout(Duration.ofSeconds(6))
+			HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+				.timeout(Duration.ofSeconds(4))
 				.header("Accept", "application/json")
+				.header("User-Agent", "Voidmark")
 				.GET()
 				.build();
 			HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-			if (response.statusCode() >= 200 && response.statusCode() < 300) {
-				JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
-				shopClientId = text(json, "clientId", "client_id");
+			if (response.statusCode() < 200 || response.statusCode() >= 300 || response.body() == null) {
+				return "";
 			}
+			JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+			return sanitizeClientId(text(json, "clientId", "client_id", "spotifyClientId"));
 		} catch (Exception ignored) {
+			return "";
 		}
-		return shopClientId == null ? "" : shopClientId;
+	}
+
+	private static String rememberClientId(String raw) {
+		String id = sanitizeClientId(raw);
+		if (id.isBlank()) {
+			return "";
+		}
+		shopClientId = id;
+		VoidmarkConfig config = VoidmarkConfig.get();
+		if (!id.equals(sanitizeClientId(config.spotifyClientId))) {
+			config.spotifyClientId = id;
+			config.save();
+		}
+		return id;
+	}
+
+	private static String sanitizeClientId(String raw) {
+		if (raw == null) {
+			return "";
+		}
+		String id = raw.trim();
+		int slash = Math.max(id.lastIndexOf('/'), id.lastIndexOf('='));
+		if (slash >= 0 && slash + 1 < id.length()) {
+			id = id.substring(slash + 1).trim();
+		}
+		return id.matches("[0-9A-Za-z]{32}") ? id : "";
+	}
+
+	private static String readBuiltInClientId() {
+		try (InputStream in = SpotifyNowPlaying.class.getResourceAsStream("/spotify.json")) {
+			if (in == null) {
+				return "";
+			}
+			JsonObject json = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
+			return sanitizeClientId(text(json, "clientId", "client_id", "spotifyClientId"));
+		} catch (Exception ignored) {
+			return "";
+		}
 	}
 
 	private static JsonObject postForm(String url, String body) {

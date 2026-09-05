@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.207", new String[]{
+			"Spotify Connect loads the shared client ID from GitHub instead of the shop worker, so friends are not stuck on Need Client ID when /api/spotify is missing."
+		}),
 		new Entry("1.1.206", new String[]{
 			"Music HUD can read Spotify through the official API. Overlay → Music → Spotify API connects once, then title, artist, album art, and skip controls come from Spotify."
 		}),

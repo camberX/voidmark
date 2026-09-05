@@ -17,6 +17,7 @@ public final class MediaSession {
 	}
 
 	public static void init() {
+		SpotifyNowPlaying.prefetch();
 		Thread thread = new Thread(MediaSession::loop, "voidmark-media");
 		thread.setDaemon(true);
 		thread.start();

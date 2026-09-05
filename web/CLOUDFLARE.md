@@ -16,7 +16,7 @@ Origin has no Download ZIP. Do not type your Google password into Git.
 4. Worker **Settings** → **Bindings** → **R2** → Add. Variable name must be `CAPES`. Bucket: `voidmark-capes`. Save.
 5. Worker **Settings** → **Variables and Secrets**:
    - `ADMIN` → Encrypt / Secret. Paste a long random string and save it in a password manager.
-   - `SPOTIFY_CLIENT_ID` → Text. Public Spotify app client ID. Redirect URI on that app must be `http://127.0.0.1:43821/callback`. The shop exposes it at `/api/spotify` so Music HUD can log in without pasting the ID into `voidmark.json`.
+   - `SPOTIFY_CLIENT_ID` → Text. Public Spotify app client ID. Redirect URI on that app must be `http://127.0.0.1:43821/callback`. The shop exposes it at `/api/spotify`. The mod also reads `web/public/spotify.json` from GitHub, so a Worker deploy is not required for friends to log in.
 6. Deploy again if it asks.
 7. Open the Worker URL (`https://voidmark.cloud` or the `workers.dev` URL). The public shop is `/`, with a download of the latest jar at `/download`. Admin login is `/admin`. After the key is accepted, the Worker sets an HttpOnly cookie and then serves the cape desk at `/manage`. `/manage` is not sent at all without that cookie, and every desk API (list, whitelist, tags, capes, bans) also requires that cookie plus the admin key — hiding the page in the browser is not the lock. That desk is players, bulk add, notes, cooldown reset, cape upload, and fake ban.
 8. The shipped mod always uses `https://voidmark.cloud`. Attach that custom domain to this Worker (Workers & Pages → `voidmark-capes` → Settings → Domains & Routes). Restart Minecraft after a domain change.

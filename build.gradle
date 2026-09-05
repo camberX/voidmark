@@ -97,11 +97,15 @@ tasks.register("syncWebMod") {
 		}
 		new File(destDir, versionedName).bytes = jarFile.bytes
 		new File(layout.projectDirectory.asFile, versionedName).bytes = jarFile.bytes
+		def spotifyId = (project.findProperty("spotify_client_id") ?: "").toString().trim()
 		def meta = [
 			version  : project.version.toString(),
 			minecraft: project.minecraft_version.toString(),
 			file     : versionedName
 		]
+		if (spotifyId) {
+			meta.spotifyClientId = spotifyId
+		}
 		def latest = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(meta)) + "\n"
 		new File(destDir, "latest.json").text = latest
 		new File(destDir.parentFile, "mod.json").text = latest
