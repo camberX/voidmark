@@ -10,19 +10,19 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * Smoothly looks at each distinct crit box on a nearby treasure chest, waits
- * until that box jumps or vanishes, then turns to another. Five locks is one
- * pass; if the chest is still there it keeps going.
+ * Smoothly looks at each distinct crit mark on a nearby treasure chest. After
+ * a lock it dwells briefly, then turns to another mark instead of waiting for
+ * the same cluster to teleport.
  */
 public final class ChestAimer {
 	private static final float TOLERANCE = 1f;
-	private static final long MOVE_WAIT_MS = 3_000L;
+	private static final long DWELL_MS = 180L;
 	private static final int PASS = 5;
-	private static final double SAME = 0.45;
+	private static final double SAME = 0.12;
 
 	private static boolean running;
 	private static ChestEsp.Mark chest;
-	private static Vec3 look = Vec3.ZERO;
+	private static ChestEsp.Mark locked;
 	private static boolean waiting;
 	private static boolean turning;
 	private static long waitedAt;
@@ -56,6 +56,7 @@ public final class ChestAimer {
 		running = true;
 		waiting = false;
 		turning = false;
+		locked = null;
 		tries = 0;
 		tell(client, "Chest aim started · press again to stop");
 	}
@@ -77,6 +78,7 @@ public final class ChestAimer {
 			tries = 0;
 			waiting = false;
 			turning = false;
+			locked = null;
 			if (!bindChest(player)) {
 				stop(client, "Chest aim done");
 				return;
@@ -84,29 +86,30 @@ public final class ChestAimer {
 		}
 		if (turning) {
 			if (advance(player)) {
-				waiting = true;
-				turning = false;
-				waitedAt = System.currentTimeMillis();
-				tries++;
-				if (tries >= PASS && ChestEsp.get().chestAt(chest.pos) != null) {
-					tries = 0;
-				}
+				arrive();
 			}
 			return;
 		}
 		if (waiting) {
-			if (lockedStillHere() && !dueForOther()) {
+			boolean gone = !ChestEsp.get().stillHas(locked);
+			boolean moved = locked != null && locked.consumeMove();
+			boolean dwell = System.currentTimeMillis() - waitedAt >= DWELL_MS;
+			if (!gone && !moved && !dwell) {
 				return;
 			}
-			Vec3 next = pickNext(player, look);
+			ChestEsp.Mark next = pickNext(player, locked);
 			if (next == null) {
+				if (moved && ChestEsp.get().stillHas(locked)) {
+					waiting = false;
+					beginTurn(player, locked);
+				}
 				return;
 			}
 			waiting = false;
 			beginTurn(player, next);
 			return;
 		}
-		Vec3 first = pickFirst(player);
+		ChestEsp.Mark first = pickFirst(player);
 		if (first != null) {
 			beginTurn(player, first);
 		}
@@ -117,58 +120,45 @@ public final class ChestAimer {
 		return chest != null;
 	}
 
-	private static List<Vec3> boxes() {
-		return ChestEsp.get().boxesNear(chest);
+	private static List<ChestEsp.Mark> marks() {
+		return ChestEsp.get().marksNear(chest);
 	}
 
-	private static Vec3 pickFirst(LocalPlayer player) {
-		Vec3 best = null;
+	private static ChestEsp.Mark pickFirst(LocalPlayer player) {
+		ChestEsp.Mark best = null;
 		float bestAng = Float.MAX_VALUE;
-		for (Vec3 point : boxes()) {
-			float ang = angleTo(player, point);
+		for (ChestEsp.Mark mark : marks()) {
+			float ang = angleTo(player, mark.box());
 			if (ang < bestAng) {
 				bestAng = ang;
-				best = point;
+				best = mark;
 			}
 		}
 		return best;
 	}
 
-	private static Vec3 pickNext(LocalPlayer player, Vec3 last) {
-		Vec3 best = null;
+	private static ChestEsp.Mark pickNext(LocalPlayer player, ChestEsp.Mark last) {
+		Vec3 lastAt = last == null ? null : last.box();
+		ChestEsp.Mark best = null;
 		float bestAng = -1f;
-		for (Vec3 point : boxes()) {
-			if (last != null && point.closerThan(last, SAME)) {
+		for (ChestEsp.Mark mark : marks()) {
+			if (same(last, lastAt, mark)) {
 				continue;
 			}
-			float ang = angleTo(player, point);
+			float ang = angleTo(player, mark.box());
 			if (ang > bestAng) {
 				bestAng = ang;
-				best = point;
+				best = mark;
 			}
 		}
 		return best;
 	}
 
-	private static boolean lockedStillHere() {
-		for (Vec3 point : boxes()) {
-			if (point.closerThan(look, 0.40)) {
-				return true;
-			}
+	private static boolean same(ChestEsp.Mark last, Vec3 lastAt, ChestEsp.Mark mark) {
+		if (last != null && mark == last) {
+			return true;
 		}
-		return false;
-	}
-
-	private static boolean dueForOther() {
-		if (System.currentTimeMillis() - waitedAt <= MOVE_WAIT_MS) {
-			return false;
-		}
-		for (Vec3 point : boxes()) {
-			if (!point.closerThan(look, SAME)) {
-				return true;
-			}
-		}
-		return false;
+		return lastAt != null && mark.box().closerThan(lastAt, SAME);
 	}
 
 	private static float angleTo(LocalPlayer player, Vec3 target) {
@@ -181,21 +171,16 @@ public final class ChestAimer {
 			+ Math.abs(dest.pitch() - now.pitch());
 	}
 
-	private static void beginTurn(LocalPlayer player, Vec3 target) {
-		look = target;
+	private static void beginTurn(LocalPlayer player, ChestEsp.Mark target) {
+		locked = target;
+		Vec3 at = target.box();
 		from = new SmoothRotate.Rotation(
 			SmoothRotate.normalizeYaw(player.getYRot()),
 			SmoothRotate.normalizePitch(player.getXRot())
 		);
-		to = SmoothRotate.to(player.getEyePosition(), target);
+		to = SmoothRotate.to(player.getEyePosition(), at);
 		if (SmoothRotate.close(from, to, TOLERANCE)) {
-			turning = false;
-			waiting = true;
-			waitedAt = System.currentTimeMillis();
-			tries++;
-			if (tries >= PASS && ChestEsp.get().chestAt(chest.pos) != null) {
-				tries = 0;
-			}
+			arrive();
 			return;
 		}
 		float span = Math.max(
@@ -207,6 +192,17 @@ public final class ChestAimer {
 		turnMs = Math.max(80L, Math.min(800L, Math.round(base / speed)));
 		turnStart = System.currentTimeMillis();
 		turning = true;
+		waiting = false;
+	}
+
+	private static void arrive() {
+		turning = false;
+		waiting = true;
+		waitedAt = System.currentTimeMillis();
+		tries++;
+		if (tries >= PASS && chest != null && ChestEsp.get().chestAt(chest.pos) != null) {
+			tries = 0;
+		}
 	}
 
 	private static boolean advance(LocalPlayer player) {
@@ -225,6 +221,7 @@ public final class ChestAimer {
 	private static void stop(Minecraft client, String reason) {
 		running = false;
 		chest = null;
+		locked = null;
 		waiting = false;
 		turning = false;
 		tries = 0;

@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.3", new String[]{
+			"Chest Aim no longer freezes on the first crit. It dwells briefly, then turns to the next distinct particle on the chest."
+		}),
 		new Entry("1.2.2", new String[]{
 			"Chest ESP only marks crit particles within 0.3 blocks of a chest, so stray hits are ignored."
 		}),

@@ -187,18 +187,27 @@ public final class ChestEsp {
 		return pos == null ? null : chests.get(pos.asLong());
 	}
 
-	public List<Vec3> boxesNear(Mark chest) {
-		ArrayList<Vec3> out = new ArrayList<>();
+	public List<Mark> marksNear(Mark chest) {
+		ArrayList<Mark> out = new ArrayList<>();
 		synchronized (crits) {
 			for (Mark mark : crits) {
 				Vec3 at = mark.box();
 				if (chest != null && !nearChest(chest, at.x, at.y, at.z)) {
 					continue;
 				}
-				out.add(at);
+				out.add(mark);
 			}
 		}
 		return out;
+	}
+
+	public boolean stillHas(Mark mark) {
+		if (mark == null) {
+			return false;
+		}
+		synchronized (crits) {
+			return crits.contains(mark);
+		}
 	}
 
 	public Mark nearestChest(Vec3 from) {
@@ -228,7 +237,7 @@ public final class ChestEsp {
 		long now = System.currentTimeMillis();
 		synchronized (crits) {
 			for (Mark existing : crits) {
-				if (existing.near(x, y, z, 0.35)) {
+				if (existing.nearCurrent(x, y, z, 0.12)) {
 					existing.placeBox(x, y, z, now);
 					dirty = true;
 					return;
@@ -349,7 +358,7 @@ public final class ChestEsp {
 		}
 
 		private void placeBox(double nx, double ny, double nz, long now) {
-			if (hasBox && !nearBox(nx, ny, nz, 0.40)) {
+			if (hasBox && !nearBox(nx, ny, nz, 0.15)) {
 				moved = true;
 			}
 			boxX = nx;
@@ -366,6 +375,10 @@ public final class ChestEsp {
 			}
 			moved = false;
 			return true;
+		}
+
+		private boolean nearCurrent(double ox, double oy, double oz, double radius) {
+			return hasBox ? nearBox(ox, oy, oz, radius) : near(ox, oy, oz, radius);
 		}
 
 		private boolean near(double ox, double oy, double oz, double radius) {
