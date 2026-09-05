@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.196", new String[]{
+			"The hitmarker is white with a black outline again, like CoD. It still fades out without shifting color."
+		}),
 		new Entry("1.1.195", new String[]{
 			"Hitmarker size is a slider on Combat → Mix. The X stays white and only fades out."
 		}),

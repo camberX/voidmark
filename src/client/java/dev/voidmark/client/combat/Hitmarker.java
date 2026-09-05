@@ -53,17 +53,18 @@ public final class Hitmarker {
 		}
 		float t = 1f - age / (float) DURATION_NS;
 		float scale = VoidmarkConfig.clampHudScale(config.hitmarkerScale);
-		int alpha = Math.round(255 * t);
-		int fill = Theme.withAlpha(0xFFFFFF, alpha);
+		int ink = Theme.withAlpha(0x000000, Math.round(255 * t));
+		int fill = Theme.withAlpha(0xFFFFFF, Math.round(255 * t));
 		float cx = graphics.guiWidth() * 0.5f;
 		float cy = graphics.guiHeight() * 0.5f;
 		float inner = 5f * scale;
 		float len = 6f * scale;
 		float stroke = Math.max(1.2f, 1.6f * scale);
-		arm(graphics, cx, cy, 1, 1, inner, len, stroke, fill);
-		arm(graphics, cx, cy, -1, 1, inner, len, stroke, fill);
-		arm(graphics, cx, cy, 1, -1, inner, len, stroke, fill);
-		arm(graphics, cx, cy, -1, -1, inner, len, stroke, fill);
+		float rim = Math.max(0.8f, 0.9f * scale);
+		arm(graphics, cx, cy, 1, 1, inner, len, stroke, rim, ink, fill);
+		arm(graphics, cx, cy, -1, 1, inner, len, stroke, rim, ink, fill);
+		arm(graphics, cx, cy, 1, -1, inner, len, stroke, rim, ink, fill);
+		arm(graphics, cx, cy, -1, -1, inner, len, stroke, rim, ink, fill);
 	}
 
 	private static void arm(
@@ -75,13 +76,26 @@ public final class Hitmarker {
 		float inner,
 		float len,
 		float stroke,
+		float rim,
+		int ink,
 		int fill
 	) {
-		int steps = Math.max(4, Math.round(len));
-		float half = stroke * 0.5f;
+		int steps = Math.max(4, Math.round(len + rim * 2f));
+		float inkSize = stroke + rim * 2f;
+		float inkHalf = inkSize * 0.5f;
+		float fillHalf = stroke * 0.5f;
 		for (int i = 0; i < steps; i++) {
 			float u = inner + len * (i / (float) Math.max(1, steps - 1));
-			GuiDraw.fill(graphics, cx + sx * u - half, cy + sy * u - half, stroke, stroke, fill);
+			float x = cx + sx * u;
+			float y = cy + sy * u;
+			GuiDraw.fill(graphics, x - inkHalf, y - inkHalf, inkSize, inkSize, ink);
+		}
+		int innerSteps = Math.max(4, Math.round(len));
+		for (int i = 0; i < innerSteps; i++) {
+			float u = inner + len * (i / (float) Math.max(1, innerSteps - 1));
+			float x = cx + sx * u;
+			float y = cy + sy * u;
+			GuiDraw.fill(graphics, x - fillHalf, y - fillHalf, stroke, stroke, fill);
 		}
 	}
 }
