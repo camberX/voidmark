@@ -60,6 +60,7 @@ import net.minecraft.resources.Identifier;
 public final class VoidmarkClient implements ClientModInitializer {
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(Voidmark.MOD_ID, "main"));
 	private static KeyMapping openGui;
+	private static KeyMapping openLoadouts;
 	private static boolean itemAppearancesLoaded;
 
 	@Override
@@ -91,6 +92,12 @@ public final class VoidmarkClient implements ClientModInitializer {
 			"key.voidmark.open",
 			InputConstants.Type.KEYSYM,
 			InputConstants.KEY_RSHIFT,
+			CATEGORY
+		));
+		openLoadouts = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+			"key.voidmark.loadouts",
+			InputConstants.Type.KEYSYM,
+			InputConstants.UNKNOWN.getValue(),
 			CATEGORY
 		));
 
@@ -150,6 +157,13 @@ public final class VoidmarkClient implements ClientModInitializer {
 					client.setScreen(null);
 				} else {
 					openScreen();
+				}
+			}
+			while (openLoadouts.consumeClick()) {
+				if (client.screen instanceof LoadoutsScreen screen) {
+					screen.onClose();
+				} else if (client.screen == null) {
+					LoadoutsCommands.open();
 				}
 			}
 

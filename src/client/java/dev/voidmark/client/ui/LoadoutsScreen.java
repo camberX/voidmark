@@ -1,5 +1,6 @@
 package dev.voidmark.client.ui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.item.LoadoutsMenus;
 import dev.voidmark.client.mixin.AbstractContainerScreenInvoker;
@@ -34,7 +35,8 @@ public class LoadoutsScreen extends Screen {
 	private static final float MENU_W = 440;
 	private static final float MENU_H = 248;
 	private static final float WELL = 20;
-	private static final float LOADOUT = 36;
+	private static final float SLOTS_W = 128;
+	private static final float SLOTS_H = 148;
 	private static float savedYaw = 28f;
 	private static float savedPitch = 8f;
 
@@ -244,7 +246,7 @@ public class LoadoutsScreen extends Screen {
 	private void drawPreview(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		float left = windowX + 10;
 		float top = windowY + 28;
-		float stageW = windowX + windowW - 148 - left;
+		float stageW = windowX + windowW - SLOTS_W - 20 - left;
 		float stageH = 148;
 		GuiDraw.panel(graphics, left, top, stageW, stageH, 8, Theme.PANEL, Theme.LINE);
 		if (!previewDrag) {
@@ -312,46 +314,58 @@ public class LoadoutsScreen extends Screen {
 	}
 
 	private void drawLoadouts(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
-		float x = windowX + windowW - 138;
+		float x = windowX + windowW - SLOTS_W - 10;
 		float y = windowY + 28;
-		GuiDraw.panel(graphics, x, y, 128, 148, 8, Theme.CARD, Theme.LINE);
+		GuiDraw.panel(graphics, x, y, SLOTS_W, SLOTS_H, 8, Theme.CARD, Theme.LINE);
 		GuiDraw.small(graphics, font, "SLOTS", x + 8, y + 6, Theme.ACCENT);
+		boolean clip = GuiDraw.scissor(graphics, x + 1, y + 1, SLOTS_W - 2, SLOTS_H - 2);
 		List<LoadoutsMenus.Piece> loadouts = snapshot.loadouts();
-		float gridX = x + 8;
-		float gridY = y + 20;
-		for (int i = 0; i < 8; i++) {
-			int col = i % 2;
-			int row = i / 2;
-			float sx = gridX + col * (LOADOUT + 6);
-			float sy = gridY + row * (LOADOUT + 6);
+		int cols = 2;
+		int rows = 4;
+		float pad = 8f;
+		float head = 18f;
+		float gap = 4f;
+		float innerW = SLOTS_W - pad * 2f;
+		float innerH = SLOTS_H - head - pad;
+		float cell = Math.min((innerW - gap) / cols, (innerH - gap * (rows - 1)) / rows);
+		cell = Math.max(18f, Math.min(28f, cell));
+		float gridW = cols * cell + gap;
+		float gridH = rows * cell + (rows - 1) * gap;
+		float gridX = x + pad + Math.max(0f, (innerW - gridW) * 0.5f);
+		float gridY = y + head + Math.max(0f, (innerH - gridH) * 0.5f);
+		int shown = Math.min(8, Math.max(loadouts.size(), 8));
+		for (int i = 0; i < shown; i++) {
+			int col = i % cols;
+			int row = i / cols;
+			float sx = gridX + col * (cell + gap);
+			float sy = gridY + row * (cell + gap);
+			if (sx + cell > x + SLOTS_W - 2f || sy + cell > y + SLOTS_H - 2f) {
+				continue;
+			}
 			LoadoutsMenus.Piece piece = i < loadouts.size() ? loadouts.get(i) : null;
 			boolean selected = piece != null && piece.selected();
-			boolean hover = GuiDraw.hovered(mouseX, mouseY, sx, sy, LOADOUT, LOADOUT);
+			boolean hover = GuiDraw.hovered(mouseX, mouseY, sx, sy, cell, cell);
 			GuiDraw.well(
 				graphics,
 				sx,
 				sy,
-				LOADOUT,
+				cell,
 				selected ? Theme.withAlpha(0x55FF55, 70) : hover ? Theme.CARD_HOVER : Theme.TRACK,
 				selected ? 0xFF55FF55 : hover ? Theme.ACCENT : Theme.LINE
 			);
+			float icon = Math.min(16f, cell - 8f);
 			if (piece != null && !piece.stack().isEmpty()) {
-				drawItem(graphics, piece.stack(), sx + (LOADOUT - 16) * 0.5f, sy + (LOADOUT - 16) * 0.5f, 1f);
-			} else {
-				String mark = String.valueOf(i + 1);
-				GuiDraw.small(
-					graphics,
-					font,
-					mark,
-					sx + (LOADOUT - GuiDraw.smallWidth(font, mark)) * 0.5f,
-					sy + 12,
-					Theme.OFF
-				);
+				drawItem(graphics, piece.stack(), sx + (cell - icon) * 0.5f, sy + (cell - icon) * 0.5f, icon / 16f);
 			}
-			hits.add(new Hit(sx, sy, LOADOUT, LOADOUT, piece == null ? -1 : piece.slot(), false, false));
+			String mark = String.valueOf(i + 1);
+			GuiDraw.small(graphics, font, mark, sx + 2, sy + 1, selected ? Theme.TEXT : Theme.MUTED);
+			hits.add(new Hit(sx, sy, cell, cell, piece == null ? -1 : piece.slot(), false, false));
 			if (hover && piece != null && !piece.stack().isEmpty()) {
 				tooltip = piece.stack();
 			}
+		}
+		if (clip) {
+			GuiDraw.disableScissor(graphics);
 		}
 	}
 
@@ -386,7 +400,7 @@ public class LoadoutsScreen extends Screen {
 			}
 			cx += WELL + 4;
 		}
-		GuiDraw.small(graphics, font, "Left-click a slot to equip · Right-click to edit", x + 8, y + h - 14, Theme.MUTED);
+		GuiDraw.small(graphics, font, "1-9 equip and close · Right-click to edit", x + 8, y + h - 14, Theme.MUTED);
 	}
 
 	private List<LoadoutsMenus.Piece> labeledContents() {
@@ -537,7 +551,36 @@ public class LoadoutsScreen extends Screen {
 			onClose();
 			return true;
 		}
+		int index = hotkeyIndex(event.key());
+		if (index >= 0) {
+			equipAndClose(index);
+			return true;
+		}
 		return super.keyPressed(event);
+	}
+
+	private static int hotkeyIndex(int key) {
+		if (key >= InputConstants.KEY_1 && key <= InputConstants.KEY_9) {
+			return key - InputConstants.KEY_1;
+		}
+		if (key >= InputConstants.KEY_NUMPAD1 && key <= InputConstants.KEY_NUMPAD9) {
+			return key - InputConstants.KEY_NUMPAD1;
+		}
+		return -1;
+	}
+
+	private void equipAndClose(int index) {
+		snapshot = LoadoutsMenus.read(menu, getTitle());
+		List<LoadoutsMenus.Piece> loadouts = snapshot.loadouts();
+		if (index < 0 || index >= loadouts.size()) {
+			return;
+		}
+		LoadoutsMenus.Piece piece = loadouts.get(index);
+		if (piece == null || piece.slot() < 0) {
+			return;
+		}
+		clickSlot(piece.slot(), 0);
+		onClose();
 	}
 
 	@Override

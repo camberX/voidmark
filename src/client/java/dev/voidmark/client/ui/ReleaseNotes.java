@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.176", new String[]{
+			"Loadout slots stay inside the slots pane. Press 1-9 to equip that slot and close. Bind Open Loadouts in Controls to open the menu without typing /loadouts."
+		}),
 		new Entry("1.1.175", new String[]{
 			"The custom loadouts menu actually opens. It looks for Hypixel's (1/3) Loadouts title (any page numbers), which the last build missed because it looked for lowercase loadout."
 		}),
