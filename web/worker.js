@@ -1252,87 +1252,282 @@ const STORE_HTML = `<!DOCTYPE html>
 	<style>
 		:root {
 			--bg: #05070c;
-			--pane: #0c1018;
 			--text: #e8edf4;
 			--muted: #8b93a3;
 			--line: #1c2330;
 			--accent: #2fb5ff;
+			--vm-accent: #2fb5ff;
+			--vm-pane: #0b0e14;
+			--vm-side: #121820;
+			--vm-card: #12151c;
+			--vm-line: #1c2430;
+			--vm-track: #1a222c;
+			--vm-text: #f2f4f7;
+			--vm-header: #c4ced8;
+			--vm-muted: #8a9aab;
+			--vm-off: #3d4a58;
+			--vm-pill: #1e5f8c;
 		}
 		* { box-sizing: border-box; }
 		html { color-scheme: dark; }
-		html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 15px/1.5 "Nunito Sans", system-ui, sans-serif; }
+		html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 "Nunito Sans", system-ui, sans-serif; }
 		::selection { background: #1a4c6e; color: #fff; }
-		body { display: grid; place-items: center; min-height: 100vh; padding: 28px 16px; }
-		.panel {
-			width: min(440px, 100%);
-			background: var(--pane);
-			border: 1px solid var(--line);
-			border-radius: 8px;
-			border-left: 3px solid var(--accent);
-			padding: 22px 22px 18px;
-		}
-		.head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+		body { min-height: 100vh; padding: 28px 16px 36px; }
+		.site { width: min(560px, 100%); margin: 0 auto 22px; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
 		h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.03em; }
-		.ver { margin: 0; color: var(--muted); font-size: 13px; white-space: nowrap; }
-		.lede { margin: 6px 0 0; color: var(--muted); }
-		.actions { display: flex; align-items: center; gap: 12px; margin: 20px 0 0; }
+		.lede { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+		.site-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 		.dl {
 			display: inline-block;
 			background: var(--accent);
 			color: #061018;
 			text-decoration: none;
 			font-weight: 800;
-			font-size: 14px;
-			padding: 8px 14px;
+			font-size: 13px;
+			padding: 7px 12px;
 			border-radius: 5px;
 		}
 		.dl:hover { background: #4dc0ff; }
 		.dl.dead { pointer-events: none; opacity: 0.4; }
-		.hint { margin: 0; color: var(--muted); font-size: 13px; }
-		.capes { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
-		h2 { margin: 0 0 8px; font-size: 14px; font-weight: 800; }
-		.who { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
-		.handle { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 14px; }
-		.copy {
-			border: 1px solid var(--line);
-			background: #0a0e16;
-			color: var(--muted);
-			font: inherit;
-			font-size: 12px;
-			padding: 3px 8px;
-			border-radius: 4px;
-			cursor: pointer;
+		.ver { color: var(--muted); font-size: 13px; }
+		.stage { width: min(560px, 100%); margin: 0 auto; height: 380px; display: grid; place-items: center; }
+		.menu {
+			width: 400px;
+			height: 268px;
+			display: grid;
+			grid-template-columns: 88px 1fr;
+			background: var(--vm-pane);
+			border-radius: 10px;
+			overflow: hidden;
+			box-shadow: 0 18px 50px #0008;
+			transform: scale(1.35);
+			transform-origin: center;
+			user-select: none;
 		}
-		.copy:hover { color: var(--text); border-color: #2a3344; }
-		.capes p { margin: 0; color: var(--muted); font-size: 13px; }
-		.foot { margin: 16px 0 0; color: #5d6470; font-size: 12px; }
-		@media (max-width: 420px) {
-			.head { display: block; }
-			.ver { margin-top: 4px; }
+		.side { background: var(--vm-side); padding: 8px 0 6px; display: flex; flex-direction: column; }
+		.brand { padding: 0 10px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; color: var(--vm-text); }
+		.brand span { color: var(--vm-accent); font-weight: 700; letter-spacing: 0; margin-left: 4px; font-size: 9px; }
+		.tick { width: 16px; height: 2px; margin: 5px 10px 8px; background: var(--vm-accent); border-radius: 1px; }
+		.grp { padding: 5px 10px 2px; font-size: 8px; letter-spacing: 0.08em; color: var(--vm-header); }
+		.tab {
+			display: flex; align-items: center; gap: 6px;
+			margin: 1px 6px; padding: 3px 6px; border: 0; border-radius: 4px;
+			background: transparent; color: var(--vm-muted); font: 11px/1 "Nunito Sans", system-ui, sans-serif;
+			cursor: pointer; text-align: left; width: calc(100% - 12px);
+		}
+		.tab svg { width: 11px; height: 11px; fill: var(--vm-accent); flex: 0 0 auto; }
+		.tab.on { background: var(--vm-pill); color: var(--vm-text); }
+		.tab.on svg { fill: var(--vm-text); }
+		.tab:hover:not(.on) { background: #ffffff12; }
+		.you { margin-top: auto; border-top: 1px solid var(--vm-accent); padding: 6px 10px 2px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+		.you.on { color: var(--vm-text); }
+		.face { width: 14px; height: 14px; border-radius: 2px; background: #c2a27a; box-shadow: inset 0 -4px 0 #7a5a3a; }
+		.you span { font-size: 10px; color: var(--vm-header); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.main { position: relative; display: flex; flex-direction: column; min-width: 0; }
+		.bar { height: 22px; display: flex; align-items: center; gap: 6px; padding: 0 8px; color: var(--vm-header); font-size: 11px; font-weight: 800; }
+		.hudbtn { border: 0; background: var(--vm-card); color: var(--vm-text); font: 9px/1 "Nunito Sans", sans-serif; font-weight: 800; padding: 3px 7px; border-radius: 3px; cursor: pointer; }
+		.bar-title { flex: 1; }
+		.iconbtn { width: 16px; height: 16px; border: 0; background: transparent; color: var(--vm-muted); padding: 0; cursor: pointer; display: grid; place-items: center; }
+		.iconbtn:hover, .iconbtn.on { color: var(--vm-accent); }
+		.iconbtn svg { width: 12px; height: 12px; fill: currentColor; }
+		.pane { position: relative; flex: 1; overflow: hidden; }
+		#stars { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+		.cols { position: relative; z-index: 1; display: none; grid-template-columns: 1fr 1fr; gap: 8px; padding: 6px 8px 8px; height: 100%; }
+		.cols.on { display: grid; }
+		.cols.one { grid-template-columns: 1fr; }
+		.card { background: var(--vm-card); border-radius: 6px; padding: 5px 7px 6px; align-self: start; }
+		.card h3 { margin: 0 0 5px; padding-bottom: 4px; border-bottom: 1px solid var(--vm-line); font-size: 9px; letter-spacing: 0.06em; color: var(--vm-header); font-weight: 800; }
+		.row { display: flex; align-items: center; justify-content: space-between; min-height: 16px; gap: 6px; }
+		.row span { font-size: 11px; color: var(--vm-text); }
+		.row em { font-style: normal; font-size: 10px; color: var(--vm-muted); }
+		.tog { width: 22px; height: 11px; border: 0; padding: 0; border-radius: 99px; background: var(--vm-track); position: relative; cursor: pointer; flex: 0 0 auto; }
+		.tog::after { content: ""; position: absolute; top: 1.5px; left: 1.5px; width: 8px; height: 8px; border-radius: 50%; background: var(--vm-off); }
+		.tog.on { background: var(--vm-accent); }
+		.tog.on::after { left: 12px; background: #061018; }
+		.list { display: flex; flex-direction: column; gap: 2px; }
+		.list button { border: 0; background: transparent; color: var(--vm-muted); font: 11px/1.4 "Nunito Sans", sans-serif; text-align: left; padding: 2px 4px; border-radius: 3px; cursor: pointer; }
+		.list button.on, .list button:hover { background: #ffffff10; color: var(--vm-text); }
+		.sheet {
+			display: none; position: absolute; top: 26px; right: 8px; width: 132px; z-index: 3;
+			background: var(--vm-pane); border: 1px solid var(--vm-line); border-radius: 8px; padding: 8px;
+		}
+		.sheet.on { display: block; }
+		.sheet h3 { margin: 0 0 6px; font-size: 9px; letter-spacing: 0.06em; color: var(--vm-header); }
+		.swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+		.swatches button { width: 14px; height: 14px; border: 1px solid #0006; border-radius: 3px; padding: 0; cursor: pointer; }
+		.swatches button.on { outline: 1px solid var(--vm-text); }
+		.nick { width: 100%; background: var(--vm-track); border: 1px solid var(--vm-line); color: var(--vm-text); font: 11px "Nunito Sans", sans-serif; padding: 4px 6px; border-radius: 4px; }
+		.skin { width: 72px; height: 96px; margin: 8px auto 6px; background: linear-gradient(#c2a27a, #8a6a4a); border-radius: 4px; }
+		.cape { width: min(560px, 100%); margin: 18px auto 0; padding-top: 16px; border-top: 1px solid var(--line); }
+		.cape h2 { margin: 0 0 8px; font-size: 14px; font-weight: 800; }
+		.who { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+		.handle { font-family: ui-monospace, Consolas, monospace; font-size: 14px; }
+		.copy { border: 1px solid var(--line); background: #0a0e16; color: var(--muted); font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 4px; cursor: pointer; }
+		.copy:hover { color: var(--text); }
+		.cape p { margin: 0; color: var(--muted); font-size: 13px; }
+		.foot { width: min(560px, 100%); margin: 14px auto 0; color: #5d6470; font-size: 12px; }
+		@media (max-width: 620px) {
+			.stage { height: 300px; }
+			.menu { transform: scale(1.05); }
+			.site { display: block; }
+			.site-actions { margin-top: 12px; }
 		}
 	</style>
 </head>
 <body>
-	<main class="panel">
-		<div class="head">
+	<header class="site">
+		<div>
 			<h1>Voidmark</h1>
-			<p class="ver" id="mod-ver"></p>
+			<p class="lede">A visuals oriented Hypixel Skyblock mod.</p>
 		</div>
-		<p class="lede">A visuals oriented Hypixel Skyblock mod.</p>
-		<div class="actions">
+		<div class="site-actions">
 			<a class="dl" id="mod-download" href="/download">Download</a>
-			<p class="hint">Fabric · Minecraft 26.1.2</p>
+			<span class="ver" id="mod-ver"></span>
 		</div>
-		<section class="capes">
-			<h2>Want a custom cape?</h2>
-			<div class="who">
-				<span class="handle">@evilkitten911</span>
-				<button type="button" class="copy" id="copy">Copy</button>
-			</div>
-			<p>Message that Discord with your Minecraft name. After you get added, open the Cape card in Voidmark and crop a photo or paste a PNG. Other Voidmark users see it when they join a world.</p>
-		</section>
-		<p class="foot">voidmark.cloud</p>
-	</main>
+	</header>
+
+	<div class="stage">
+		<div class="menu" id="menu">
+			<aside class="side">
+				<div class="brand">VOIDMARK<span id="menu-ver"></span></div>
+				<div class="tick"></div>
+				<div class="grp">VISUALS</div>
+				<button type="button" class="tab on" data-tab="world"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 9h-3.2a15 15 0 0 0-1.4-6 8 8 0 0 1 4.6 6zM12 4c.8 1.3 1.5 3.4 1.8 6H10.2C10.5 7.4 11.2 5.3 12 4zM4.1 13h3.2c.2 2.2.7 4.2 1.4 6A8 8 0 0 1 4.1 13zM8.7 11H5.1A8 8 0 0 1 9.7 5a15 15 0 0 0-1 6zm1.5 2h3.6c-.3 2.6-1 4.7-1.8 6-.8-1.3-1.5-3.4-1.8-6zm5.1 6c.7-1.8 1.2-3.8 1.4-6h3.2a8 8 0 0 1-4.6 6z"/></svg>World</button>
+				<button type="button" class="tab" data-tab="esp"><svg viewBox="0 0 24 24"><path d="M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg>ESP</button>
+				<div class="grp">HUD</div>
+				<button type="button" class="tab" data-tab="overlay"><svg viewBox="0 0 24 24"><path d="M21 3H3v12h18V3zm-2 10H5V5h14v8zM1 19h22v2H1z"/></svg>Overlay</button>
+				<button type="button" class="tab" data-tab="bars"><svg viewBox="0 0 24 24"><path d="M3 13h6v8H3zM9 3h6v18H9zM15 8h6v13h-6z"/></svg>Bars</button>
+				<div class="grp">SKYBLOCK</div>
+				<button type="button" class="tab" data-tab="nodes"><svg viewBox="0 0 24 24"><path d="M21 16.5 12 21l-9-4.5V7.5L12 3l9 4.5zM12 5.2 6.2 8 12 10.8 17.8 8z"/></svg>Nodes</button>
+				<button type="button" class="tab" data-tab="mining"><svg viewBox="0 0 24 24"><path d="M21 16.5 12 21l-9-4.5V7.5L12 3l9 4.5zM12 5.2 6.2 8 12 10.8 17.8 8z"/></svg>Mining</button>
+				<div class="you" id="you" data-tab="player">
+					<div class="face"></div>
+					<span>You</span>
+				</div>
+			</aside>
+			<section class="main">
+				<div class="bar">
+					<button type="button" class="hudbtn">HUD</button>
+					<span class="bar-title" id="bar-title">World</span>
+					<button type="button" class="iconbtn" id="theme-btn" title="Theme"><svg viewBox="0 0 24 24"><path d="M19.1 12.9a7.4 7.4 0 0 0 .1-.9 7.4 7.4 0 0 0-.1-.9l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.5-.9l-.4-2.5h-4l-.4 2.5a7 7 0 0 0-1.5.9l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0-.1.9 7.4 7.4 0 0 0 .1.9l-2 1.6 2 3.4 2.4-1c.5.3 1 .7 1.5.9l.4 2.5h4l.4-2.5c.5-.2 1.1-.5 1.5-.9l2.4 1 2-3.4zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg></button>
+				</div>
+				<div class="pane">
+					<canvas id="stars"></canvas>
+					<div class="cols on" data-panel="world">
+						<div class="card">
+							<h3>WORLD</h3>
+							<div class="row"><span>World tint</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Skybox</span><button type="button" class="tog on"></button></div>
+						</div>
+						<div class="card">
+							<h3>CAMERA</h3>
+							<div class="row"><span>Fog</span><button type="button" class="tog"></button></div>
+							<div class="row"><span>Aspect ratio</span><button type="button" class="tog"></button></div>
+						</div>
+						<div class="card" style="grid-column:1">
+							<h3>HITSOUND</h3>
+							<div class="row"><span>Enable</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Melee</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Arrows</span><button type="button" class="tog on"></button></div>
+						</div>
+					</div>
+					<div class="cols" data-panel="esp">
+						<div class="card">
+							<h3>GLOW</h3>
+							<div class="row"><span>Mob glow</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Block outline</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Nametags</span><button type="button" class="tog on"></button></div>
+						</div>
+						<div class="card">
+							<h3>MOBS</h3>
+							<div class="list">
+								<button type="button" class="on">Player</button>
+								<button type="button">Zombie</button>
+								<button type="button">Enderman</button>
+								<button type="button">Blaze</button>
+							</div>
+						</div>
+					</div>
+					<div class="cols one" data-panel="overlay">
+						<div class="card">
+							<h3>HUD</h3>
+							<div class="row"><span>Watermark</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Music</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Raw mats</span><button type="button" class="tog"></button></div>
+							<div class="row"><span>Inventory HUD</span><button type="button" class="tog"></button></div>
+						</div>
+					</div>
+					<div class="cols" data-panel="bars">
+						<div class="card">
+							<h3>BARS</h3>
+							<div class="row"><span>Hotbar</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Health</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Hunger</span><button type="button" class="tog"></button></div>
+							<div class="row"><span>Experience</span><button type="button" class="tog"></button></div>
+						</div>
+						<div class="card">
+							<h3>INFO</h3>
+							<div class="row"><span>Scoreboard</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Boss bar</span><button type="button" class="tog"></button></div>
+							<div class="row"><span>Effects</span><button type="button" class="tog"></button></div>
+							<div class="row"><em>Move these in the HUD editor.</em></div>
+						</div>
+					</div>
+					<div class="cols" data-panel="nodes">
+						<div class="card">
+							<h3>MARKERS</h3>
+							<div class="row"><span>Enable</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Node HUD</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Node ESP</span><button type="button" class="tog on"></button></div>
+						</div>
+						<div class="card">
+							<h3>STATUS</h3>
+							<div class="row"><span>Hypixel</span><em>ON</em></div>
+							<div class="row"><span>Skyblock</span><em>ON</em></div>
+							<div class="row"><span>The End</span><em>ON</em></div>
+							<div class="row"><span>FPS</span><em>144</em></div>
+						</div>
+					</div>
+					<div class="cols" data-panel="mining">
+						<div class="card">
+							<h3>MINING</h3>
+							<div class="row"><span>Mining HUD</span><button type="button" class="tog on"></button></div>
+							<div class="row"><span>Titanium ESP</span><button type="button" class="tog"></button></div>
+						</div>
+						<div class="card">
+							<h3>LIVE</h3>
+							<div class="row"><span>Pickobulus</span><em>Ready</em></div>
+							<div class="row"><span>Commissions</span><em>2</em></div>
+							<div class="row"><span>Titanium</span><em>No job</em></div>
+						</div>
+					</div>
+					<div class="cols one" data-panel="player">
+						<div class="card">
+							<h3>YOU</h3>
+							<div class="skin"></div>
+							<div class="row"><span>Replace my name</span><button type="button" class="tog"></button></div>
+							<input class="nick" value="You" maxlength="16" spellcheck="false">
+						</div>
+					</div>
+					<div class="sheet" id="theme">
+						<h3>ACCENT</h3>
+						<div class="swatches" id="swatches"></div>
+					</div>
+				</div>
+			</section>
+		</div>
+	</div>
+
+	<section class="cape">
+		<h2>Want a custom cape?</h2>
+		<div class="who">
+			<span class="handle">@evilkitten911</span>
+			<button type="button" class="copy" id="copy">Copy</button>
+		</div>
+		<p>Message that Discord with your Minecraft name. After you get added, open the Cape card in Voidmark and crop a photo or paste a PNG. Other Voidmark users see it when they join a world.</p>
+	</section>
+	<p class="foot">voidmark.cloud</p>
+
 	<script>
 		document.getElementById("copy").onclick = function () {
 			var btn = this;
@@ -1345,6 +1540,7 @@ const STORE_HTML = `<!DOCTYPE html>
 		};
 		(function loadMod() {
 			var ver = document.getElementById("mod-ver");
+			var menuVer = document.getElementById("menu-ver");
 			var link = document.getElementById("mod-download");
 			var mirrors = [
 				"/api/mod",
@@ -1352,34 +1548,94 @@ const STORE_HTML = `<!DOCTYPE html>
 				"https://cdn.jsdelivr.net/gh/camberX/voidmark@main/web/public/mod/latest.json"
 			];
 			function fileUrl(data) {
-				if (data.url && data.url.charAt(0) === "/") {
-					return data.url;
-				}
-				var file = data.file || ("voidmark-" + data.version + ".jar");
-				return "https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/" + file;
+				if (data.url && data.url.charAt(0) === "/") return data.url;
+				return "https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/" + (data.file || ("voidmark-" + data.version + ".jar"));
 			}
 			function apply(data) {
 				ver.textContent = "v" + data.version;
+				menuVer.textContent = "v" + data.version;
 				link.classList.remove("dead");
 				link.setAttribute("download", data.file || ("voidmark-" + data.version + ".jar"));
 				link.href = fileUrl(data);
 			}
 			function next(i) {
-				if (i >= mirrors.length) {
-					ver.textContent = "";
-					link.classList.add("dead");
-					return;
-				}
-				fetch(mirrors[i], { cache: "no-store" }).then(function (response) {
-					return response.ok ? response.json() : null;
-				}).then(function (data) {
+				if (i >= mirrors.length) return;
+				fetch(mirrors[i], { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
 					if (data && data.version) apply(data);
 					else next(i + 1);
-				}).catch(function () {
-					next(i + 1);
-				});
+				}).catch(function () { next(i + 1); });
 			}
 			next(0);
+		})();
+		(function menu() {
+			var titles = { world: "World", esp: "ESP", overlay: "Overlay", bars: "Bars", nodes: "Nodes", mining: "Mining", player: "Player" };
+			var tabs = document.querySelectorAll(".tab, #you");
+			var panels = document.querySelectorAll(".cols");
+			var title = document.getElementById("bar-title");
+			var theme = document.getElementById("theme");
+			var themeBtn = document.getElementById("theme-btn");
+			var colors = ["#2fb5ff", "#4d8dff", "#a78bfa", "#f472b6", "#fb7185", "#fb923c", "#34d399", "#e5e7eb"];
+			var wrap = document.getElementById("swatches");
+			colors.forEach(function (hex, i) {
+				var b = document.createElement("button");
+				b.type = "button";
+				b.style.background = hex;
+				if (i === 0) b.className = "on";
+				b.onclick = function () {
+					document.documentElement.style.setProperty("--vm-accent", hex);
+					document.documentElement.style.setProperty("--accent", hex);
+					var mix = hex === "#e5e7eb" ? "#4a5564" : hex;
+					document.documentElement.style.setProperty("--vm-pill", mix);
+					wrap.querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === b); });
+				};
+				wrap.appendChild(b);
+			});
+			function show(name) {
+				tabs.forEach(function (t) { t.classList.toggle("on", t.getAttribute("data-tab") === name); });
+				panels.forEach(function (p) { p.classList.toggle("on", p.getAttribute("data-panel") === name); });
+				title.textContent = titles[name] || name;
+				theme.classList.remove("on");
+				themeBtn.classList.remove("on");
+			}
+			tabs.forEach(function (t) {
+				t.onclick = function () { show(t.getAttribute("data-tab")); };
+			});
+			themeBtn.onclick = function () {
+				theme.classList.toggle("on");
+				themeBtn.classList.toggle("on");
+			};
+			document.getElementById("menu").addEventListener("click", function (e) {
+				var tog = e.target.closest(".tog");
+				if (tog) tog.classList.toggle("on");
+				var row = e.target.closest(".list button");
+				if (row) row.classList.toggle("on");
+			});
+			document.querySelector(".nick").oninput = function () {
+				document.querySelector(".you span").textContent = this.value.trim() || "You";
+			};
+			var c = document.getElementById("stars");
+			var ctx = c.getContext("2d");
+			var stars = [];
+			function resize() {
+				c.width = c.clientWidth;
+				c.height = c.clientHeight;
+				stars = [];
+				for (var i = 0; i < 36; i++) stars.push({ x: Math.random() * c.width, y: Math.random() * c.height, z: Math.random(), s: Math.random() * 1.2 + 0.3 });
+			}
+			function tick() {
+				ctx.clearRect(0, 0, c.width, c.height);
+				for (var i = 0; i < stars.length; i++) {
+					var st = stars[i];
+					st.y += 0.08 + st.z * 0.12;
+					if (st.y > c.height) st.y = 0;
+					ctx.fillStyle = "rgba(232,237,245," + (0.15 + st.z * 0.45) + ")";
+					ctx.fillRect(st.x, st.y, st.s, st.s);
+				}
+				requestAnimationFrame(tick);
+			}
+			window.addEventListener("resize", resize);
+			resize();
+			tick();
 		})();
 	</script>
 </body>
