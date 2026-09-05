@@ -808,15 +808,16 @@ public class VoidmarkScreen extends Screen {
 		}));
 		y += ROW;
 
-		boolean hoverFile = GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
+		boolean picking = CustomCape.picking();
+		boolean hoverFile = !picking && GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
 		GuiDraw.panel(graphics, rx, y + 1, iw, ROW - 2, 5, hoverFile ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
-		GuiDraw.menu(graphics, font, "Local file...", rx + 5, GuiDraw.middle(y, ROW), Theme.TEXT);
+		GuiDraw.menu(graphics, font, picking ? "Selecting…" : "Local file...", rx + 5, GuiDraw.middle(y, ROW), picking ? Theme.MUTED : Theme.TEXT);
 		hits.add(new Hit(rx, y, iw, ROW, CustomCape::pickLocal));
 		y += ROW;
 
-		boolean hoverCreate = GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
+		boolean hoverCreate = !picking && GuiDraw.hovered(mouseX, mouseY, rx, y, iw, ROW);
 		GuiDraw.panel(graphics, rx, y + 1, iw, ROW - 2, 5, hoverCreate ? Theme.CARD_HOVER : Theme.CARD, Theme.LINE);
-		GuiDraw.menu(graphics, font, "Create cape...", rx + 5, GuiDraw.middle(y, ROW), Theme.TEXT);
+		GuiDraw.menu(graphics, font, picking ? "Selecting…" : "Create cape...", rx + 5, GuiDraw.middle(y, ROW), picking ? Theme.MUTED : Theme.TEXT);
 		hits.add(new Hit(rx, y, iw, ROW, CustomCape::pickCreate));
 		y += ROW;
 
@@ -1876,7 +1877,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.203");
+			.orElse("1.1.204");
 	}
 
 	@Override

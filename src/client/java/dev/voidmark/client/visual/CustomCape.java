@@ -16,6 +16,7 @@ import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
+import java.awt.EventQueue;
 import java.awt.FileDialog;
 import java.awt.Frame;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,6 +52,7 @@ public final class CustomCape {
 	private static volatile boolean fitted;
 	private static volatile boolean cropped;
 	private static volatile byte[] lastPng = new byte[0];
+	private static volatile boolean picking;
 	private static int generation;
 
 	private CustomCape() {
@@ -71,11 +73,18 @@ public final class CustomCape {
 		return status;
 	}
 
+	public static boolean picking() {
+		return picking;
+	}
+
 	public static String error() {
 		return error;
 	}
 
 	public static String statusLabel() {
+		if (picking) {
+			return "Selecting…";
+		}
 		return switch (status) {
 			case EMPTY -> "No cape";
 			case LOADING -> "Loading…";
@@ -201,28 +210,42 @@ public final class CustomCape {
 			fail("uuid not whitelisted");
 			return;
 		}
+		if (picking) {
+			return;
+		}
+		picking = true;
 		Minecraft client = Minecraft.getInstance();
 		try {
 			client.mouseHandler.releaseMouse();
 		} catch (Exception ignored) {
 		}
-		String selected = null;
-		boolean nativeOk = false;
-		try {
-			selected = tinyFdPick();
-			nativeOk = true;
-		} catch (Throwable exception) {
-			Voidmark.LOGGER.warn("Native cape picker failed, trying Explorer", exception);
-		}
-		if (!nativeOk) {
+		Thread thread = new Thread(() -> {
+			String selected = null;
 			try {
-				selected = awtPick();
-			} catch (Throwable exception) {
-				Voidmark.LOGGER.warn("Explorer cape picker failed", exception);
-				fail("Can't open explorer");
-				return;
+				try {
+					selected = tinyFdPick();
+				} catch (Throwable exception) {
+					Voidmark.LOGGER.warn("Native cape picker failed, trying Explorer", exception);
+					try {
+						selected = awtPick();
+					} catch (Throwable explorer) {
+						Voidmark.LOGGER.warn("Explorer cape picker failed", explorer);
+						Minecraft.getInstance().execute(() -> fail("Can't open explorer"));
+						return;
+					}
+				}
+				final String picked = selected;
+				Minecraft.getInstance().execute(() -> applyPicked(picked, create));
+			} finally {
+				picking = false;
+				Minecraft.getInstance().execute(CustomCape::restoreMouse);
 			}
-		}
+		}, "voidmark-cape-picker");
+		thread.setDaemon(true);
+		thread.start();
+	}
+
+	private static void applyPicked(String selected, boolean create) {
 		if (selected == null || selected.isBlank()) {
 			return;
 		}
@@ -265,6 +288,16 @@ public final class CustomCape {
 		});
 	}
 
+	private static void restoreMouse() {
+		Minecraft client = Minecraft.getInstance();
+		if (client.screen == null) {
+			try {
+				client.mouseHandler.grabMouse();
+			} catch (Exception ignored) {
+			}
+		}
+	}
+
 	private static String tinyFdPick() {
 		try (MemoryStack stack = MemoryStack.stackPush()) {
 			PointerBuffer filters = stack.mallocPointer(2);
@@ -284,7 +317,7 @@ public final class CustomCape {
 	private static String awtPick() throws Exception {
 		AtomicReference<String> selected = new AtomicReference<>();
 		AtomicReference<Exception> failure = new AtomicReference<>();
-		Thread thread = new Thread(() -> {
+		EventQueue.invokeAndWait(() -> {
 			try {
 				FileDialog dialog = new FileDialog((Frame) null, "Select cape image", FileDialog.LOAD);
 				dialog.setAlwaysOnTop(true);
@@ -303,10 +336,7 @@ public final class CustomCape {
 			} catch (Exception exception) {
 				failure.set(exception);
 			}
-		}, "voidmark-cape-dialog");
-		thread.setDaemon(true);
-		thread.start();
-		thread.join();
+		});
 		if (failure.get() != null) {
 			throw failure.get();
 		}

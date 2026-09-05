@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.204", new String[]{
+			"Picking a local cape no longer freezes Minecraft while the folder dialog is open."
+		}),
 		new Entry("1.1.203", new String[]{
 			"Auto-update removes the old jar from mods. If Windows has it locked, it is moved out of the way and deleted on the next launch."
 		}),
