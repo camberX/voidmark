@@ -8,75 +8,88 @@
 	<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 	<style>
 		:root {
-			--bg: #080a10;
-			--text: #e4e8f0;
-			--muted: #8d95a6;
-			--line: #222833;
-			--accent: #3aa6d8;
+			--bg: #05070c;
+			--pane: #0c1018;
+			--text: #e8edf4;
+			--muted: #8b93a3;
+			--line: #1c2330;
+			--accent: #2fb5ff;
 		}
 		* { box-sizing: border-box; }
+		html { color-scheme: dark; }
 		html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 15px/1.5 "Nunito Sans", system-ui, sans-serif; }
-		body {
-			background-image:
-				radial-gradient(circle at 1px 1px, #1a2230 1px, transparent 0);
-			background-size: 22px 22px;
+		::selection { background: #1a4c6e; color: #fff; }
+		body { display: grid; place-items: center; min-height: 100vh; padding: 28px 16px; }
+		.panel {
+			width: min(440px, 100%);
+			background: var(--pane);
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			border-left: 3px solid var(--accent);
+			padding: 22px 22px 18px;
 		}
-		.wrap { width: min(520px, calc(100% - 40px)); margin: 0 auto; padding: 64px 0 48px; }
-		h1 { margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -0.03em; color: var(--accent); }
-		.lede { margin: 0 0 36px; color: var(--muted); }
-		section { border-top: 1px solid var(--line); padding: 22px 0 4px; }
-		h2 { margin: 0 0 8px; font-size: 15px; font-weight: 800; }
-		p { margin: 0 0 12px; color: var(--muted); }
-		.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 14px 0 8px; }
+		.head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+		h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.03em; }
+		.ver { margin: 0; color: var(--muted); font-size: 13px; white-space: nowrap; }
+		.lede { margin: 6px 0 0; color: var(--muted); }
+		.actions { display: flex; align-items: center; gap: 12px; margin: 20px 0 0; }
 		.dl {
 			display: inline-block;
 			background: var(--accent);
-			color: #071018;
+			color: #061018;
 			text-decoration: none;
 			font-weight: 800;
-			padding: 8px 13px;
-			border-radius: 3px;
+			font-size: 14px;
+			padding: 8px 14px;
+			border-radius: 5px;
 		}
-		.dl:hover { filter: brightness(1.06); }
-		.dl.dead { pointer-events: none; opacity: 0.45; }
-		.ver { color: #6f7788; font-size: 13px; }
-		.handle { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 15px; color: var(--text); }
+		.dl:hover { background: #4dc0ff; }
+		.dl.dead { pointer-events: none; opacity: 0.4; }
+		.hint { margin: 0; color: var(--muted); font-size: 13px; }
+		.capes { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+		h2 { margin: 0 0 8px; font-size: 14px; font-weight: 800; }
+		.who { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+		.handle { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 14px; }
 		.copy {
-			border: 1px solid #333b4a;
-			background: transparent;
+			border: 1px solid var(--line);
+			background: #0a0e16;
 			color: var(--muted);
 			font: inherit;
 			font-size: 12px;
-			padding: 4px 8px;
-			border-radius: 3px;
+			padding: 3px 8px;
+			border-radius: 4px;
 			cursor: pointer;
 		}
-		.copy:hover { border-color: var(--accent); color: var(--text); }
-		.foot { margin-top: 40px; color: #5c6370; font-size: 12px; }
+		.copy:hover { color: var(--text); border-color: #2a3344; }
+		.capes p { margin: 0; color: var(--muted); font-size: 13px; }
+		.foot { margin: 16px 0 0; color: #5d6470; font-size: 12px; }
+		@media (max-width: 420px) {
+			.head { display: block; }
+			.ver { margin-top: 4px; }
+		}
 	</style>
 </head>
 <body>
-	<div class="wrap">
-		<h1>Voidmark</h1>
+	<main class="panel">
+		<div class="head">
+			<h1>Voidmark</h1>
+			<p class="ver" id="mod-ver"></p>
+		</div>
 		<p class="lede">A visuals oriented Hypixel Skyblock mod.</p>
-		<section>
-			<h2>Download</h2>
-			<p>Fabric for Minecraft 26.1.2. Drop the jar in your mods folder.</p>
-			<div class="row">
-				<a class="dl" id="mod-download" href="/download">Download</a>
-				<span class="ver" id="mod-ver">checking…</span>
-			</div>
-		</section>
-		<section>
+		<div class="actions">
+			<a class="dl" id="mod-download" href="/download">Download</a>
+			<p class="hint">Fabric · Minecraft 26.1.2</p>
+		</div>
+		<section class="capes">
 			<h2>Want a custom cape?</h2>
-			<div class="row">
+			<div class="who">
 				<span class="handle">@evilkitten911</span>
 				<button type="button" class="copy" id="copy">Copy</button>
 			</div>
 			<p>Message that Discord with your Minecraft name. After you get added, open the Cape card in Voidmark and crop a photo or paste a PNG. Other Voidmark users see it when they join a world.</p>
 		</section>
 		<p class="foot">voidmark.cloud</p>
-	</div>
+	</main>
 	<script>
 		document.getElementById("copy").onclick = function () {
 			var btn = this;
@@ -103,14 +116,14 @@
 				return "https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/" + file;
 			}
 			function apply(data) {
-				ver.textContent = "v" + data.version + " · " + (data.minecraft || "26.1.2");
+				ver.textContent = "v" + data.version;
 				link.classList.remove("dead");
 				link.setAttribute("download", data.file || ("voidmark-" + data.version + ".jar"));
 				link.href = fileUrl(data);
 			}
 			function next(i) {
 				if (i >= mirrors.length) {
-					ver.textContent = "not up yet";
+					ver.textContent = "";
 					link.classList.add("dead");
 					return;
 				}
