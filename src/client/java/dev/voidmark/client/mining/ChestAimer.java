@@ -10,7 +10,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
@@ -23,13 +23,14 @@ public final class ChestAimer {
 	private static final float TOLERANCE = 1f;
 	private static final int PASS = 5;
 	private static final double SAME = 0.18;
-	private static final double DING_RANGE_SQ = 8.0 * 8.0;
 
 	private static boolean running;
 	private static ChestEsp.Mark chest;
 	private static ChestEsp.Mark locked;
+	private static Vec3 lastAt;
 	private static boolean waiting;
 	private static boolean turning;
+	private static boolean armed;
 	private static boolean ding;
 	private static long turnStart;
 	private static long turnMs;
@@ -52,31 +53,14 @@ public final class ChestAimer {
 			if (!isDing(sound.getSound())) {
 				return;
 			}
-			double x = sound.getX();
-			double y = sound.getY();
-			double z = sound.getZ();
-			Minecraft.getInstance().execute(() -> hear(x, y, z));
+			Minecraft.getInstance().execute(ChestAimer::hear);
 			return;
 		}
 		if (packet instanceof ClientboundSoundEntityPacket sound) {
 			if (!isDing(sound.getSound())) {
 				return;
 			}
-			int id = sound.getId();
-			Minecraft.getInstance().execute(() -> {
-				Minecraft client = Minecraft.getInstance();
-				if (client.level == null) {
-					return;
-				}
-				Entity entity = client.level.getEntity(id);
-				if (entity == null) {
-					if (client.player != null) {
-						hear(client.player.getX(), client.player.getY(), client.player.getZ());
-					}
-					return;
-				}
-				hear(entity.getX(), entity.getY(), entity.getZ());
-			});
+			Minecraft.getInstance().execute(ChestAimer::hear);
 		}
 	}
 
@@ -97,8 +81,10 @@ public final class ChestAimer {
 		running = true;
 		waiting = false;
 		turning = false;
+		armed = false;
 		ding = false;
 		locked = null;
+		lastAt = null;
 		tries = 0;
 		tell(client, "Chest aim started · press again to stop");
 	}
@@ -120,8 +106,10 @@ public final class ChestAimer {
 			tries = 0;
 			waiting = false;
 			turning = false;
+			armed = false;
 			ding = false;
 			locked = null;
+			lastAt = null;
 			if (!bindChest(player)) {
 				stop(client, "Chest aim done");
 				return;
@@ -138,27 +126,17 @@ public final class ChestAimer {
 				return;
 			}
 			ding = false;
+			armed = false;
+			waiting = false;
+			lastAt = locked == null ? lastAt : locked.box();
 			tries++;
 			if (tries >= PASS && chest != null && ChestEsp.get().chestAt(chest.pos) != null) {
 				tries = 0;
 			}
-			ChestEsp.Mark next = pickNext(player, locked);
-			if (next == null) {
-				next = pickFirst(player);
-				if (next != null && locked != null && same(locked, locked.box(), next)) {
-					next = null;
-				}
-			}
-			if (next == null) {
-				return;
-			}
-			waiting = false;
-			beginTurn(player, next);
-			return;
 		}
-		ChestEsp.Mark first = pickFirst(player);
-		if (first != null) {
-			beginTurn(player, first);
+		ChestEsp.Mark next = pickNext(player, locked, lastAt);
+		if (next != null) {
+			beginTurn(player, next);
 		}
 	}
 
@@ -171,29 +149,16 @@ public final class ChestAimer {
 		return ChestEsp.get().marksNear(chest);
 	}
 
-	private static ChestEsp.Mark pickFirst(LocalPlayer player) {
+	private static ChestEsp.Mark pickNext(LocalPlayer player, ChestEsp.Mark last, Vec3 avoid) {
 		ChestEsp.Mark best = null;
-		float bestAng = Float.MAX_VALUE;
+		float bestAng = last == null && avoid == null ? Float.MAX_VALUE : -1f;
+		boolean first = last == null && avoid == null;
 		for (ChestEsp.Mark mark : marks()) {
-			float ang = angleTo(player, mark.box());
-			if (ang < bestAng) {
-				bestAng = ang;
-				best = mark;
-			}
-		}
-		return best;
-	}
-
-	private static ChestEsp.Mark pickNext(LocalPlayer player, ChestEsp.Mark last) {
-		Vec3 lastAt = last == null ? null : last.box();
-		ChestEsp.Mark best = null;
-		float bestAng = -1f;
-		for (ChestEsp.Mark mark : marks()) {
-			if (same(last, lastAt, mark)) {
+			if (same(last, avoid, mark)) {
 				continue;
 			}
 			float ang = angleTo(player, mark.box());
-			if (ang > bestAng) {
+			if (first ? ang < bestAng : ang > bestAng) {
 				bestAng = ang;
 				best = mark;
 			}
@@ -220,6 +185,8 @@ public final class ChestAimer {
 
 	private static void beginTurn(LocalPlayer player, ChestEsp.Mark target) {
 		locked = target;
+		lastAt = target.box();
+		armed = true;
 		ding = false;
 		Vec3 at = target.box();
 		from = new SmoothRotate.Rotation(
@@ -246,7 +213,7 @@ public final class ChestAimer {
 	private static void arrive() {
 		turning = false;
 		waiting = true;
-		ding = false;
+		armed = true;
 	}
 
 	private static boolean advance(LocalPlayer player) {
@@ -262,16 +229,8 @@ public final class ChestAimer {
 		return progress >= 1.0;
 	}
 
-	private static void hear(double x, double y, double z) {
-		if (!running || !waiting) {
-			return;
-		}
-		Vec3 at = new Vec3(x, y, z);
-		if (chest != null && at.distanceToSqr(chest.x, chest.y, chest.z) <= DING_RANGE_SQ) {
-			ding = true;
-			return;
-		}
-		if (locked != null && at.closerThan(locked.box(), 4.0)) {
+	private static void hear() {
+		if (running && armed) {
 			ding = true;
 		}
 	}
@@ -284,16 +243,21 @@ public final class ChestAimer {
 		if (event == null) {
 			return false;
 		}
+		if (event == SoundEvents.EXPERIENCE_ORB_PICKUP) {
+			return true;
+		}
 		String path = event.location().getPath();
-		return path.equals("entity.experience_orb.pickup") || path.equals("block.note_block.pling");
+		return path.contains("experience_orb") || path.equals("random.orb");
 	}
 
 	private static void stop(Minecraft client, String reason) {
 		running = false;
 		chest = null;
 		locked = null;
+		lastAt = null;
 		waiting = false;
 		turning = false;
+		armed = false;
 		ding = false;
 		tries = 0;
 		if (reason != null) {

@@ -4,6 +4,7 @@ import dev.voidmark.client.mining.ChestEsp;
 import dev.voidmark.client.node.EnderNodeTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.network.protocol.BundlePacket;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
@@ -14,6 +15,12 @@ public final class ClientPackets {
 	}
 
 	public static void onReceived(Packet<?> packet) {
+		if (packet instanceof BundlePacket<?> bundle) {
+			for (Packet<?> inner : bundle.subPackets()) {
+				onReceived(inner);
+			}
+			return;
+		}
 		if (packet instanceof ClientboundPongResponsePacket pong) {
 			ConnectionPing.onPong(pong.time());
 			return;

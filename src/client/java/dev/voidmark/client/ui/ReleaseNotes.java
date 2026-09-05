@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.7", new String[]{
+			"Chest Aim hears Experience Gained even inside packet bundles, and only then looks at the next lock."
+		}),
 		new Entry("1.2.6", new String[]{
 			"Chest Aim holds on a lock until Hypixel's ding plays, then turns to the next particles."
 		}),
