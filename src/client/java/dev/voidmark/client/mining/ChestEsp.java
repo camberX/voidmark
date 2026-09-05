@@ -205,6 +205,18 @@ public final class ChestEsp {
 		}
 	}
 
+	public void dropMarks(Mark chest) {
+		synchronized (crits) {
+			boolean removed = crits.removeIf(mark -> {
+				Vec3 at = mark.box();
+				return chest == null || nearChest(chest, at.x, at.y, at.z);
+			});
+			if (removed) {
+				dirty = true;
+			}
+		}
+	}
+
 	public void dropNear(Vec3 at, double radius) {
 		if (at == null) {
 			return;

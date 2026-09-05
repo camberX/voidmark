@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.12", new String[]{
+			"Chest Aim ignores lagged extra boxes: it stays on the current lock until the ding, then waits for a fresh mark instead of chasing the pile."
+		}),
 		new Entry("1.2.11", new String[]{
 			"Chest Aim still turns when lock boxes are close together, and finished boxes disappear instead of lingering."
 		}),

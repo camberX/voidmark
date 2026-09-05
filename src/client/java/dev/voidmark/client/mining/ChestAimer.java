@@ -37,6 +37,9 @@ public final class ChestAimer {
 	private static boolean turning;
 	private static boolean armed;
 	private static volatile boolean ding;
+	private static long quietUntil;
+	private static long dingAt;
+	private static Vec3 lastLook;
 	private static long turnStart;
 	private static long turnMs;
 	private static SmoothRotate.Rotation from = new SmoothRotate.Rotation(0f, 0f);
@@ -97,8 +100,11 @@ public final class ChestAimer {
 			armed = false;
 			ding = false;
 			locked = null;
+			lastLook = null;
 			done.clear();
 			doneMarks.clear();
+			quietUntil = 0L;
+			dingAt = 0L;
 			tries = 0;
 			beginTurn(player, aim);
 			return;
@@ -118,31 +124,38 @@ public final class ChestAimer {
 			ding = false;
 			armed = false;
 			waiting = false;
+			sealBurst();
 			if (locked != null) {
-				remember(locked);
-				ChestEsp.get().drop(locked);
-				ChestEsp.get().dropNear(locked.box(), SAME);
+				lastLook = locked.box();
 			}
+			ChestEsp.get().dropMarks(chest);
 			locked = null;
+			dingAt = System.currentTimeMillis();
+			quietUntil = dingAt + 220L;
 			tries++;
 			if (tries >= PASS && ChestEsp.get().chestAt(chest.pos) != null) {
 				tries = 0;
 			}
-			ChestEsp.Mark next = pickNewest();
-			if (next != null) {
-				beginTurn(player, next);
-			}
 			return;
 		}
 		if (waiting) {
-			if (ChestEsp.get().stillHas(locked) && locked != null && locked.consumeMove()) {
-				beginTurn(player, locked);
+			if (locked != null && ChestEsp.get().stillHas(locked) && locked.consumeMove()) {
+				Vec3 next = locked.box();
+				if (lastLook == null || next.closerThan(lastLook, 0.25)) {
+					beginTurn(player, locked);
+				}
 			}
 			return;
 		}
-		ChestEsp.Mark first = pickClosest(player);
-		if (first != null) {
-			beginTurn(player, first);
+		if (System.currentTimeMillis() < quietUntil) {
+			return;
+		}
+		ChestEsp.Mark next = pickNewest();
+		if (next == null) {
+			next = pickClosest(player);
+		}
+		if (next != null) {
+			beginTurn(player, next);
 		}
 	}
 
@@ -176,6 +189,9 @@ public final class ChestAimer {
 		if (next != null && chest != null && !next.pos.equals(chest.pos)) {
 			done.clear();
 			doneMarks.clear();
+			quietUntil = 0L;
+			dingAt = 0L;
+			lastLook = null;
 			locked = null;
 			waiting = false;
 			turning = false;
@@ -220,7 +236,7 @@ public final class ChestAimer {
 		ChestEsp.Mark best = null;
 		float bestAng = Float.MAX_VALUE;
 		for (ChestEsp.Mark mark : marks()) {
-			if (seen(mark)) {
+			if (seen(mark) || stale(mark)) {
 				continue;
 			}
 			float ang = angleTo(player, mark.box());
@@ -235,7 +251,7 @@ public final class ChestAimer {
 	private static ChestEsp.Mark pickNewest() {
 		ChestEsp.Mark best = null;
 		for (ChestEsp.Mark mark : marks()) {
-			if (seen(mark)) {
+			if (seen(mark) || stale(mark)) {
 				continue;
 			}
 			if (best == null || mark.boxAt > best.boxAt) {
@@ -261,6 +277,16 @@ public final class ChestAimer {
 		return false;
 	}
 
+	private static boolean stale(ChestEsp.Mark mark) {
+		return dingAt > 0L && mark.boxAt <= dingAt;
+	}
+
+	private static void sealBurst() {
+		for (ChestEsp.Mark mark : marks()) {
+			remember(mark);
+		}
+	}
+
 	private static void remember(ChestEsp.Mark mark) {
 		if (mark == null || seen(mark)) {
 			return;
@@ -284,9 +310,11 @@ public final class ChestAimer {
 		locked = target;
 		if (!follow) {
 			remember(target);
+			sealBurst();
 		}
 		armed = true;
-		Vec3 at = target.box();
+		lastLook = target.box();
+		Vec3 at = lastLook;
 		from = new SmoothRotate.Rotation(
 			SmoothRotate.normalizeYaw(player.getYRot()),
 			SmoothRotate.normalizePitch(player.getXRot())
@@ -352,8 +380,11 @@ public final class ChestAimer {
 		running = false;
 		chest = null;
 		locked = null;
+		lastLook = null;
 		done.clear();
 		doneMarks.clear();
+		quietUntil = 0L;
+		dingAt = 0L;
 		waiting = false;
 		turning = false;
 		armed = false;
