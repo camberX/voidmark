@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.191", new String[]{
+			"Auto update replaces the jar and stops this launch so the next start loads the new code."
+		}),
 		new Entry("1.1.190", new String[]{
 			"Shop bump so auto-update can pull the swap-and-continue updater."
 		}),

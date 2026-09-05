@@ -25,9 +25,8 @@ import java.util.Optional;
 
 /**
  * Optional launch gate. When {@code autoUpdate} is on, Minecraft waits here
- * for voidmark.cloud. A newer jar is written into mods and the old one is
- * retired. This process keeps going; Fabric already loaded the current jar,
- * so the new code is what the next launch picks up.
+ * for voidmark.cloud. A newer jar is written into mods, the old one is
+ * retired, and this process exits so the next launch loads the new jar.
  */
 public final class AutoUpdate implements PreLaunchEntrypoint {
 	private static final String SHOP = "https://voidmark.cloud";
@@ -69,13 +68,14 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 				log("Already up to date (" + installed + ").");
 				return;
 			}
-			log("Found " + remote.version + ". Downloading into mods, then continuing this launch.");
+			log("Found " + remote.version + ". Downloading and closing Minecraft so the new jar can load.");
 			Path dest = apply(current, remote);
 			if (dest == null) {
 				log("Update failed. Continuing with " + installed + ".");
 				return;
 			}
-			log("Queued " + remote.version + " at " + dest.getFileName() + ". This launch stays on " + installed + ".");
+			log("Updated to " + remote.version + " at " + dest.getFileName() + ". Relaunch Minecraft.");
+			System.exit(0);
 		} catch (Exception exception) {
 			log("Update check failed: " + exception.getMessage());
 			Voidmark.LOGGER.warn("Auto-update failed", exception);
