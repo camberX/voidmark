@@ -35,6 +35,8 @@ import dev.voidmark.client.render.VanillaHud;
 import dev.voidmark.client.render.WatermarkRenderer;
 import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.ItemEditScreen;
+import dev.voidmark.client.ui.LoadoutsCommands;
+import dev.voidmark.client.ui.LoadoutsScreen;
 import dev.voidmark.client.ui.SystemFonts;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.ui.UiFontPack;
@@ -110,13 +112,18 @@ public final class VoidmarkClient implements ClientModInitializer {
 			root.then(musicCommand());
 			root.then(RawmatsCommands.command());
 			root.then(EspCommands.command());
+			root.then(LoadoutsCommands.command());
 			dispatcher.register(root);
 			var vm = ClientCommands.literal("vm").executes(context -> openScreen());
 			vm.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
 			vm.then(musicCommand());
 			vm.then(RawmatsCommands.command());
 			vm.then(EspCommands.command());
+			vm.then(LoadoutsCommands.command());
 			dispatcher.register(vm);
+			dispatcher.register(ClientCommands.literal("loadouts").executes(context -> LoadoutsCommands.open()));
+			dispatcher.register(ClientCommands.literal("loadout").executes(context -> LoadoutsCommands.open()));
+			dispatcher.register(ClientCommands.literal("ld").executes(context -> LoadoutsCommands.open()));
 		});
 
 		ClientTickEvents.START_CLIENT_TICK.register(client -> {
@@ -147,6 +154,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			}
 
 			SkyblockLocation.tick(client);
+			LoadoutsScreen.tickSwap(client);
 			Hitsound.tick(client);
 			EnderNodeTracker.get().tick(client);
 			ConnectionPing.tick(client);

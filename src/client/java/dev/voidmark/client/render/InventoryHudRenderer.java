@@ -2,6 +2,7 @@ package dev.voidmark.client.render;
 
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
+import dev.voidmark.client.ui.LoadoutsScreen;
 import dev.voidmark.client.ui.Theme;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
@@ -71,7 +72,8 @@ public final class InventoryHudRenderer {
 		if (client.player == null || client.options.hideGui) {
 			return;
 		}
-		if (client.screen instanceof AbstractContainerScreen<?> && !HudLayout.editorOpen()) {
+		if ((client.screen instanceof AbstractContainerScreen<?> || client.screen instanceof LoadoutsScreen)
+			&& !HudLayout.editorOpen()) {
 			return;
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();

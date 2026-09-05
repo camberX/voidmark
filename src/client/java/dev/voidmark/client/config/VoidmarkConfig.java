@@ -66,6 +66,7 @@ public final class VoidmarkConfig {
 	public boolean miningAbilityAlert = true;
 	public boolean titaniumEsp = true;
 	public boolean titaniumEspThroughWalls = true;
+	public boolean loadoutsMenuEnabled = true;
 	public boolean hitsoundEnabled = true;
 	public boolean hitsoundMelee = true;
 	public boolean hitsoundArrows = true;

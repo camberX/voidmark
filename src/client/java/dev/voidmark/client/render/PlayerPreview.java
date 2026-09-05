@@ -43,6 +43,12 @@ public final class PlayerPreview {
 	public record Drawn(float nameX, float nameY) {
 	}
 
+	public record Gear(ItemStack head, ItemStack chest, ItemStack legs, ItemStack feet) {
+		public static Gear none() {
+			return new Gear(ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY);
+		}
+	}
+
 	public static Drawn draw(
 		GuiGraphicsExtractor graphics,
 		float x,
@@ -52,6 +58,35 @@ public final class PlayerPreview {
 		float yaw,
 		float pitch,
 		View view
+	) {
+		return draw(graphics, x, y, w, h, yaw, pitch, view, Gear.none(), true);
+	}
+
+	public static Drawn drawEquipped(
+		GuiGraphicsExtractor graphics,
+		float x,
+		float y,
+		float w,
+		float h,
+		float yaw,
+		float pitch,
+		View view,
+		Gear gear
+	) {
+		return draw(graphics, x, y, w, h, yaw, pitch, view, gear == null ? Gear.none() : gear, false);
+	}
+
+	public static Drawn draw(
+		GuiGraphicsExtractor graphics,
+		float x,
+		float y,
+		float w,
+		float h,
+		float yaw,
+		float pitch,
+		View view,
+		Gear gear,
+		boolean strip
 	) {
 		Minecraft client = Minecraft.getInstance();
 		LocalPlayer player = client.player;
@@ -67,14 +102,53 @@ public final class PlayerPreview {
 		state.shadowPieces.clear();
 		state.outlineColor = 0;
 		state.nameTag = null;
-		freeze(state, yaw, pitch);
-		float body = Math.max(1.5f, state.boundingBoxHeight);
-		float size = Math.min(62f, Math.max(40f, h * 0.28f));
+		freeze(state, yaw, pitch, strip ? Gear.none() : gear, strip);
+		return paint(graphics, state, x, y, w, h, yaw, pitch, view, scale, 1.5f, 62f);
+	}
+
+	public static Drawn drawEntity(
+		GuiGraphicsExtractor graphics,
+		EntityRenderState state,
+		float x,
+		float y,
+		float w,
+		float h,
+		float yaw,
+		float pitch,
+		View view,
+		float minBody
+	) {
+		if (state == null || view == null || w < 16f || h < 24f) {
+			return null;
+		}
+		state.shadowPieces.clear();
+		state.outlineColor = 0;
+		state.nameTag = null;
+		freeze(state, yaw, pitch, Gear.none(), true);
+		return paint(graphics, state, x, y, w, h, yaw, pitch, view, Math.max(0.35f, view.scale), minBody, 48f);
+	}
+
+	private static Drawn paint(
+		GuiGraphicsExtractor graphics,
+		EntityRenderState state,
+		float x,
+		float y,
+		float w,
+		float h,
+		float yaw,
+		float pitch,
+		View view,
+		float scale,
+		float minBody,
+		float maxSize
+	) {
+		float body = Math.max(minBody, Math.min(4.5f, state.boundingBoxHeight));
+		float size = Math.min(maxSize, Math.max(28f, h * 0.28f));
 		float visH = size * body;
-		float boxW = Math.min(w - 8f, Math.max(52f, size * 1.35f));
+		float boxW = Math.min(w - 8f, Math.max(44f, size * 1.35f));
 		float boxH = visH + 24f;
 		if (boxH > h - NAME_PAD - HINT_PAD) {
-			boxH = Math.max(36f, h - NAME_PAD - HINT_PAD);
+			boxH = Math.max(28f, h - NAME_PAD - HINT_PAD);
 			size = (boxH - 24f) / body;
 			visH = size * body;
 		}
@@ -100,7 +174,7 @@ public final class PlayerPreview {
 	 * Head yaw is applied on top of body yaw in the humanoid model. Keep
 	 * {@code yRot} at 0 so the skull turns with the body instead of 2×.
 	 */
-	private static void freeze(EntityRenderState state, float yaw, float pitch) {
+	private static void freeze(EntityRenderState state, float yaw, float pitch, Gear gear, boolean stripHands) {
 		if (state instanceof LivingEntityRenderState living) {
 			living.pose = Pose.STANDING;
 			living.bodyRot = 180f + yaw;
@@ -111,11 +185,13 @@ public final class PlayerPreview {
 			living.walkAnimationSpeed = 0f;
 			living.isAutoSpinAttack = false;
 			living.hasRedOverlay = false;
-			living.headItem.clear();
-			living.wornHeadType = null;
-			living.wornHeadProfile = null;
+			if (stripHands || gear == null || gear.head == null || gear.head.isEmpty()) {
+				living.headItem.clear();
+				living.wornHeadType = null;
+				living.wornHeadProfile = null;
+			}
 		}
-		if (state instanceof ArmedEntityRenderState armed) {
+		if (state instanceof ArmedEntityRenderState armed && stripHands) {
 			armed.rightHandItemStack = ItemStack.EMPTY;
 			armed.leftHandItemStack = ItemStack.EMPTY;
 			armed.rightHandItemState.clear();
@@ -136,10 +212,17 @@ public final class PlayerPreview {
 			humanoid.elytraRotX = 0f;
 			humanoid.elytraRotY = 0f;
 			humanoid.elytraRotZ = 0f;
-			humanoid.headEquipment = ItemStack.EMPTY;
-			humanoid.chestEquipment = ItemStack.EMPTY;
-			humanoid.legsEquipment = ItemStack.EMPTY;
-			humanoid.feetEquipment = ItemStack.EMPTY;
+			if (gear == null) {
+				humanoid.headEquipment = ItemStack.EMPTY;
+				humanoid.chestEquipment = ItemStack.EMPTY;
+				humanoid.legsEquipment = ItemStack.EMPTY;
+				humanoid.feetEquipment = ItemStack.EMPTY;
+			} else {
+				humanoid.headEquipment = empty(gear.head);
+				humanoid.chestEquipment = empty(gear.chest);
+				humanoid.legsEquipment = empty(gear.legs);
+				humanoid.feetEquipment = empty(gear.feet);
+			}
 		}
 		if (state instanceof AvatarRenderState avatar) {
 			avatar.shouldApplyFlyingYRot = false;
@@ -147,5 +230,9 @@ public final class PlayerPreview {
 			avatar.isSpectator = false;
 			avatar.heldOnHead.clear();
 		}
+	}
+
+	private static ItemStack empty(ItemStack stack) {
+		return stack == null || stack.isEmpty() ? ItemStack.EMPTY : stack;
 	}
 }

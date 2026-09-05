@@ -5,6 +5,7 @@
 	"client": [
 		"AbstractArrowMixin",
 		"AbstractButtonMixin",
+		"AbstractContainerScreenInvoker",
 		"AbstractClientPlayerMixin",
 		"AbstractSelectionListMixin",
 		"AbstractSliderButtonMixin",

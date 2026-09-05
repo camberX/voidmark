@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.174", new String[]{
+			"Hypixel /loadouts opens a Voidmark menu: 3D armor and pet for the selected loadout, and the eight slots on the right. Clicks go through the real chest so the server sees a normal GUI click."
+		}),
 		new Entry("1.1.173", new String[]{
 			"Melee hitsounds wait for Minecraft's attack cooldown. Spam-clicks before the weapon is charged no longer ding."
 		}),

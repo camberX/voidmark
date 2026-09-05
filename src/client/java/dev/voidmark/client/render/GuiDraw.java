@@ -1,6 +1,7 @@
 package dev.voidmark.client.render;
 
 import dev.voidmark.Voidmark;
+import dev.voidmark.client.ui.LoadoutsScreen;
 import dev.voidmark.client.ui.MenuFont;
 import dev.voidmark.client.visual.WorldTint;
 import net.minecraft.client.Minecraft;
@@ -84,6 +85,9 @@ public final class GuiDraw {
 		Screen screen = client.screen;
 		if (screen == null) {
 			return false;
+		}
+		if (screen instanceof LoadoutsScreen) {
+			return true;
 		}
 		if (screen.isInGameUi() || screen instanceof ChatScreen || screen instanceof AbstractContainerScreen) {
 			return false;

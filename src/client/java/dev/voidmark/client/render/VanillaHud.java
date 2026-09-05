@@ -1,6 +1,7 @@
 package dev.voidmark.client.render;
 
 import dev.voidmark.client.config.VoidmarkConfig;
+import dev.voidmark.client.ui.LoadoutsScreen;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Minecraft;
@@ -106,7 +107,8 @@ public final class VanillaHud {
 		if (client.player == null || client.options.hideGui) {
 			return true;
 		}
-		return client.screen instanceof AbstractContainerScreen<?> && !HudLayout.editorOpen();
+		return (client.screen instanceof AbstractContainerScreen<?> || client.screen instanceof LoadoutsScreen)
+			&& !HudLayout.editorOpen();
 	}
 
 	public static boolean spectator() {
