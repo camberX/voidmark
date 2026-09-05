@@ -39,6 +39,8 @@ Java **25** is required.
 
 Recolors terrain toward a color you pick. Strength goes from a light wash to a full client-style paint. **Mode** (World tint cog) picks how: **Shader** (default) paints in Sodium's chunk shader, so fullbright cannot cancel it; **Lightmap** is the older lighting wash. Lightmap mode shows a reminder that **fullbright must be off** or the wash will not appear. Skybox and fog cogs can match the world color or use their own. Aspect chips are on the Aspect cog.
 
+### Visuals → Combat
+
 **Hitsound** plays a short clip as soon as **you** land a charged hit — left-click on a mob or hologram after Minecraft's attack cooldown is ready (the same 90% charge vanilla uses for a strong hit), or **your** arrow overlapping a mob. Clicks during the cooldown stay quiet. Other players' hits do not ding. Hypixel often syncs mob health as 0, so Voidmark does not wait for the client to think the mob is alive. Real players (UUID v4) are skipped; Hypixel NPCs still count. **Melee** and **Arrows** are separate switches; volume and pitch are on the cog. Turning Enable on plays a preview. The delayed vanilla arrow ping is muted if Voidmark already predicted that shot.
 
 ### Visuals → ESP
