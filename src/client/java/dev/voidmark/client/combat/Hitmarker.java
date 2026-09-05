@@ -12,10 +12,10 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * Short CoD-style X on the crosshair after a Voidmark-confirmed hit.
+ * Size follows {@code hitmarkerScale}; it only fades alpha, not color.
  */
 public final class Hitmarker {
 	private static final long DURATION_NS = 280_000_000L;
-	private static long flashAt;
 
 	private Hitmarker() {
 	}
@@ -36,12 +36,15 @@ public final class Hitmarker {
 		flashAt = 0L;
 	}
 
+	private static long flashAt;
+
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.player == null || client.options.hideGui || client.screen != null) {
 			return;
 		}
-		if (!VoidmarkConfig.get().hitmarkerEnabled || flashAt <= 0L) {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		if (!config.hitmarkerEnabled || flashAt <= 0L) {
 			return;
 		}
 		long age = System.nanoTime() - flashAt;
@@ -49,17 +52,18 @@ public final class Hitmarker {
 			return;
 		}
 		float t = 1f - age / (float) DURATION_NS;
-		float expand = (1f - t) * 2.5f;
-		int ink = Theme.withAlpha(0x101218, Math.round(200 * t));
-		int fill = Theme.withAlpha(0xF4F7FF, Math.round(255 * t));
+		float scale = VoidmarkConfig.clampHudScale(config.hitmarkerScale);
+		int alpha = Math.round(255 * t);
+		int fill = Theme.withAlpha(0xFFFFFF, alpha);
 		float cx = graphics.guiWidth() * 0.5f;
 		float cy = graphics.guiHeight() * 0.5f;
-		float inner = 5f + expand;
-		float len = 6f;
-		arm(graphics, cx, cy, 1, 1, inner, len, ink, fill);
-		arm(graphics, cx, cy, -1, 1, inner, len, ink, fill);
-		arm(graphics, cx, cy, 1, -1, inner, len, ink, fill);
-		arm(graphics, cx, cy, -1, -1, inner, len, ink, fill);
+		float inner = 5f * scale;
+		float len = 6f * scale;
+		float stroke = Math.max(1.2f, 1.6f * scale);
+		arm(graphics, cx, cy, 1, 1, inner, len, stroke, fill);
+		arm(graphics, cx, cy, -1, 1, inner, len, stroke, fill);
+		arm(graphics, cx, cy, 1, -1, inner, len, stroke, fill);
+		arm(graphics, cx, cy, -1, -1, inner, len, stroke, fill);
 	}
 
 	private static void arm(
@@ -70,14 +74,14 @@ public final class Hitmarker {
 		int sy,
 		float inner,
 		float len,
-		int ink,
+		float stroke,
 		int fill
 	) {
-		for (int i = 0; i < len; i++) {
-			float x = cx + sx * (inner + i);
-			float y = cy + sy * (inner + i);
-			GuiDraw.fill(graphics, x - 1.2f, y - 1.2f, 2.4f, 2.4f, ink);
-			GuiDraw.fill(graphics, x - 0.7f, y - 0.7f, 1.4f, 1.4f, fill);
+		int steps = Math.max(4, Math.round(len));
+		float half = stroke * 0.5f;
+		for (int i = 0; i < steps; i++) {
+			float u = inner + len * (i / (float) Math.max(1, steps - 1));
+			GuiDraw.fill(graphics, cx + sx * u - half, cy + sy * u - half, stroke, stroke, fill);
 		}
 	}
 }

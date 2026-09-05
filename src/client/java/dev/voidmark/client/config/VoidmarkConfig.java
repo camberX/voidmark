@@ -74,6 +74,7 @@ public final class VoidmarkConfig {
 	public boolean hitsoundMelee = true;
 	public boolean hitsoundArrows = true;
 	public boolean hitmarkerEnabled = true;
+	public float hitmarkerScale = 1.00f;
 	public float hitsoundVolume = 0.80f;
 	public float hitsoundPitch = 1.00f;
 	public int titaniumEspRange = 48;
@@ -418,6 +419,9 @@ public final class VoidmarkConfig {
 				if (!json.has("hitmarkerEnabled")) {
 					loaded.hitmarkerEnabled = true;
 				}
+				loaded.hitmarkerScale = json.has("hitmarkerScale")
+					? clampHudScale(loaded.hitmarkerScale)
+					: 1.00f;
 				loaded.hitsoundVolume = json.has("hitsoundVolume")
 					? clamp(loaded.hitsoundVolume, 0f, 1f)
 					: 0.80f;

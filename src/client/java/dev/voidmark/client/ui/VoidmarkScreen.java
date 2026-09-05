@@ -101,7 +101,7 @@ public class VoidmarkScreen extends Screen {
 		SKY("Skybox", 3),
 		FOG("Fog", 5),
 		VIEW("Aspect", 3),
-		HITSOUND("Hitsound", 2),
+		HITSOUND("Hitsound", 3),
 		MOB("Mob glow", 4),
 		BLOCK("Block outline", 2),
 		NODE_ESP("Node ESP", 5),
@@ -146,6 +146,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Melee hitsound", Tab.COMBAT, "Combat"),
 		new SearchEntry("Arrow hitsound", Tab.COMBAT, "Combat"),
 		new SearchEntry("Hitmarker", Tab.COMBAT, "Combat"),
+		new SearchEntry("Hitmarker scale", Tab.COMBAT, "Combat"),
 		new SearchEntry("Hit volume", Tab.COMBAT, "Combat"),
 		new SearchEntry("Hit pitch", Tab.COMBAT, "Combat"),
 		new SearchEntry("Mob glow", Tab.ESP, "ESP"),
@@ -1277,9 +1278,10 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Arrows", config.hitsoundArrows, v -> config.hitsoundArrows = v);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hitmarker", config.hitmarkerEnabled, v -> config.hitmarkerEnabled = v);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Mix");
+				y = featureCard(graphics, font, right, top, col, cardHeight(3), "Mix");
 				y = slider(graphics, font, rx, y, iw, "Volume", Math.round(config.hitsoundVolume * 100) + "%", config.hitsoundVolume, v -> config.hitsoundVolume = VoidmarkConfig.clamp(v, 0f, 1f));
-				slider(graphics, font, rx, y, iw, "Pitch", String.format(Locale.ROOT, "%.2f", config.hitsoundPitch), (config.hitsoundPitch - 0.50f) / 1.00f, v -> config.hitsoundPitch = VoidmarkConfig.clamp(0.50f + v, 0.50f, 1.50f));
+				y = slider(graphics, font, rx, y, iw, "Pitch", String.format(Locale.ROOT, "%.2f", config.hitsoundPitch), (config.hitsoundPitch - 0.50f) / 1.00f, v -> config.hitsoundPitch = VoidmarkConfig.clamp(0.50f + v, 0.50f, 1.50f));
+				slider(graphics, font, rx, y, iw, "Marker", Math.round(config.hitmarkerScale * 100) + "%", (config.hitmarkerScale - 0.50f) / 1.50f, v -> config.hitmarkerScale = VoidmarkConfig.clampHudScale(0.50f + v * 1.50f));
 			}
 			case ESP -> drawMobsTab(graphics, font, mouseX, mouseY);
 			case OVERLAY -> {
@@ -1574,7 +1576,8 @@ public class VoidmarkScreen extends Screen {
 			}
 			case HITSOUND -> {
 				y = slider(graphics, font, ix, y, iw, "Volume", Math.round(config.hitsoundVolume * 100) + "%", config.hitsoundVolume, v -> config.hitsoundVolume = VoidmarkConfig.clamp(v, 0f, 1f));
-				slider(graphics, font, ix, y, iw, "Pitch", String.format(Locale.ROOT, "%.2f", config.hitsoundPitch), (config.hitsoundPitch - 0.50f) / 1.00f, v -> config.hitsoundPitch = VoidmarkConfig.clamp(0.50f + v, 0.50f, 1.50f));
+				y = slider(graphics, font, ix, y, iw, "Pitch", String.format(Locale.ROOT, "%.2f", config.hitsoundPitch), (config.hitsoundPitch - 0.50f) / 1.00f, v -> config.hitsoundPitch = VoidmarkConfig.clamp(0.50f + v, 0.50f, 1.50f));
+				slider(graphics, font, ix, y, iw, "Marker", Math.round(config.hitmarkerScale * 100) + "%", (config.hitmarkerScale - 0.50f) / 1.50f, v -> config.hitmarkerScale = VoidmarkConfig.clampHudScale(0.50f + v * 1.50f));
 			}
 			case MOB -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.mobGlowThroughWalls, v -> config.mobGlowThroughWalls = v);
@@ -1841,7 +1844,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.194");
+			.orElse("1.1.195");
 	}
 
 	@Override

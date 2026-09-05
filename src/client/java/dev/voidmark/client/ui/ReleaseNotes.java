@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.195", new String[]{
+			"Hitmarker size is a slider on Combat → Mix. The X stays white and only fades out."
+		}),
 		new Entry("1.1.194", new String[]{
 			"Wardrobe and loadouts no longer flash a lime green plate behind 3D models. Equipped slots use the accent rim instead."
 		}),

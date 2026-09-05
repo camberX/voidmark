@@ -41,7 +41,7 @@ Recolors terrain toward a color you pick. Strength goes from a light wash to a f
 
 ### Visuals → Combat
 
-**Hitsound** plays a short clip when **you** land a hit that would register: left-click on a mob or hologram after the weapon charge and hit delay are ready, or **your** arrow overlapping a mob. Spam-clicks during that delay stay quiet. **Hitmarker** (same Combat card) flashes a CoD-style X on the crosshair. Other players' hits do not ding. Hypixel often syncs mob health as 0, so Voidmark does not wait for the client to think the mob is alive. Real players (UUID v4) are skipped; Hypixel NPCs still count. **Melee** and **Arrows** are separate switches; volume and pitch are on the cog. Turning Enable on plays a preview. The delayed vanilla arrow ping is muted if Voidmark already predicted that shot.
+**Hitsound** plays a short clip when **you** land a hit that would register: left-click on a mob or hologram after the weapon charge and hit delay are ready, or **your** arrow overlapping a mob. Spam-clicks during that delay stay quiet. **Hitmarker** (same Combat card) flashes a white CoD-style X on the crosshair; **Marker** on Mix sets its size. Other players' hits do not ding. Hypixel often syncs mob health as 0, so Voidmark does not wait for the client to think the mob is alive. Real players (UUID v4) are skipped; Hypixel NPCs still count. **Melee** and **Arrows** are separate switches; volume and pitch are on the cog. Turning Enable on plays a preview. The delayed vanilla arrow ping is muted if Voidmark already predicted that shot.
 
 ### Visuals → ESP
 
