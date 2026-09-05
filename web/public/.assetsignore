@@ -1,0 +1,2 @@
+# Jars are fetched from GitHub. Keep latest.json and the HTML.
+mod/*.jar

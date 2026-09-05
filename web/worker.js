@@ -1025,6 +1025,10 @@ async function serveManage(request, env) {
 	return page(MANAGE_HTML);
 }
 
+const DEFAULT_MOD_GITHUB = "camberX/voidmark";
+const DEFAULT_MOD_BRANCH = "main";
+const DEFAULT_MOD_PATH = "web/public/mod";
+
 async function readModMeta(request, env) {
 	const github = await readGithubMeta(env);
 	if (github && github.version) {
@@ -1033,85 +1037,122 @@ async function readModMeta(request, env) {
 	if (!env.ASSETS) {
 		return null;
 	}
-	try {
-		const response = await env.ASSETS.fetch(new URL("/mod/latest.json", request.url));
-		if (!response.ok) {
-			return null;
+	const assetPaths = ["/mod.json", "/mod/latest.json"];
+	for (let i = 0; i < assetPaths.length; i++) {
+		try {
+			const response = await env.ASSETS.fetch(new URL(assetPaths[i], request.url));
+			if (response.ok) {
+				const meta = await response.json();
+				if (meta && meta.version) {
+					meta.source = "assets";
+					return meta;
+				}
+			}
+		} catch {
+			// try next
 		}
-		return await response.json();
-	} catch {
-		return null;
 	}
+	return null;
 }
 
-function modGithubRepo(env) {
-	return String(env.MOD_GITHUB || "")
+function cleanGithubRepo(value) {
+	return String(value || "")
 		.trim()
 		.replace(/^https?:\/\/github\.com\//i, "")
 		.replace(/\.git$/i, "")
 		.replace(/\/+$/, "");
 }
 
-function githubModFileUrl(env, meta, fileName) {
-	const repo = (meta && meta.repo) || modGithubRepo(env);
-	if (!repo) {
-		return "";
+function modGithubRepos(env) {
+	const seen = {};
+	const list = [];
+	function add(value) {
+		const repo = cleanGithubRepo(value);
+		const key = repo.toLowerCase();
+		if (!repo || seen[key]) {
+			return;
+		}
+		seen[key] = true;
+		list.push(repo);
 	}
-	const branch = (meta && meta.branch) || env.MOD_GITHUB_BRANCH || "main";
-	const dir = String((meta && meta.dir) || env.MOD_GITHUB_PATH || "web/public/mod").replace(/^\/+|\/+$/g, "");
+	add(DEFAULT_MOD_GITHUB);
+	add(env && env.MOD_GITHUB);
+	return list;
+}
+
+function modGithubBranch(env, meta) {
+	return String((meta && meta.branch) || (env && env.MOD_GITHUB_BRANCH) || DEFAULT_MOD_BRANCH).trim() || DEFAULT_MOD_BRANCH;
+}
+
+function modGithubDir(env, meta) {
+	return String((meta && meta.dir) || (env && env.MOD_GITHUB_PATH) || DEFAULT_MOD_PATH).replace(/^\/+|\/+$/g, "") || DEFAULT_MOD_PATH;
+}
+
+function githubFileUrls(repo, branch, dir, fileName) {
 	const file = String(fileName || "voidmark.jar").replace(/^\/+/, "");
-	return "https://raw.githubusercontent.com/" + repo + "/" + branch + "/" + dir + "/" + file;
+	const path = dir + "/" + file;
+	return [
+		"https://cdn.jsdelivr.net/gh/" + repo + "@" + branch + "/" + path,
+		"https://api.github.com/repos/" + repo + "/contents/" + path + "?ref=" + encodeURIComponent(branch),
+		"https://raw.githubusercontent.com/" + repo + "/" + branch + "/" + path,
+		"https://cdn.statically.io/gh/" + repo + "/" + branch + "/" + path
+	];
+}
+
+function githubFetchHeaders(url) {
+	const headers = { "User-Agent": "Voidmark-Shop" };
+	if (url.includes("api.github.com")) {
+		headers.Accept = "application/vnd.github.raw";
+	} else if (url.endsWith(".json") || url.includes("latest.json")) {
+		headers.Accept = "application/json";
+	}
+	return headers;
+}
+
+async function fetchGithubFile(url) {
+	const response = await fetch(url, {
+		headers: githubFetchHeaders(url),
+		redirect: "follow"
+	});
+	return response.ok ? response : null;
+}
+
+function githubModFileUrls(env, meta, fileName) {
+	const repo = (meta && meta.repo) || DEFAULT_MOD_GITHUB;
+	if (!repo) {
+		return [];
+	}
+	return githubFileUrls(repo, modGithubBranch(env, meta), modGithubDir(env, meta), fileName);
 }
 
 async function readGithubMeta(env) {
-	const repo = modGithubRepo(env);
-	if (!repo) {
-		return null;
-	}
-	const branch = env.MOD_GITHUB_BRANCH || "main";
-	const dir = String(env.MOD_GITHUB_PATH || "web/public/mod").replace(/^\/+|\/+$/g, "");
-	const loader = async () => {
-		const url = "https://raw.githubusercontent.com/" + repo + "/" + branch + "/" + dir + "/latest.json";
-		const response = await fetch(url, {
-			headers: { "User-Agent": "Voidmark-Shop", Accept: "application/json" },
-			redirect: "follow"
-		});
-		if (!response.ok) {
-			return null;
-		}
-		const meta = await response.json();
-		if (!meta || !meta.version) {
-			return null;
-		}
-		meta.repo = repo;
-		meta.branch = branch;
-		meta.dir = dir;
-		meta.source = "github";
-		return meta;
-	};
-	try {
-		if (typeof caches !== "undefined" && caches.default) {
-			const cacheReq = new Request("https://voidmark.mod.cache/github/" + repo + "/" + branch);
-			const hit = await caches.default.match(cacheReq);
-			if (hit) {
-				return await hit.json();
+	const repos = modGithubRepos(env);
+	const branch = modGithubBranch(env);
+	const dir = modGithubDir(env);
+	for (let r = 0; r < repos.length; r++) {
+		const repo = repos[r];
+		const urls = githubFileUrls(repo, branch, dir, "latest.json");
+		for (let i = 0; i < urls.length; i++) {
+			try {
+				const response = await fetchGithubFile(urls[i]);
+				if (!response) {
+					continue;
+				}
+				const meta = await response.json();
+				if (!meta || !meta.version) {
+					continue;
+				}
+				meta.repo = repo;
+				meta.branch = branch;
+				meta.dir = dir;
+				meta.source = "github";
+				return meta;
+			} catch {
+				// try next mirror
 			}
-			const meta = await loader();
-			if (meta) {
-				await caches.default.put(cacheReq, new Response(JSON.stringify(meta), {
-					headers: { "Content-Type": "application/json", "Cache-Control": "max-age=60" }
-				}));
-			}
-			return meta;
 		}
-	} catch {
-		// fall through
 	}
-	try {
-		return await loader();
-	} catch {
-		return null;
-	}
+	return null;
 }
 
 async function serveModInfo(request, env) {
@@ -1134,22 +1175,16 @@ async function fetchModBytes(request, env, meta) {
 		names.push(String(meta.file));
 	}
 	names.push("voidmark.jar");
-	if (meta && meta.repo) {
-		for (let i = 0; i < names.length; i++) {
-			const url = githubModFileUrl(env, meta, names[i]);
-			if (!url) {
-				continue;
-			}
+	for (let i = 0; i < names.length; i++) {
+		const urls = githubModFileUrls(env, meta, names[i]);
+		for (let u = 0; u < urls.length; u++) {
 			try {
-				const upstream = await fetch(url, {
-					headers: { "User-Agent": "Voidmark-Shop" },
-					redirect: "follow"
-				});
-				if (upstream.ok) {
+				const upstream = await fetchGithubFile(urls[u]);
+				if (upstream) {
 					return { body: upstream.body, file: names[i] };
 				}
 			} catch {
-				// try next
+				// try next mirror
 			}
 		}
 	}
@@ -1330,19 +1365,40 @@ const STORE_HTML = `<!DOCTYPE html>
 		(function loadMod() {
 			var ver = document.getElementById("mod-ver");
 			var link = document.getElementById("mod-download");
-			fetch("/api/mod", { cache: "no-store" }).then(function (response) {
-				return response.ok ? response.json() : null;
-			}).then(function (data) {
-				if (!data || !data.version) {
+			var mirrors = [
+				"/api/mod",
+				"https://cdn.jsdelivr.net/gh/camberX/voidmark@main/web/public/mod/latest.json",
+				"https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/latest.json"
+			];
+			function fileUrl(data) {
+				if (data.url && data.url.charAt(0) === "/") {
+					return data.url;
+				}
+				var file = data.file || ("voidmark-" + data.version + ".jar");
+				return "https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/" + file;
+			}
+			function apply(data) {
+				ver.textContent = "v" + data.version + " · Minecraft " + (data.minecraft || "26.1.2");
+				link.classList.remove("dead");
+				link.setAttribute("download", data.file || ("voidmark-" + data.version + ".jar"));
+				link.href = fileUrl(data);
+			}
+			function next(i) {
+				if (i >= mirrors.length) {
 					ver.textContent = "Build not published yet.";
 					link.classList.add("dead");
 					return;
 				}
-				ver.textContent = "v" + data.version + " · Minecraft " + (data.minecraft || "26.1.2");
-				link.setAttribute("download", data.file || ("voidmark-" + data.version + ".jar"));
-			}).catch(function () {
-				ver.textContent = "Could not read the latest build.";
-			});
+				fetch(mirrors[i], { cache: "no-store" }).then(function (response) {
+					return response.ok ? response.json() : null;
+				}).then(function (data) {
+					if (data && data.version) apply(data);
+					else next(i + 1);
+				}).catch(function () {
+					next(i + 1);
+				});
+			}
+			next(0);
 		})();
 	</script>
 </body>

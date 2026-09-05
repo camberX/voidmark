@@ -122,19 +122,40 @@
 		(function loadMod() {
 			var ver = document.getElementById("mod-ver");
 			var link = document.getElementById("mod-download");
-			fetch("/api/mod", { cache: "no-store" }).then(function (response) {
-				return response.ok ? response.json() : null;
-			}).then(function (data) {
-				if (!data || !data.version) {
+			var mirrors = [
+				"/api/mod",
+				"https://cdn.jsdelivr.net/gh/camberX/voidmark@main/web/public/mod/latest.json",
+				"https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/latest.json"
+			];
+			function fileUrl(data) {
+				if (data.url && data.url.charAt(0) === "/") {
+					return data.url;
+				}
+				var file = data.file || ("voidmark-" + data.version + ".jar");
+				return "https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/" + file;
+			}
+			function apply(data) {
+				ver.textContent = "v" + data.version + " · Minecraft " + (data.minecraft || "26.1.2");
+				link.classList.remove("dead");
+				link.setAttribute("download", data.file || ("voidmark-" + data.version + ".jar"));
+				link.href = fileUrl(data);
+			}
+			function next(i) {
+				if (i >= mirrors.length) {
 					ver.textContent = "Build not published yet.";
 					link.classList.add("dead");
 					return;
 				}
-				ver.textContent = "v" + data.version + " · Minecraft " + (data.minecraft || "26.1.2");
-				link.setAttribute("download", data.file || ("voidmark-" + data.version + ".jar"));
-			}).catch(function () {
-				ver.textContent = "Could not read the latest build.";
-			});
+				fetch(mirrors[i], { cache: "no-store" }).then(function (response) {
+					return response.ok ? response.json() : null;
+				}).then(function (data) {
+					if (data && data.version) apply(data);
+					else next(i + 1);
+				}).catch(function () {
+					next(i + 1);
+				});
+			}
+			next(0);
 		})();
 	</script>
 </body>

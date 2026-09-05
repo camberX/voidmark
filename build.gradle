@@ -102,7 +102,9 @@ tasks.register("syncWebMod") {
 			minecraft: project.minecraft_version.toString(),
 			file     : versionedName
 		]
-		new File(destDir, "latest.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(meta)) + "\n"
+		def latest = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(meta)) + "\n"
+		new File(destDir, "latest.json").text = latest
+		new File(destDir.parentFile, "mod.json").text = latest
 	}
 }
 

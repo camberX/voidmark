@@ -12,7 +12,7 @@ Origin has no Download ZIP. Do not type your Google password into Git.
 
 1. Cloudflare → **Workers & Pages** (Compute) → **Create** → start from a Hello World Worker.
 2. Name it `voidmark-capes`. Deploy once so it exists.
-3. **Edit code**. Delete the sample. On [the Voidmark codebase](https://cursor.com/codebase/shora/voidmark) open `web/worker.js`, copy the whole file, paste it into the Worker editor. **Deploy**.
+3. **Edit code**. Delete the sample. On [the Voidmark codebase](https://github.com/camberX/voidmark) open `web/worker.js`, copy the whole file, paste it into the Worker editor. **Deploy**.
 4. Worker **Settings** → **Bindings** → **R2** → Add. Variable name must be `CAPES`. Bucket: `voidmark-capes`. Save.
 5. Worker **Settings** → **Variables and Secrets**:
    - `ADMIN` → Encrypt / Secret. Paste a long random string and save it in a password manager.
@@ -128,14 +128,16 @@ The jar always uses `https://voidmark.cloud`, so that hostname must be on the Wo
 
 ## Updating later
 
-The shop download does **not** need a Worker deploy for each new jar. `./gradlew build` writes `web/public/mod/latest.json` and the jar; `git push` to [camberX/voidmark](https://github.com/camberX/voidmark) is enough. The Worker fetches that on `/download` and `/api/mod`.
+The shop download does **not** need a Worker deploy for each new jar. `./gradlew build` writes `web/public/mod/latest.json` and the jar; `git push` to [camberX/voidmark](https://github.com/camberX/voidmark) is enough. The Worker fetches that on `/download` and `/api/mod`. It always tries `camberX/voidmark` first, even if the dashboard `MOD_GITHUB` var is missing or still points at an old repo.
 
-After you change `web/worker.js`, the cape desk HTML, or `wrangler.toml` (Worker code, not the jar):
+If the landing page still says **Build not published yet**, the live Worker does not have this fetch code. Paste the current `web/worker.js` into the Worker editor and Deploy, or run:
 
 ```bash
 cd web
 npx wrangler deploy
 ```
+
+After you change the cape desk HTML or `wrangler.toml` (Worker code, not the jar), deploy the same way.
 
 Change `MOD_GITHUB` in `wrangler.toml` if the jar lives in a different public repo. Changing the `ADMIN` secret is another `npx wrangler secret put ADMIN`. The UUID list and cape PNGs stay in the R2 bucket.
 
