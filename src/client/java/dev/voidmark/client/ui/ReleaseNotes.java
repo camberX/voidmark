@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.220", new String[]{
+			"Chest ESP marks newly spawned chests within 5 blocks in Dwarven Mines and Crystal Hollows from packets, with tracers and crit-particle boxes even if Sodium hides particles."
+		}),
 		new Entry("1.1.219", new String[]{
 			"Block outline glow is back. Looking at a block uses a small blur instead of the full ESP kernel, so world FPS stays up."
 		}),

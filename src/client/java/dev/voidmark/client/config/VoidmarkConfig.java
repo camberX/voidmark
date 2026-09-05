@@ -74,6 +74,10 @@ public final class VoidmarkConfig {
 	public float farmingYawPitchScale = 1.00f;
 	public boolean titaniumEsp = false;
 	public boolean titaniumEspThroughWalls = true;
+	public boolean chestEspEnabled = false;
+	public boolean chestEspTracers = true;
+	public boolean chestEspThroughWalls = true;
+	public int chestEspRgb = 0xF4C14E;
 	public boolean loadoutsMenuEnabled = false;
 	public boolean loadoutsOpenAnim = true;
 	public boolean wardrobeMenuEnabled = false;
@@ -386,6 +390,19 @@ public final class VoidmarkConfig {
 				loaded.titaniumEspRgb = loaded.titaniumEspRgb & 0xFFFFFF;
 				if (loaded.titaniumEspRgb == 0) {
 					loaded.titaniumEspRgb = 0xE8ECF2;
+				}
+				if (!json.has("chestEspEnabled")) {
+					loaded.chestEspEnabled = false;
+				}
+				if (!json.has("chestEspTracers")) {
+					loaded.chestEspTracers = true;
+				}
+				if (!json.has("chestEspThroughWalls")) {
+					loaded.chestEspThroughWalls = true;
+				}
+				loaded.chestEspRgb = loaded.chestEspRgb & 0xFFFFFF;
+				if (loaded.chestEspRgb == 0) {
+					loaded.chestEspRgb = 0xF4C14E;
 				}
 				if (loaded.itemSkins == null) {
 					loaded.itemSkins = new java.util.ArrayList<>();

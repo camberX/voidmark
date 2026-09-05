@@ -1,5 +1,6 @@
 package dev.voidmark.client.net;
 
+import dev.voidmark.client.mining.ChestEsp;
 import dev.voidmark.client.node.EnderNodeTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.particles.ParticleOptions;
@@ -30,6 +31,7 @@ public final class ClientPackets {
 				EnderNodeTracker.get().onParticle(x, y, z, options.getType())
 			);
 		}
+		ChestEsp.onPacket(packet);
 		EspNamePackets.onPacket(packet);
 	}
 }

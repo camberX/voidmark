@@ -106,6 +106,7 @@ public class VoidmarkScreen extends Screen {
 		HITSOUND("Hitsound", 3),
 		MOB("Mob glow", 4),
 		BLOCK("Block outline", 2),
+		CHEST("Chest ESP", 3),
 		NODE_ESP("Node ESP", 5),
 		WATERMARK("Watermark", 4),
 		MUSIC("Music", 2),
@@ -131,7 +132,7 @@ public class VoidmarkScreen extends Screen {
 	}
 
 	private enum PickerTarget {
-		WORLD, SKY, FOG, NODE, THEME, PANE, MOB, BLOCK, TITANIUM
+		WORLD, SKY, FOG, NODE, THEME, PANE, MOB, BLOCK, TITANIUM, CHEST
 	}
 
 	private record SearchEntry(String label, Tab tab, String hint) {
@@ -156,6 +157,8 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Nametag ESP", Tab.ESP, "ESP"),
 		new SearchEntry("Block outline", Tab.ESP, "ESP"),
 		new SearchEntry("Block outline color", Tab.ESP, "ESP"),
+		new SearchEntry("Chest ESP", Tab.ESP, "ESP"),
+		new SearchEntry("Chest tracers", Tab.ESP, "ESP"),
 		new SearchEntry("Mobs", Tab.ESP, "ESP"),
 		new SearchEntry("Node ESP", Tab.NODES, "Nodes"),
 		new SearchEntry("Nametags", Tab.ESP, "ESP"),
@@ -572,14 +575,15 @@ public class VoidmarkScreen extends Screen {
 		VoidmarkConfig config = VoidmarkConfig.get();
 		config.normalizeMobGlowIds();
 
-		float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Glow");
+		float y = featureCard(graphics, font, left, top, col, cardHeight(5), "Glow");
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Mob glow", config.mobGlowEnabled, v -> config.mobGlowEnabled = v, Feature.MOB);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Block outline", config.blockOutlineGlow, v -> config.blockOutlineGlow = v, Feature.BLOCK);
+		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Chest ESP", config.chestEspEnabled, v -> config.chestEspEnabled = v, Feature.CHEST);
 		y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Nametags", config.nametagsEnabled, v -> config.nametagsEnabled = v, Feature.NAMETAGS);
 		toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Own nametag", config.nametagSelf, v -> config.nametagSelf = v);
 
 		List<String> nametags = config.nametagEspLabels();
-		float namesTop = top + cardHeight(4) + 8;
+		float namesTop = top + cardHeight(5) + 8;
 		float namesH = Math.max(cardHeight(2), windowY + windowH - PAD - namesTop);
 		String namesTitle = nametags.isEmpty() ? "Nametag ESP" : "Nametag ESP  " + nametags.size();
 		float namesY = featureCard(graphics, font, left, namesTop, col, namesH, namesTitle);
@@ -1621,6 +1625,11 @@ public class VoidmarkScreen extends Screen {
 				y = slider(graphics, font, ix, y, iw, "Opacity", Math.round(config.blockOutlineOpacity * 100) + "%", (config.blockOutlineOpacity - 0.15f) / 0.75f, v -> config.blockOutlineOpacity = VoidmarkConfig.clamp(0.15f + v * 0.75f, 0.15f, 0.90f));
 				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.blockOutlineRgb, PickerTarget.BLOCK);
 			}
+			case CHEST -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Tracers", config.chestEspTracers, v -> config.chestEspTracers = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.chestEspThroughWalls, v -> config.chestEspThroughWalls = v);
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.chestEspRgb, PickerTarget.CHEST);
+			}
 			case NODE_ESP -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Tracer", config.tracersEnabled, v -> config.tracersEnabled = v);
@@ -1845,6 +1854,7 @@ public class VoidmarkScreen extends Screen {
 			case MOB -> config.mobGlowRgb = packed;
 			case BLOCK -> config.blockOutlineRgb = packed;
 			case TITANIUM -> config.titaniumEspRgb = packed;
+			case CHEST -> config.chestEspRgb = packed;
 			case THEME -> Theme.applyCustom(packed);
 			case PANE -> Theme.applyPane(packed);
 		}
@@ -1880,7 +1890,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.219");
+			.orElse("1.1.220");
 	}
 
 	@Override

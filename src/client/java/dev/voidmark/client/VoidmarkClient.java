@@ -22,8 +22,10 @@ import dev.voidmark.client.item.SkyblockRecipes;
 import dev.voidmark.client.media.MediaChat;
 import dev.voidmark.client.media.MediaSession;
 import dev.voidmark.client.media.SpotifySmtc;
+import dev.voidmark.client.mining.ChestEsp;
 import dev.voidmark.client.mining.MiningTracker;
 import dev.voidmark.client.mining.TitaniumTracker;
+import dev.voidmark.client.render.ChestEspRenderer;
 import dev.voidmark.client.render.InventoryHudRenderer;
 import dev.voidmark.client.render.MusicHudRenderer;
 import dev.voidmark.client.render.NametagRenderer;
@@ -91,6 +93,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		MobGlowRenderer.init();
 		BlockOutlineGlow.init();
 		MiningWorldRenderer.init();
+		ChestEspRenderer.init();
 		Hitmarker.init();
 		FarmingHud.init();
 		WatermarkRenderer.init();
@@ -215,12 +218,16 @@ public final class VoidmarkClient implements ClientModInitializer {
 			RawmatsTracker.tick(client);
 			MiningTracker.tick(client);
 			TitaniumTracker.get().tick(client);
+			ChestEsp.get().tick(client);
 			ShopCape.tick();
 			FakeBan.tick();
 			UiFontPack.tick(client);
 		});
 
-		ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> MobGlowRenderer.reset());
+		ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
+			MobGlowRenderer.reset();
+			ChestEsp.get().clear();
+		});
 
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			MobGlowRenderer.reset();
@@ -239,6 +246,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			ConnectionPing.reset();
 			MiningTracker.reset();
 			TitaniumTracker.get().clear();
+			ChestEsp.get().clear();
 			FakeBan.reset();
 			MobGlowRenderer.reset();
 			LoadoutsScreen.resetPending();
