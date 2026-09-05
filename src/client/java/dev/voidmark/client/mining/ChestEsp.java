@@ -33,10 +33,9 @@ public final class ChestEsp {
 	private static final ChestEsp INSTANCE = new ChestEsp();
 	private static final double RANGE = 5.0;
 	private static final double RANGE_SQ = RANGE * RANGE;
-	private static final long CHEST_MS = 25_000L;
 	private static final long CRIT_MS = 1_200L;
 	private static final double CRIT_CHEST = 0.3;
-	private static final int MAX_CHESTS = 16;
+	private static final int MAX_CHESTS = 64;
 	private static final int MAX_CRITS = 32;
 
 	private final Map<Long, Mark> chests = new ConcurrentHashMap<>();
@@ -143,19 +142,12 @@ public final class ChestEsp {
 			return;
 		}
 		long now = System.currentTimeMillis();
-		Vec3 here = client.player.position();
 		chests.entrySet().removeIf(entry -> {
 			Mark mark = entry.getValue();
-			if (now - mark.born > CHEST_MS) {
-				return true;
+			if (!client.level.hasChunkAt(mark.pos)) {
+				return false;
 			}
-			if (here.distanceToSqr(mark.x, mark.y, mark.z) > RANGE_SQ * 2.25) {
-				return true;
-			}
-			if (client.level.hasChunkAt(mark.pos) && !isChest(client.level.getBlockState(mark.pos))) {
-				return true;
-			}
-			return false;
+			return !isChest(client.level.getBlockState(mark.pos));
 		});
 		synchronized (crits) {
 			crits.removeIf(mark -> now - mark.born > CRIT_MS);
@@ -274,6 +266,9 @@ public final class ChestEsp {
 	}
 
 	private void rememberChest(BlockPos pos) {
+		if (chests.containsKey(pos.asLong())) {
+			return;
+		}
 		LocalPlayer player = Minecraft.getInstance().player;
 		if (player == null) {
 			return;
@@ -282,19 +277,21 @@ public final class ChestEsp {
 		if (player.distanceToSqr(center) > RANGE_SQ) {
 			return;
 		}
-		if (chests.size() >= MAX_CHESTS && !chests.containsKey(pos.asLong())) {
-			Mark oldest = null;
+		if (chests.size() >= MAX_CHESTS) {
+			Mark farthest = null;
+			double farthestDist = -1;
 			for (Mark mark : chests.values()) {
-				if (oldest == null || mark.born < oldest.born) {
-					oldest = mark;
+				double dist = player.distanceToSqr(mark.x, mark.y, mark.z);
+				if (dist > farthestDist) {
+					farthestDist = dist;
+					farthest = mark;
 				}
 			}
-			if (oldest != null) {
-				chests.remove(oldest.pos.asLong());
+			if (farthest != null) {
+				chests.remove(farthest.pos.asLong());
 			}
 		}
-		long now = System.currentTimeMillis();
-		chests.put(pos.asLong(), new Mark(pos.immutable(), center.x, center.y, center.z, now));
+		chests.put(pos.asLong(), new Mark(pos.immutable(), center.x, center.y, center.z, System.currentTimeMillis()));
 		dirty = true;
 	}
 

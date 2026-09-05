@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.4", new String[]{
+			"Chest ESP keeps chests you already found after you walk out of the 5-block detect range. They drop only when the chest is gone."
+		}),
 		new Entry("1.2.3", new String[]{
 			"Chest Aim no longer freezes on the first crit. It dwells briefly, then turns to the next distinct particle on the chest."
 		}),
