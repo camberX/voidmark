@@ -44,6 +44,7 @@ public final class SpotifyNowPlaying {
 	private static final int REDIRECT_PORT = 43821;
 	private static final String SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state";
 	private static final long POLL_MS = 900L;
+	private static final long HOLD_MS = 20_000L;
 	private static final HttpClient HTTP = HttpClient.newBuilder()
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.connectTimeout(Duration.ofSeconds(8))
@@ -54,6 +55,7 @@ public final class SpotifyNowPlaying {
 	private static volatile String lastError = "";
 	private static volatile NowPlaying cached = NowPlaying.none();
 	private static volatile long lastPollMs;
+	private static volatile long lastGoodMs;
 	private static HttpServer loginServer;
 	private static String codeVerifier = "";
 	private static String loginState = "";
@@ -136,7 +138,15 @@ public final class SpotifyNowPlaying {
 		}
 		lastPollMs = now;
 		NowPlaying next = fetchCurrent();
-		cached = next;
+		if (next.present()) {
+			cached = next;
+			lastGoodMs = now;
+			return next;
+		}
+		if (cached.present() && now - lastGoodMs < HOLD_MS) {
+			return cached;
+		}
+		cached = NowPlaying.none();
 		return next;
 	}
 
@@ -331,8 +341,16 @@ public final class SpotifyNowPlaying {
 		if (token.isBlank()) {
 			return NowPlaying.none();
 		}
+		NowPlaying player = fetchPlayer(token, PLAYER + "?additional_types=track,episode");
+		if (player.present()) {
+			return player;
+		}
+		return fetchPlayer(token, CURRENT + "?additional_types=track,episode");
+	}
+
+	private static NowPlaying fetchPlayer(String token, String url) {
 		try {
-			HttpRequest request = HttpRequest.newBuilder(URI.create(CURRENT + "?additional_types=track,episode"))
+			HttpRequest request = HttpRequest.newBuilder(URI.create(url))
 				.timeout(Duration.ofSeconds(6))
 				.header("Authorization", "Bearer " + token)
 				.header("Accept", "application/json")
@@ -344,7 +362,8 @@ public final class SpotifyNowPlaying {
 				return NowPlaying.none();
 			}
 			if (code == 401 && refreshAccess()) {
-				return fetchCurrent();
+				String next = accessToken();
+				return next.isBlank() ? NowPlaying.none() : fetchPlayer(next, url);
 			}
 			if (code < 200 || code >= 300) {
 				return NowPlaying.none();

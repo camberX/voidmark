@@ -114,7 +114,7 @@ public final class MediaSession {
 			return NowPlaying.none();
 		}
 		NowPlaying titled = TITLES.snapshot();
-		if (titled.present()) {
+		if (titled.present() && !(SpotifyNowPlaying.connected() && "SPOTIFY".equals(titled.sourceLabel()))) {
 			NowPlaying out = titled.cleaned();
 			if (!out.youtubeMusic()) {
 				out = TrackLookup.enrich(out);
