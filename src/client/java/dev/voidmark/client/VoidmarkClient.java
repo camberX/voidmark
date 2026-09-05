@@ -73,6 +73,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 	private static KeyMapping openGui;
 	private static KeyMapping openLoadouts;
 	private static KeyMapping openWardrobe;
+	private static KeyMapping chestAim;
 	private static boolean itemAppearancesLoaded;
 
 	public static boolean loadoutsKey(KeyEvent event) {
@@ -126,6 +127,13 @@ public final class VoidmarkClient implements ClientModInitializer {
 			InputConstants.UNKNOWN.getValue(),
 			CATEGORY
 		));
+		chestAim = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+			"key.voidmark.chest_aim",
+			InputConstants.Type.KEYSYM,
+			InputConstants.UNKNOWN.getValue(),
+			CATEGORY
+		));
+		ChestAimer.bindKey(chestAim);
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
 			var root = ClientCommands.literal("voidmark").executes(context -> openScreen());
 			root.then(ClientCommands.literal("toggle").executes(context -> {

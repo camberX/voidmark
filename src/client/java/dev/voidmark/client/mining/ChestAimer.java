@@ -1,6 +1,7 @@
 package dev.voidmark.client.mining;
 
 import dev.voidmark.client.config.VoidmarkConfig;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Holder;
@@ -18,8 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Starts when the crosshair is near a lock box, then looks at each remaining
- * mark until Experience Gained.
+ * While the Chest Aim key is held, looks at lock boxes until Experience
+ * Gained, then the next mark. Releasing the key stops.
  */
 public final class ChestAimer {
 	private static final float TOLERANCE = 0.15f;
@@ -27,6 +28,7 @@ public final class ChestAimer {
 	private static final double SAME = 0.10;
 	private static final double AIM_NEAR = 0.40;
 
+	private static KeyMapping key;
 	private static boolean running;
 	private static boolean listening;
 	private static ChestEsp.Mark chest;
@@ -52,6 +54,10 @@ public final class ChestAimer {
 
 	public static void init() {
 		listen(Minecraft.getInstance());
+	}
+
+	public static void bindKey(KeyMapping mapping) {
+		key = mapping;
 	}
 
 	public static boolean running() {
@@ -84,15 +90,16 @@ public final class ChestAimer {
 			}
 			return;
 		}
+		if (key == null || !key.isDown()) {
+			if (running) {
+				stop(client, null);
+			}
+			return;
+		}
 		listen(client);
 		LocalPlayer player = client.player;
 		if (!running) {
-			ChestEsp.Mark aim = boxUnderCrosshair(player);
-			if (aim == null) {
-				return;
-			}
-			chest = ChestEsp.get().nearestChest(aim.box());
-			if (chest == null) {
+			if (!bindChest(player)) {
 				return;
 			}
 			running = true;
@@ -108,7 +115,16 @@ public final class ChestAimer {
 			dingAt = 0L;
 			arrivedAt = 0L;
 			tries = 0;
-			beginTurn(player, aim);
+			ChestEsp.Mark aim = boxUnderCrosshair(player);
+			if (aim == null) {
+				aim = pickClosest(player);
+			}
+			if (aim == null) {
+				aim = pickNewest();
+			}
+			if (aim != null) {
+				beginTurn(player, aim);
+			}
 			return;
 		}
 		if (!bindChest(player)) {

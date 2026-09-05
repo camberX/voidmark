@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.14", new String[]{
+			"Chest Aim is a hold bind again: it aims only while the key is held and stops when you let go."
+		}),
 		new Entry("1.2.13", new String[]{
 			"Chest Aim keeps turning to a newly spawned lock box instead of freezing after a missed ding or a lagged pile."
 		}),
