@@ -221,7 +221,7 @@ public final class ChestEsp {
 			return;
 		}
 		LocalPlayer player = Minecraft.getInstance().player;
-		if (player == null || player.distanceToSqr(x, y, z) > RANGE_SQ) {
+		if (player == null || player.distanceToSqr(x, y, z) > RANGE_SQ * 4.0) {
 			return;
 		}
 		if (!nearAnyChest(x, y, z)) {

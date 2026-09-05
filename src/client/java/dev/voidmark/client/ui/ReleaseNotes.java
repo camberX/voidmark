@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.8", new String[]{
+			"Chest Aim listens for Experience Gained the same way subtitles do, follows the current lock, then looks at the newest next particles."
+		}),
 		new Entry("1.2.7", new String[]{
 			"Chest Aim hears Experience Gained even inside packet bundles, and only then looks at the next lock."
 		}),

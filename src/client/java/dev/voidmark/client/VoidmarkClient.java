@@ -96,6 +96,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		BlockOutlineGlow.init();
 		MiningWorldRenderer.init();
 		ChestEspRenderer.init();
+		ChestAimer.init();
 		Hitmarker.init();
 		FarmingHud.init();
 		WatermarkRenderer.init();
