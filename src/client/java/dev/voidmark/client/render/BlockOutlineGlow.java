@@ -29,6 +29,7 @@ public final class BlockOutlineGlow {
 				context.levelState().haveGlowingEntities = true;
 			}
 		});
+		LevelRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, outline) -> !active(outline));
 		LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
 			BlockOutlineRenderState outline = context.levelState().blockOutlineRenderState;
 			if (!active(outline) || context.poseStack() == null) {

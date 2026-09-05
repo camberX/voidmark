@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.184", new String[]{
+			"The vanilla black block outline stays off while Voidmark's glow outline is on, so you only see the custom rim."
+		}),
 		new Entry("1.1.183", new String[]{
 			"The click GUI has more sidebar tabs: Combat, Menus, and Status sit next to World, ESP, Overlay, Bars, Nodes, and Mining so the list fills the pane."
 		}),
