@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.13", new String[]{
+			"Chest Aim keeps turning to a newly spawned lock box instead of freezing after a missed ding or a lagged pile."
+		}),
 		new Entry("1.2.12", new String[]{
 			"Chest Aim ignores lagged extra boxes: it stays on the current lock until the ding, then waits for a fresh mark instead of chasing the pile."
 		}),

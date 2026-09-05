@@ -39,6 +39,7 @@ public final class ChestAimer {
 	private static volatile boolean ding;
 	private static long quietUntil;
 	private static long dingAt;
+	private static long arrivedAt;
 	private static Vec3 lastLook;
 	private static long turnStart;
 	private static long turnMs;
@@ -105,6 +106,7 @@ public final class ChestAimer {
 			doneMarks.clear();
 			quietUntil = 0L;
 			dingAt = 0L;
+			arrivedAt = 0L;
 			tries = 0;
 			beginTurn(player, aim);
 			return;
@@ -121,28 +123,28 @@ public final class ChestAimer {
 			}
 		}
 		if (ding && armed) {
-			ding = false;
-			armed = false;
-			waiting = false;
-			sealBurst();
-			if (locked != null) {
-				lastLook = locked.box();
-			}
-			ChestEsp.get().dropMarks(chest);
-			locked = null;
-			dingAt = System.currentTimeMillis();
-			quietUntil = dingAt + 220L;
-			tries++;
-			if (tries >= PASS && ChestEsp.get().chestAt(chest.pos) != null) {
-				tries = 0;
-			}
+			finishLock();
 			return;
 		}
 		if (waiting) {
 			if (locked != null && ChestEsp.get().stillHas(locked) && locked.consumeMove()) {
-				Vec3 next = locked.box();
-				if (lastLook == null || next.closerThan(lastLook, 0.25)) {
+				Vec3 moved = locked.box();
+				if (lastLook == null || moved.closerThan(lastLook, 0.25)) {
 					beginTurn(player, locked);
+					return;
+				}
+			}
+			boolean gone = locked == null || !ChestEsp.get().stillHas(locked);
+			boolean late = arrivedAt > 0L && System.currentTimeMillis() - arrivedAt > 1_100L;
+			if (gone || late) {
+				ChestEsp.Mark fresh = pickNewest();
+				if (fresh != null && fresh != locked) {
+					if (locked != null) {
+						remember(locked);
+					}
+					waiting = false;
+					armed = false;
+					beginTurn(player, fresh);
 				}
 			}
 			return;
@@ -173,33 +175,29 @@ public final class ChestAimer {
 	}
 
 	private static boolean bindChest(LocalPlayer player) {
-		ChestEsp.Mark nearMarks = null;
-		double best = Double.MAX_VALUE;
-		for (ChestEsp.Mark mark : ChestEsp.get().chests()) {
-			if (ChestEsp.get().marksNear(mark).isEmpty()) {
-				continue;
-			}
-			double dist = player.distanceToSqr(mark.x, mark.y, mark.z);
-			if (dist < best) {
-				best = dist;
-				nearMarks = mark;
-			}
+		if (chest != null && ChestEsp.get().chestAt(chest.pos) != null) {
+			return true;
 		}
-		ChestEsp.Mark next = nearMarks != null ? nearMarks : ChestEsp.get().nearestChest(player.position());
-		if (next != null && chest != null && !next.pos.equals(chest.pos)) {
-			done.clear();
-			doneMarks.clear();
-			quietUntil = 0L;
-			dingAt = 0L;
-			lastLook = null;
-			locked = null;
-			waiting = false;
-			turning = false;
-			armed = false;
-			ding = false;
-		}
-		chest = next;
+		chest = ChestEsp.get().nearestChest(player.position());
 		return chest != null;
+	}
+
+	private static void finishLock() {
+		ding = false;
+		armed = false;
+		waiting = false;
+		if (locked != null) {
+			remember(locked);
+			lastLook = locked.box();
+		}
+		ChestEsp.get().dropMarks(chest);
+		locked = null;
+		dingAt = System.currentTimeMillis();
+		quietUntil = dingAt + 150L;
+		tries++;
+		if (tries >= PASS && chest != null && ChestEsp.get().chestAt(chest.pos) != null) {
+			tries = 0;
+		}
 	}
 
 	private static List<ChestEsp.Mark> marks() {
@@ -281,12 +279,6 @@ public final class ChestAimer {
 		return dingAt > 0L && mark.boxAt <= dingAt;
 	}
 
-	private static void sealBurst() {
-		for (ChestEsp.Mark mark : marks()) {
-			remember(mark);
-		}
-	}
-
 	private static void remember(ChestEsp.Mark mark) {
 		if (mark == null || seen(mark)) {
 			return;
@@ -310,7 +302,6 @@ public final class ChestAimer {
 		locked = target;
 		if (!follow) {
 			remember(target);
-			sealBurst();
 		}
 		armed = true;
 		lastLook = target.box();
@@ -340,6 +331,7 @@ public final class ChestAimer {
 		turning = false;
 		waiting = true;
 		armed = true;
+		arrivedAt = System.currentTimeMillis();
 	}
 
 	private static boolean advance(LocalPlayer player) {
@@ -385,6 +377,7 @@ public final class ChestAimer {
 		doneMarks.clear();
 		quietUntil = 0L;
 		dingAt = 0L;
+		arrivedAt = 0L;
 		waiting = false;
 		turning = false;
 		armed = false;
