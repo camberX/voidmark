@@ -6,6 +6,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.combat.Hitmarker;
 import dev.voidmark.client.combat.Hitsound;
+import dev.voidmark.client.farming.FarmingHud;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
 import dev.voidmark.client.net.ConnectionPing;
@@ -83,6 +84,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		BlockOutlineGlow.init();
 		MiningWorldRenderer.init();
 		Hitmarker.init();
+		FarmingHud.init();
 		WatermarkRenderer.init();
 		InventoryHudRenderer.init();
 		NodeHudRenderer.init();

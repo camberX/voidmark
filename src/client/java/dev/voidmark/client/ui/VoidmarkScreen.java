@@ -3,6 +3,7 @@ package dev.voidmark.client.ui;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.voidmark.client.combat.Hitsound;
 import dev.voidmark.client.config.UnloadState;
+import dev.voidmark.client.farming.FarmingHud;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
 import dev.voidmark.client.mining.MiningAreas;
@@ -83,6 +84,7 @@ public class VoidmarkScreen extends Screen {
 		BARS("Bars", Group.HUD),
 		NODES("Nodes", Group.SKYBLOCK),
 		MINING("Mining", Group.SKYBLOCK),
+		FARMING("Farming", Group.SKYBLOCK),
 		MENUS("Menus", Group.SKYBLOCK),
 		STATUS("Status", Group.SKYBLOCK),
 		PLAYER("Player", Group.PLAYER);
@@ -110,6 +112,7 @@ public class VoidmarkScreen extends Screen {
 		RAWMATS("Raw mats", 1),
 		MINING("Mining HUD", 1),
 		TITANIUM("Titanium ESP", 3),
+		FARMING("Yaw / Pitch", 1),
 		INVENTORY("Inventory", 3),
 		NAMETAGS("Nametags", 6),
 		NODES("Nodes", 5);
@@ -181,6 +184,11 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Commissions", Tab.MINING, "Mining"),
 		new SearchEntry("Pickaxe ability", Tab.MINING, "Mining"),
 		new SearchEntry("Ability alert", Tab.MINING, "Mining"),
+		new SearchEntry("Farming", Tab.FARMING, "Farming"),
+		new SearchEntry("Yaw", Tab.FARMING, "Farming"),
+		new SearchEntry("Pitch", Tab.FARMING, "Farming"),
+		new SearchEntry("Yaw / Pitch", Tab.FARMING, "Farming"),
+		new SearchEntry("Farming tool", Tab.FARMING, "Farming"),
 		new SearchEntry("Filled box", Tab.NODES, "Nodes"),
 		new SearchEntry("Watermark", Tab.OVERLAY, "Overlay"),
 		new SearchEntry("Music HUD", Tab.OVERLAY, "Overlay"),
@@ -887,6 +895,7 @@ public class VoidmarkScreen extends Screen {
 			case BARS -> MenuFont.HUD;
 			case NODES -> MenuFont.CUBE;
 			case MINING -> MenuFont.CUBE;
+			case FARMING -> MenuFont.CUBE;
 			case MENUS -> MenuFont.BAG;
 			case STATUS -> MenuFont.SIGNAL;
 			case PLAYER -> MenuFont.PERSON;
@@ -1363,6 +1372,22 @@ public class VoidmarkScreen extends Screen {
 				}
 				GuiDraw.menu(graphics, font, clip(font, titanium, (int) iw - 4), rx, y + 38, titaniumColor);
 			}
+			case FARMING -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(1), "Farming");
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Yaw / Pitch", config.farmingYawPitch, v -> config.farmingYawPitch = v, Feature.FARMING);
+
+				y = featureCard(graphics, font, right, top, col, CARD_HEAD + 42 + CARD_PAD, "Live");
+				if (minecraft.player == null) {
+					GuiDraw.menu(graphics, font, "No player", rx, y + 2, Theme.MUTED);
+				} else if (!FarmingHud.holdingTool(minecraft.player)) {
+					GuiDraw.menu(graphics, font, "Hold a Farming Tool", rx, y + 2, Theme.MUTED);
+					GuiDraw.small(graphics, font, "Lore must include FARMING TOOL", rx, y + 16, Theme.MUTED);
+				} else {
+					GuiDraw.menu(graphics, font, "Yaw  " + FarmingHud.yawLabel(minecraft.player), rx, y + 2, Theme.TEXT);
+					GuiDraw.menu(graphics, font, "Pitch  " + FarmingHud.pitchLabel(minecraft.player), rx, y + 16, Theme.TEXT);
+					GuiDraw.small(graphics, font, "Next to the crosshair", rx, y + 30, Theme.MUTED);
+				}
+			}
 			case PLAYER -> drawPlayerTab(graphics, font, mouseX, mouseY);
 		}
 	}
@@ -1605,6 +1630,7 @@ public class VoidmarkScreen extends Screen {
 			case MUSIC -> toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
 			case RAWMATS -> cycle(graphics, font, ix, y, iw, mouseX, mouseY, "Materials", config.rawmatsModeLabel(), config::cycleRawmatsMode);
 			case MINING -> toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ability alert", config.miningAbilityAlert, v -> config.miningAbilityAlert = v);
+			case FARMING -> slider(graphics, font, ix, y, iw, "Scale", Math.round(config.farmingYawPitchScale * 100) + "%", (config.farmingYawPitchScale - 0.50f) / 1.50f, v -> config.farmingYawPitchScale = VoidmarkConfig.clampHudScale(0.50f + v * 1.50f));
 			case TITANIUM -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.titaniumEspThroughWalls, v -> config.titaniumEspThroughWalls = v);
 				y = slider(graphics, font, ix, y, iw, "Range", config.titaniumEspRange + "m", (config.titaniumEspRange - 24) / 56f, v -> config.titaniumEspRange = VoidmarkConfig.clamp(24 + Math.round(v * 56f), 24, 80));
@@ -1844,7 +1870,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.198");
+			.orElse("1.1.199");
 	}
 
 	@Override

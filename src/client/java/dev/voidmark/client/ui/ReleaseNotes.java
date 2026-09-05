@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.199", new String[]{
+			"Farming tab: Yaw / Pitch sits next to the crosshair while you hold an item whose lore includes FARMING TOOL."
+		}),
 		new Entry("1.1.198", new String[]{
 			"World FPS is back: looking at a block no longer runs the glow shader, and combat no longer scans every nearby entity each tick for the hitmarker."
 		}),

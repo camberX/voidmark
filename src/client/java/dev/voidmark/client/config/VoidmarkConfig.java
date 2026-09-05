@@ -65,6 +65,8 @@ public final class VoidmarkConfig {
 	public boolean rawmatsHudEnabled = true;
 	public boolean miningHudEnabled = true;
 	public boolean miningAbilityAlert = true;
+	public boolean farmingYawPitch = true;
+	public float farmingYawPitchScale = 1.00f;
 	public boolean titaniumEsp = true;
 	public boolean titaniumEspThroughWalls = true;
 	public boolean loadoutsMenuEnabled = true;
@@ -439,6 +441,12 @@ public final class VoidmarkConfig {
 				loaded.hudMusicScale = clampHudScale(loaded.hudMusicScale);
 				loaded.hudRawmatsScale = clampHudScale(loaded.hudRawmatsScale);
 				loaded.hudMiningScale = clampHudScale(loaded.hudMiningScale);
+				if (!json.has("farmingYawPitch")) {
+					loaded.farmingYawPitch = true;
+				}
+				loaded.farmingYawPitchScale = json.has("farmingYawPitchScale")
+					? clampHudScale(loaded.farmingYawPitchScale)
+					: 1.00f;
 				loaded.slotHotbar = hudSlot(loaded.slotHotbar);
 				loaded.slotHealth = hudSlot(loaded.slotHealth);
 				loaded.slotHunger = hudSlot(loaded.slotHunger);
@@ -572,6 +580,7 @@ public final class VoidmarkConfig {
 			case "BARS", "HUD" -> "BARS";
 			case "NODES", "MARKERS" -> "NODES";
 			case "MINING" -> "MINING";
+			case "FARMING", "YAW", "PITCH" -> "FARMING";
 			case "MENUS", "LOADOUTS", "WARDROBE" -> "MENUS";
 			case "STATUS" -> "STATUS";
 			case "PLAYER", "NICK", "CAPE" -> "PLAYER";
