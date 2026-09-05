@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.213", new String[]{
+			"Spotify progress uses the first SMTC timestamp as an anchor and adds wall-clock time, so the bar moves every frame."
+		}),
 		new Entry("1.1.212", new String[]{
 			"Spotify on the Music HUD reads the Windows media session. No Spotify login. YouTube Music is unchanged."
 		}),

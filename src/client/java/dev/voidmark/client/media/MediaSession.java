@@ -84,10 +84,9 @@ public final class MediaSession {
 	private static NowPlaying pick() {
 		NowPlaying spotify = SpotifySmtc.current();
 		if (spotify.present() && spotify.playing()) {
-			NowPlaying out = spotify.cleaned().carryTime(current);
 			route = "spotify";
 			hint = "SPOTIFY";
-			return out;
+			return spotify;
 		}
 		NowPlaying companion = COMPANION.snapshot();
 		if (companion.present()) {
@@ -97,10 +96,9 @@ public final class MediaSession {
 			return out;
 		}
 		if (spotify.present()) {
-			NowPlaying out = spotify.cleaned().carryTime(current);
 			route = "spotify";
 			hint = "SPOTIFY";
-			return out;
+			return spotify;
 		}
 		NowPlaying titled = TITLES.snapshot();
 		if (titled.present()) {

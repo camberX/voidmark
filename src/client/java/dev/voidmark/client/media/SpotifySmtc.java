@@ -34,6 +34,8 @@ public final class SpotifySmtc {
 	private static volatile long lastStartMs;
 	private static volatile long coverEmptySinceMs;
 	private static volatile String coverQuery = "";
+	private static volatile String lastTrackKey = "";
+	private static volatile long lastSmtcPos = -1L;
 
 	private SpotifySmtc() {
 	}
@@ -69,17 +71,24 @@ public final class SpotifySmtc {
 		lastStartMs = System.currentTimeMillis();
 		try {
 			Path script = copyScript();
-			Process next = new ProcessBuilder(
-				"powershell.exe",
+			ProcessBuilder builder = new ProcessBuilder(
+				powershell(),
+				"-NoLogo",
 				"-STA",
 				"-NoProfile",
 				"-ExecutionPolicy",
 				"Bypass",
 				"-File",
 				script.toAbsolutePath().toString()
-			)
-				.redirectErrorStream(false)
-				.start();
+			);
+			builder.environment().put("POWERSHELL_TELEMETRY_OPTOUT", "1");
+			Process next = builder.start();
+			try {
+				if (next.getOutputStream() != null) {
+					next.getOutputStream().close();
+				}
+			} catch (Exception ignored) {
+			}
 			process = next;
 			drain(next.getErrorStream(), true);
 			pump = new Thread(() -> pump(next), "voidmark-spotify");
@@ -100,6 +109,8 @@ public final class SpotifySmtc {
 		CURRENT.set(NowPlaying.none());
 		coverQuery = "";
 		coverEmptySinceMs = 0L;
+		lastTrackKey = "";
+		lastSmtcPos = -1L;
 	}
 
 	private static void pump(Process running) {
@@ -154,46 +165,55 @@ public final class SpotifySmtc {
 			CURRENT.set(NowPlaying.none());
 			coverQuery = "";
 			coverEmptySinceMs = 0L;
+			lastTrackKey = "";
+			lastSmtcPos = -1L;
 			return;
 		}
 		String[] parts = line.split("\t", -1);
-		if (parts.length < 7) {
+		if (parts.length < 5) {
 			return;
 		}
 		apply(
-			parts[1],
+			"Playing".equalsIgnoreCase(parts[1]),
 			unquote(parts[2]),
 			unquote(parts.length > 3 ? parts[3] : ""),
-			unquote(parts.length > 4 ? parts[4] : ""),
-			parseLong(parts.length > 5 ? parts[5] : "0"),
-			parseLong(parts.length > 6 ? parts[6] : "0"),
 			unquote(parts.length > 7 ? parts[7] : ""),
+			unquote(parts.length > 4 ? parts[4] : ""),
+			parts.length > 5 ? parseLong(parts[5]) : 0L,
+			parts.length > 6 ? parseLong(parts[6]) : 0L,
 			unquote(parts.length > 8 ? parts[8] : "")
 		);
 	}
 
 	private static void apply(
-		String status,
+		boolean playing,
 		String title,
-		String artist,
-		String album,
-		long positionMs,
-		long durationMs,
+		String smtcArtist,
 		String albumArtist,
+		String album,
+		long incomingPos,
+		long durationMs,
 		String coverPath
 	) {
 		if (title == null || title.isBlank()) {
 			CURRENT.set(NowPlaying.none());
+			lastTrackKey = "";
+			lastSmtcPos = -1L;
 			return;
 		}
 		NowPlaying previous = current();
-		boolean playing = status != null && status.equalsIgnoreCase("Playing");
-		boolean same = previous.present() && NowPlaying.titlesClose(previous.title(), title);
-		String credits = mergeArtists(artist, albumArtist, feats(title), same ? previous.artist() : "");
+		String trackKey = title + "|" + smtcArtist + "|" + album;
+		boolean same = previous.present() && trackKey.equals(lastTrackKey);
+		String credits = mergeArtists(smtcArtist, albumArtist, feats(title), same ? previous.artist() : "");
 		long duration = durationMs > 0L ? durationMs : (same ? previous.durationMs() : 0L);
-		long source = positionMs < 0L ? 0L : positionMs;
-		if (same && playing && previous.playing() && Math.abs(source - Math.max(0L, previous.sourcePositionMs())) < SEEK_MS) {
-			source = previous.sourcePositionMs() >= 0L ? previous.sourcePositionMs() : previous.positionMs();
+		long position = incomingPos < 0L ? 0L : incomingPos;
+		long sampledAt = System.nanoTime();
+		if (same && playing && previous.playing()) {
+			boolean seeked = lastSmtcPos >= 0L && Math.abs(incomingPos - lastSmtcPos) >= SEEK_MS;
+			if (!seeked) {
+				position = previous.positionMs();
+				sampledAt = previous.sampledAtNanos();
+			}
 		}
 		String cover = coverPath == null ? "" : coverPath.trim();
 		if (cover.isBlank() && same && previous.hasCover()) {
@@ -209,10 +229,12 @@ public final class SpotifySmtc {
 			"spotify",
 			cover,
 			playing,
-			source,
+			position,
 			duration
-		);
+		).withTimeline(position, duration, sampledAt, incomingPos);
 		next = lookupCover(next);
+		lastSmtcPos = incomingPos;
+		lastTrackKey = trackKey;
 		CURRENT.set(next);
 	}
 
@@ -326,6 +348,15 @@ public final class SpotifySmtc {
 			return text.substring(1, text.length() - 1);
 		}
 		return text;
+	}
+
+	private static String powershell() {
+		String root = System.getenv("SystemRoot");
+		if (root == null || root.isBlank()) {
+			root = "C:\\Windows";
+		}
+		Path exe = Path.of(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+		return Files.isRegularFile(exe) ? exe.toString() : "powershell.exe";
 	}
 
 	private static long parseLong(String value) {
