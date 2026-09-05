@@ -342,16 +342,31 @@ public class WardrobeScreen extends Screen {
 			float sx = x + col * (cellW + gap);
 			float sy = y + row * (cellH + gap);
 			WardrobeMenus.ArmorSet set = i < sets.size() ? sets.get(i) : null;
-			boolean selected = set != null && set.selected();
+			boolean selected = set != null && set.selected() && !set.locked();
 			boolean locked = set != null && set.locked();
+			boolean armor = set != null && set.hasArmor();
 			boolean hover = GuiDraw.hovered(mouseX, mouseY, sx, sy, cellW, cellH);
 			int fill = hover ? Theme.CARD_HOVER : Theme.CARD;
 			int line = selected ? Theme.ACCENT : Theme.LINE;
 			GuiDraw.panel(graphics, sx, sy, cellW, cellH, 8, fill, line);
 			String mark = String.valueOf(i + 1);
 			GuiDraw.small(graphics, font, mark, sx + 5, sy + 4, selected ? Theme.ACCENT : Theme.MUTED);
-			float iconRow = ARMOR_ICON + 6f;
-			if (set != null && set.hasArmor() && !locked) {
+			float iconRow = armor ? ARMOR_ICON + 6f : 0f;
+			if (locked) {
+				String label = "Locked";
+				GuiDraw.small(
+					graphics,
+					font,
+					label,
+					sx + (cellW - GuiDraw.smallWidth(font, label)) * 0.5f,
+					sy + cellH * 0.5f - 4,
+					Theme.OFF
+				);
+			} else {
+				ItemStack helmet = set == null ? ItemStack.EMPTY : set.helmet();
+				ItemStack chest = set == null ? ItemStack.EMPTY : set.chest();
+				ItemStack legs = set == null ? ItemStack.EMPTY : set.legs();
+				ItemStack boots = set == null ? ItemStack.EMPTY : set.boots();
 				PlayerPreview.drawMini(
 					graphics,
 					sx + 2,
@@ -361,19 +376,11 @@ public class WardrobeScreen extends Screen {
 					previewYaw,
 					previewPitch,
 					view,
-					new PlayerPreview.Gear(set.helmet(), set.chest(), set.legs(), set.boots())
+					new PlayerPreview.Gear(helmet, chest, legs, boots)
 				);
-				drawArmorIcons(graphics, set, sx, sy + cellH - iconRow - 2f, cellW, mouseX, mouseY);
-			} else {
-				String label = locked ? "Locked" : "Empty";
-				GuiDraw.small(
-					graphics,
-					font,
-					label,
-					sx + (cellW - GuiDraw.smallWidth(font, label)) * 0.5f,
-					sy + cellH * 0.5f - 4,
-					Theme.OFF
-				);
+				if (armor) {
+					drawArmorIcons(graphics, set, sx, sy + cellH - iconRow - 2f, cellW, mouseX, mouseY);
+				}
 			}
 			hits.add(new Hit(sx, sy, cellW, cellH, set == null ? -1 : set.slot(), false, false));
 			if (hover && set != null && tooltip.isEmpty()) {

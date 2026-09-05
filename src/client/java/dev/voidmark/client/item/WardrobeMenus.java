@@ -93,12 +93,7 @@ public final class WardrobeMenus {
 					return set;
 				}
 			}
-			for (ArmorSet set : sets) {
-				if (set.hasArmor()) {
-					return set;
-				}
-			}
-			return sets.isEmpty() ? null : sets.getFirst();
+			return null;
 		}
 	}
 
@@ -163,13 +158,7 @@ public final class WardrobeMenus {
 					continue;
 				}
 				String blob = blob(stack);
-				if (isLocked(stack, blob)) {
-					locked = true;
-					action = index;
-					useful = true;
-					name = nameOf(stack).isBlank() ? name : nameOf(stack);
-					continue;
-				}
+				String stackName = nameOf(stack);
 				if (isClose(stack, blob)) {
 					close = new Piece(index, stack);
 					continue;
@@ -182,10 +171,25 @@ public final class WardrobeMenus {
 					prev = new Piece(index, stack);
 					continue;
 				}
-				if (LoadoutsMenus.isFiller(stack) && row >= 4) {
+				if (row >= 4) {
+					if (isLocked(stack, blob)) {
+						locked = true;
+					}
+					selected = selected || equippedButton(stack, blob, stackName);
+					action = index;
+					useful = true;
+					if (!stackName.isBlank()) {
+						name = stackName;
+					}
+					continue;
+				}
+				if (LoadoutsMenus.isFiller(stack)) {
 					continue;
 				}
 				Kind kind = armorKind(stack, blob);
+				if (kind == Kind.OTHER) {
+					continue;
+				}
 				if (kind == Kind.HELMET && helmet.isEmpty()) {
 					helmet = stack;
 				} else if (kind == Kind.CHEST && chestPiece.isEmpty()) {
@@ -194,21 +198,13 @@ public final class WardrobeMenus {
 					legs = stack;
 				} else if (kind == Kind.BOOTS && boots.isEmpty()) {
 					boots = stack;
-				} else if (row >= 4) {
-					action = index;
-					name = nameOf(stack).isBlank() ? name : nameOf(stack);
-				} else if (helmet.isEmpty()) {
-					helmet = stack;
 				}
-				selected = selected || selected(stack, nameOf(stack));
 				useful = true;
-				if (row >= 4) {
-					action = index;
-				} else if (action == col) {
+				if (action == col) {
 					action = index;
 				}
 			}
-			if (!useful) {
+			if (!useful && chest < COLS) {
 				continue;
 			}
 			ItemStack icon = firstArmor(helmet, chestPiece, legs, boots);
@@ -314,18 +310,43 @@ public final class WardrobeMenus {
 	}
 
 	private static boolean isLocked(ItemStack stack, String blob) {
-		return contains(blob, "locked", "unlock this", "requires rank", "not unlocked", "purchase this slot")
-			|| stack.is(Items.COAL) && contains(blob, "slot");
+		if (contains(blob, "not unlocked", "unlock this", "requires rank", "purchase this slot", "click to unlock")) {
+			return true;
+		}
+		return hasWord(blob, "locked") && !hasWord(blob, "unlocked");
 	}
 
-	private static boolean selected(ItemStack stack, String name) {
+	private static boolean equippedButton(ItemStack stack, String blob, String name) {
+		if (contains(blob, "not equipped", "click to equip", "empty slot")) {
+			return false;
+		}
 		if (Boolean.TRUE.equals(stack.get(DataComponents.ENCHANTMENT_GLINT_OVERRIDE))) {
 			return true;
 		}
-		String blob = blob(stack);
-		return contains(blob, "equipped", "currently wearing", "this is your", "active armor", "selected")
+		return contains(blob, "currently equipped", "currently wearing", "you are wearing", "this set is equipped", "click to unequip", "equipped!")
+			|| hasWord(blob, "equipped")
 			|| name.contains("✔")
 			|| name.contains("✓");
+	}
+
+	private static boolean hasWord(String blob, String word) {
+		if (blob == null || word == null || word.isEmpty()) {
+			return false;
+		}
+		int from = 0;
+		while (from < blob.length()) {
+			int at = blob.indexOf(word, from);
+			if (at < 0) {
+				return false;
+			}
+			boolean left = at == 0 || !Character.isLetter(blob.charAt(at - 1));
+			boolean right = at + word.length() >= blob.length() || !Character.isLetter(blob.charAt(at + word.length()));
+			if (left && right) {
+				return true;
+			}
+			from = at + word.length();
+		}
+		return false;
 	}
 
 	private static String blob(ItemStack stack) {

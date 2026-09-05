@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.216", new String[]{
+			"Wardrobe empty slots hide the armor chips, only real locked slots say Locked, and only the equipped set is outlined."
+		}),
 		new Entry("1.1.215", new String[]{
 			"The Music HUD reads Spotify progress from the live SMTC track every frame, the same way ForageKit does. YouTube Music is unchanged."
 		}),

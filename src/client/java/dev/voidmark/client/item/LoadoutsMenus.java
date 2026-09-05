@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.voidmark.client.config.VoidmarkConfig;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -370,12 +371,7 @@ public final class LoadoutsMenus {
 		if (stack == null || stack.isEmpty()) {
 			return true;
 		}
-		if (stack.is(Items.GLASS_PANE)
-			|| stack.is(Items.GRAY_STAINED_GLASS_PANE)
-			|| stack.is(Items.LIGHT_GRAY_STAINED_GLASS_PANE)
-			|| stack.is(Items.BLACK_STAINED_GLASS_PANE)
-			|| stack.is(Items.WHITE_STAINED_GLASS_PANE)
-			|| stack.is(Items.BROWN_STAINED_GLASS_PANE)) {
+		if (glassPane(stack)) {
 			return true;
 		}
 		String id = ItemIds.skyblockId(stack);
@@ -388,6 +384,11 @@ public final class LoadoutsMenus {
 		}
 		String name = nameOf(stack).toLowerCase(Locale.ROOT);
 		return name.isBlank() || name.equals("empty");
+	}
+
+	private static boolean glassPane(ItemStack stack) {
+		String path = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
+		return path.contains("glass_pane") || path.endsWith("stained_glass");
 	}
 
 	public static boolean looksLikePet(String blob, ItemStack stack) {
