@@ -6,6 +6,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.combat.Hitmarker;
 import dev.voidmark.client.combat.Hitsound;
+import dev.voidmark.client.farming.FarmKeys;
 import dev.voidmark.client.farming.FarmingHud;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
@@ -54,6 +55,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -135,6 +137,8 @@ public final class VoidmarkClient implements ClientModInitializer {
 				return Command.SINGLE_SUCCESS;
 			}));
 			root.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
+			root.then(ClientCommands.literal("farmkeys").executes(context -> FarmKeys.toggle()));
+			root.then(ClientCommands.literal("fk").executes(context -> FarmKeys.toggle()));
 			root.then(musicCommand());
 			root.then(RawmatsCommands.command());
 			root.then(EspCommands.command());
@@ -143,6 +147,8 @@ public final class VoidmarkClient implements ClientModInitializer {
 			dispatcher.register(root);
 			var vm = ClientCommands.literal("vm").executes(context -> openScreen());
 			vm.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
+			vm.then(ClientCommands.literal("farmkeys").executes(context -> FarmKeys.toggle()));
+			vm.then(ClientCommands.literal("fk").executes(context -> FarmKeys.toggle()));
 			vm.then(musicCommand());
 			vm.then(RawmatsCommands.command());
 			vm.then(EspCommands.command());
@@ -157,6 +163,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		});
 
 		ClientTickEvents.START_CLIENT_TICK.register(client -> {
+			FarmKeys.tick(client);
 			if (itemAppearancesLoaded) {
 				return;
 			}
@@ -237,6 +244,8 @@ public final class VoidmarkClient implements ClientModInitializer {
 			LoadoutsScreen.resetPending();
 			WardrobeScreen.resetPending();
 		});
+
+		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> FarmKeys.restore());
 	}
 
 	private static LiteralArgumentBuilder<FabricClientCommandSource> musicCommand() {

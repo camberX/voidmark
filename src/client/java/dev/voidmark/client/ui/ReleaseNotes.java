@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.217", new String[]{
+			"/vm farmkeys or /vm fk swaps Attack/Destroy with Jump and makes Attack/Destroy toggle. Run it again to restore your original bindings."
+		}),
 		new Entry("1.1.216", new String[]{
 			"Wardrobe empty slots hide the armor chips, only real locked slots say Locked, and only the equipped set is outlined."
 		}),
