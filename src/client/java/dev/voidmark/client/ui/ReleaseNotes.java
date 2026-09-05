@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.178", new String[]{
+			"The loadouts menu opens instantly from the last snapshot, so Hypixel lag no longer blanks the UI. Clicks you make while it is loading are sent when the real chest arrives. Open animation has its own toggle under Nodes → Menus."
+		}),
 		new Entry("1.1.177", new String[]{
 			"Loadout slots follow Hypixel's 3-wide grid, so slot 1 and 4 match the vanilla chest. The pet is a floating skull with the item's real name colors."
 		}),

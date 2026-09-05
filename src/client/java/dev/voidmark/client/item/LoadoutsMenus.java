@@ -48,6 +48,9 @@ public final class LoadoutsMenus {
 	}
 
 	public record Piece(int slot, ItemStack stack, Kind kind, String name, boolean selected) {
+		public Piece copy() {
+			return new Piece(slot, copyStack(stack), kind, name, selected);
+		}
 	}
 
 	public record Snapshot(
@@ -81,6 +84,28 @@ public final class LoadoutsMenus {
 				ItemStack.EMPTY,
 				Component.empty()
 			);
+		}
+
+		public Snapshot copy() {
+			return new Snapshot(
+				title,
+				page,
+				copyPieces(loadouts),
+				copyPieces(contents),
+				next == null ? null : next.copy(),
+				prev == null ? null : prev.copy(),
+				close == null ? null : close.copy(),
+				copyStack(helmet),
+				copyStack(chest),
+				copyStack(legs),
+				copyStack(boots),
+				copyStack(pet),
+				petName
+			);
+		}
+
+		public boolean hasLoadouts() {
+			return loadouts != null && !loadouts.isEmpty();
 		}
 	}
 
@@ -449,5 +474,20 @@ public final class LoadoutsMenus {
 			return "";
 		}
 		return value.replaceAll("§.", "").replace('\u00A0', ' ').trim();
+	}
+
+	private static List<Piece> copyPieces(List<Piece> pieces) {
+		if (pieces == null || pieces.isEmpty()) {
+			return List.of();
+		}
+		List<Piece> out = new ArrayList<>(pieces.size());
+		for (Piece piece : pieces) {
+			out.add(piece.copy());
+		}
+		return List.copyOf(out);
+	}
+
+	private static ItemStack copyStack(ItemStack stack) {
+		return stack == null || stack.isEmpty() ? ItemStack.EMPTY : stack.copy();
 	}
 }

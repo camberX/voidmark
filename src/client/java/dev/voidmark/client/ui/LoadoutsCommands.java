@@ -2,6 +2,7 @@ package dev.voidmark.client.ui;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import dev.voidmark.client.item.LoadoutsMenus;
 import dev.voidmark.client.location.SkyblockLocation;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -34,6 +35,11 @@ public final class LoadoutsCommands {
 				client.player.connection.sendCommand("loadouts");
 			} catch (RuntimeException ignoredToo) {
 			}
+		}
+		if (LoadoutsMenus.enabled()
+			&& LoadoutsScreen.hasCache()
+			&& !(client.screen instanceof LoadoutsScreen)) {
+			client.setScreen(LoadoutsScreen.fromCache());
 		}
 		return Command.SINGLE_SUCCESS;
 	}

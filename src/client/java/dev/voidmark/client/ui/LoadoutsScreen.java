@@ -39,9 +39,13 @@ public class LoadoutsScreen extends Screen {
 	private static final float SLOTS_H = 148;
 	private static float savedYaw = 28f;
 	private static float savedPitch = 8f;
+	private static LoadoutsMenus.Snapshot cache = LoadoutsMenus.Snapshot.empty();
+	private static final List<QueuedClick> QUEUE = new ArrayList<>();
+	private static boolean silentFlush;
+	private static boolean cancelIncoming;
 
-	private final AbstractContainerScreen<?> vanilla;
-	private final AbstractContainerMenu menu;
+	private AbstractContainerScreen<?> vanilla;
+	private AbstractContainerMenu menu;
 	private final List<Hit> hits = new ArrayList<>();
 	private float windowX;
 	private float windowY;
@@ -56,6 +60,7 @@ public class LoadoutsScreen extends Screen {
 	private boolean previewDrag;
 	private boolean placed;
 	private boolean closingMenu;
+	private boolean attaching;
 	private long lastNs = System.nanoTime();
 	private float dt = 0.016f;
 	private float appear;
@@ -68,20 +73,57 @@ public class LoadoutsScreen extends Screen {
 		this.menu = vanilla.getMenu();
 	}
 
+	private LoadoutsScreen(LoadoutsMenus.Snapshot cached) {
+		super(Component.literal(cached.title().isBlank() ? "Loadouts" : cached.title()));
+		this.vanilla = null;
+		this.menu = null;
+		this.snapshot = cached;
+	}
+
 	public static Screen wrap(Screen screen) {
 		if (screen instanceof LoadoutsScreen) {
 			return screen;
 		}
-		if (screen instanceof AbstractContainerScreen<?> chest
-			&& LoadoutsMenus.enabled()
-			&& LoadoutsMenus.matches(chest.getTitle())) {
-			return new LoadoutsScreen(chest);
+		if (!(screen instanceof AbstractContainerScreen<?> chest)
+			|| !LoadoutsMenus.enabled()
+			|| !LoadoutsMenus.matches(chest.getTitle())) {
+			return screen;
 		}
-		return screen;
+		if (cancelIncoming) {
+			cancelIncoming = false;
+			closeIncoming(chest);
+			return Minecraft.getInstance().screen;
+		}
+		if (silentFlush) {
+			silentFlush = false;
+			flushAgainst(chest);
+			closeIncoming(chest);
+			return Minecraft.getInstance().screen;
+		}
+		Minecraft client = Minecraft.getInstance();
+		if (client.screen instanceof LoadoutsScreen existing) {
+			existing.attach(chest);
+			return existing;
+		}
+		return new LoadoutsScreen(chest);
 	}
 
 	public static boolean open() {
 		return Minecraft.getInstance().screen instanceof LoadoutsScreen;
+	}
+
+	public static boolean hasCache() {
+		return cache.hasLoadouts();
+	}
+
+	public static LoadoutsScreen fromCache() {
+		return new LoadoutsScreen(cache.copy());
+	}
+
+	public static void resetPending() {
+		QUEUE.clear();
+		silentFlush = false;
+		cancelIncoming = false;
 	}
 
 	public static void tickSwap(Minecraft client) {
@@ -100,30 +142,56 @@ public class LoadoutsScreen extends Screen {
 		}
 	}
 
+	private void attach(AbstractContainerScreen<?> chest) {
+		attaching = true;
+		AbstractContainerScreen<?> prior = this.vanilla;
+		this.vanilla = chest;
+		this.menu = chest.getMenu();
+		if (prior != null && prior != chest) {
+			prior.removed();
+		}
+	}
+
 	private void followServer() {
-		if (minecraft == null || minecraft.player == null) {
+		if (minecraft == null || minecraft.player == null || vanilla == null || menu == null) {
 			return;
 		}
 		if (minecraft.player.containerMenu == menu) {
 			return;
 		}
-		closingMenu = true;
-		minecraft.setScreen(null);
+		if (minecraft.player.containerMenu == minecraft.player.inventoryMenu) {
+			closingMenu = true;
+			rememberCache();
+			minecraft.setScreen(null);
+		}
 	}
 
 	@Override
 	protected void init() {
 		super.init();
 		Theme.refresh();
+		if (vanilla != null) {
+			vanilla.init(width, height);
+		}
+		if (menu != null) {
+			snapshot = LoadoutsMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
+			rememberCache();
+		}
+		if (attaching) {
+			attaching = false;
+			flushQueue();
+			return;
+		}
 		placed = false;
-		appear = VoidmarkConfig.get().uiAnimations ? 0.08f : 1f;
-		vanilla.init(width, height);
+		appear = VoidmarkConfig.get().loadoutsOpenAnim ? 0.08f : 1f;
 	}
 
 	@Override
 	public void resize(int width, int height) {
 		super.resize(width, height);
-		vanilla.resize(width, height);
+		if (vanilla != null) {
+			vanilla.resize(width, height);
+		}
 	}
 
 	@Override
@@ -148,7 +216,9 @@ public class LoadoutsScreen extends Screen {
 		tickAnim();
 		hits.clear();
 		tooltip = ItemStack.EMPTY;
-		snapshot = LoadoutsMenus.read(menu, getTitle());
+		if (menu != null) {
+			snapshot = LoadoutsMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
+		}
 		Font font = minecraft.font;
 		layout();
 
@@ -454,7 +524,15 @@ public class LoadoutsScreen extends Screen {
 		long now = System.nanoTime();
 		dt = Mth.clamp((now - lastNs) / 1_000_000_000f, 0.008f, 0.05f);
 		lastNs = now;
-		appear = Anim.exp(appear, 1f, 14f, dt);
+		if (VoidmarkConfig.get().loadoutsOpenAnim) {
+			if (Math.abs(1f - appear) < 0.003f) {
+				appear = 1f;
+			} else {
+				appear += (1f - appear) * (1f - (float) Math.exp(-14f * dt));
+			}
+		} else {
+			appear = 1f;
+		}
 	}
 
 	private float localX(double mx) {
@@ -475,14 +553,71 @@ public class LoadoutsScreen extends Screen {
 			onClose();
 			return;
 		}
-		if (slot < 0 || minecraft == null || minecraft.player == null || minecraft.player.containerMenu != menu) {
+		if (slot < 0) {
 			return;
 		}
-		if (!menu.isValidSlotIndex(slot)) {
+		if (!attached()) {
+			QUEUE.add(new QueuedClick(slot, button));
 			return;
 		}
-		Slot target = menu.getSlot(slot);
-		((AbstractContainerScreenInvoker) vanilla).voidmark$slotClicked(target, slot, button, ContainerInput.PICKUP);
+		sendClick(vanilla, menu, slot, button);
+	}
+
+	private boolean attached() {
+		return vanilla != null
+			&& menu != null
+			&& minecraft != null
+			&& minecraft.player != null
+			&& minecraft.player.containerMenu == menu;
+	}
+
+	private void flushQueue() {
+		if (!attached() || QUEUE.isEmpty()) {
+			return;
+		}
+		List<QueuedClick> pending = new ArrayList<>(QUEUE);
+		QUEUE.clear();
+		for (QueuedClick click : pending) {
+			sendClick(vanilla, menu, click.slot, click.button);
+		}
+	}
+
+	private static void flushAgainst(AbstractContainerScreen<?> chest) {
+		if (chest == null || QUEUE.isEmpty()) {
+			QUEUE.clear();
+			return;
+		}
+		Minecraft client = Minecraft.getInstance();
+		if (client.getWindow() != null) {
+			chest.init(client.getWindow().getGuiScaledWidth(), client.getWindow().getGuiScaledHeight());
+		}
+		AbstractContainerMenu target = chest.getMenu();
+		List<QueuedClick> pending = new ArrayList<>(QUEUE);
+		QUEUE.clear();
+		for (QueuedClick click : pending) {
+			sendClick(chest, target, click.slot, click.button);
+		}
+	}
+
+	private static void sendClick(AbstractContainerScreen<?> screen, AbstractContainerMenu target, int slot, int button) {
+		if (screen == null || target == null || !target.isValidSlotIndex(slot)) {
+			return;
+		}
+		Slot clicked = target.getSlot(slot);
+		((AbstractContainerScreenInvoker) screen).voidmark$slotClicked(clicked, slot, button, ContainerInput.PICKUP);
+	}
+
+	private static void closeIncoming(AbstractContainerScreen<?> chest) {
+		Minecraft client = Minecraft.getInstance();
+		if (client.player != null && chest != null && client.player.containerMenu == chest.getMenu()) {
+			client.player.closeContainer();
+		}
+	}
+
+	private void rememberCache() {
+		if (snapshot != null && snapshot.hasLoadouts()) {
+			cache = snapshot.copy();
+		}
 	}
 
 	@Override
@@ -559,7 +694,9 @@ public class LoadoutsScreen extends Screen {
 	}
 
 	private void equipAndClose(int index) {
-		snapshot = LoadoutsMenus.read(menu, getTitle());
+		if (menu != null) {
+			snapshot = LoadoutsMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
+		}
 		List<LoadoutsMenus.Piece> loadouts = snapshot.loadouts();
 		if (index < 0 || index >= loadouts.size()) {
 			return;
@@ -578,9 +715,20 @@ public class LoadoutsScreen extends Screen {
 			super.onClose();
 			return;
 		}
+		rememberCache();
+		if (vanilla == null || menu == null) {
+			if (!QUEUE.isEmpty()) {
+				silentFlush = true;
+			} else {
+				cancelIncoming = true;
+			}
+			super.onClose();
+			return;
+		}
 		if (minecraft != null && minecraft.player != null && minecraft.player.containerMenu == menu) {
 			closingMenu = true;
 			minecraft.player.closeContainer();
+			super.onClose();
 			return;
 		}
 		super.onClose();
@@ -590,10 +738,17 @@ public class LoadoutsScreen extends Screen {
 	public void removed() {
 		savedYaw = previewYaw;
 		savedPitch = previewPitch;
+		if (attaching) {
+			return;
+		}
 		LoadoutPreview.clear();
-		if (!closingMenu) {
+		rememberCache();
+		if (vanilla != null && !closingMenu) {
 			vanilla.removed();
 		}
+	}
+
+	private record QueuedClick(int slot, int button) {
 	}
 
 	private static final class Hit {

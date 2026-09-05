@@ -199,6 +199,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			TitaniumTracker.get().clear();
 			FakeBan.reset();
 			MobGlowRenderer.reset();
+			LoadoutsScreen.resetPending();
 		});
 	}
 
