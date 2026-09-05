@@ -1,9 +1,12 @@
 package dev.voidmark.client.farming;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.voidmark.client.ui.Theme;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -13,6 +16,7 @@ import org.lwjgl.glfw.GLFW;
 public final class FarmKeys {
 	private static InputConstants.Key attackKey;
 	private static InputConstants.Key jumpKey;
+	private static double sensitivity;
 	private static boolean enabled;
 	private static boolean attackLatched;
 	private static boolean physicalWasDown;
@@ -51,6 +55,7 @@ public final class FarmKeys {
 	private static void enable(Minecraft client) {
 		attackKey = InputConstants.getKey(client.options.keyAttack.saveString());
 		jumpKey = InputConstants.getKey(client.options.keyJump.saveString());
+		sensitivity = client.options.sensitivity().get();
 		attackLatched = false;
 		physicalWasDown = physicalDown(client, jumpKey);
 
@@ -58,9 +63,10 @@ public final class FarmKeys {
 		client.options.keyJump.setDown(false);
 		client.options.keyAttack.setKey(jumpKey);
 		client.options.keyJump.setKey(attackKey);
+		client.options.sensitivity().set(0.0);
 		KeyMapping.resetMapping();
 		enabled = true;
-		message(client, "Farm keys enabled: Attack/Destroy and Jump swapped; Attack/Destroy toggles.");
+		message(client, "Farm keys enabled · controls swapped · attack toggles · sensitivity minimum");
 	}
 
 	private static void disable(Minecraft client, boolean notify) {
@@ -68,6 +74,7 @@ public final class FarmKeys {
 		client.options.keyJump.setDown(false);
 		client.options.keyAttack.setKey(attackKey);
 		client.options.keyJump.setKey(jumpKey);
+		client.options.sensitivity().set(sensitivity);
 		KeyMapping.resetMapping();
 		client.options.save();
 
@@ -77,7 +84,7 @@ public final class FarmKeys {
 		attackKey = null;
 		jumpKey = null;
 		if (notify) {
-			message(client, "Farm keys disabled: original controls restored.");
+			message(client, "Farm keys disabled · controls and sensitivity restored");
 		}
 	}
 
@@ -93,8 +100,16 @@ public final class FarmKeys {
 	}
 
 	private static void message(Minecraft client, String text) {
-		if (client.player != null) {
-			client.player.sendSystemMessage(Component.literal(text));
+		if (client.gui != null) {
+			MutableComponent line = Component.literal("VOIDMARK")
+				.withStyle(style(Theme.ACCENT).withBold(true))
+				.append(Component.literal(" | ").withStyle(style(Theme.MUTED)))
+				.append(Component.literal(text).withStyle(style(Theme.TEXT)));
+			client.gui.getChat().addClientSystemMessage(line);
 		}
+	}
+
+	private static Style style(int color) {
+		return Style.EMPTY.withColor(color & 0xFFFFFF);
 	}
 }

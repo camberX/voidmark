@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.218", new String[]{
+			"Farm keys uses VOIDMARK chat prefixes, sets sensitivity to minimum, and restores your exact sensitivity when disabled."
+		}),
 		new Entry("1.1.217", new String[]{
 			"/vm farmkeys or /vm fk swaps Attack/Destroy with Jump and makes Attack/Destroy toggle. Run it again to restore your original bindings."
 		}),
