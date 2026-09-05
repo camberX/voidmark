@@ -162,6 +162,9 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Loadouts menu", Tab.NODES, "Menus"),
 		new SearchEntry("Loadouts animation", Tab.NODES, "Menus"),
 		new SearchEntry("Open animation", Tab.NODES, "Menus"),
+		new SearchEntry("Wardrobe", Tab.NODES, "Menus"),
+		new SearchEntry("Wardrobe menu", Tab.NODES, "Menus"),
+		new SearchEntry("Armor Sets", Tab.NODES, "Menus"),
 		new SearchEntry("Node HUD", Tab.NODES, "Nodes"),
 		new SearchEntry("Mining HUD", Tab.MINING, "Mining"),
 		new SearchEntry("Titanium ESP", Tab.MINING, "Mining"),
@@ -1289,8 +1292,9 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node ESP", config.boxFill, v -> config.boxFill = v, Feature.NODE_ESP);
 
-				y = featureCard(graphics, font, left, top + cardHeight(3) + 8, col, cardHeight(2), "Menus");
+				y = featureCard(graphics, font, left, top + cardHeight(3) + 8, col, cardHeight(3), "Menus");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Loadouts menu", config.loadoutsMenuEnabled, v -> config.loadoutsMenuEnabled = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Wardrobe menu", config.wardrobeMenuEnabled, v -> config.wardrobeMenuEnabled = v);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Open animation", config.loadoutsOpenAnim, v -> config.loadoutsOpenAnim = v);
 
 				y = featureCard(graphics, font, right, top, col, cardHeight(6), "Status");
@@ -1807,7 +1811,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.180");
+			.orElse("1.1.181");
 	}
 
 	@Override

@@ -37,6 +37,8 @@ import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.ItemEditScreen;
 import dev.voidmark.client.ui.LoadoutsCommands;
 import dev.voidmark.client.ui.LoadoutsScreen;
+import dev.voidmark.client.ui.WardrobeCommands;
+import dev.voidmark.client.ui.WardrobeScreen;
 import dev.voidmark.client.ui.SystemFonts;
 import dev.voidmark.client.ui.Theme;
 import dev.voidmark.client.ui.UiFontPack;
@@ -61,6 +63,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(Voidmark.MOD_ID, "main"));
 	private static KeyMapping openGui;
 	private static KeyMapping openLoadouts;
+	private static KeyMapping openWardrobe;
 	private static boolean itemAppearancesLoaded;
 
 	@Override
@@ -100,6 +103,12 @@ public final class VoidmarkClient implements ClientModInitializer {
 			InputConstants.UNKNOWN.getValue(),
 			CATEGORY
 		));
+		openWardrobe = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+			"key.voidmark.wardrobe",
+			InputConstants.Type.KEYSYM,
+			InputConstants.UNKNOWN.getValue(),
+			CATEGORY
+		));
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
 			var root = ClientCommands.literal("voidmark").executes(context -> openScreen());
@@ -120,6 +129,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			root.then(RawmatsCommands.command());
 			root.then(EspCommands.command());
 			root.then(LoadoutsCommands.command());
+			root.then(WardrobeCommands.command());
 			dispatcher.register(root);
 			var vm = ClientCommands.literal("vm").executes(context -> openScreen());
 			vm.then(ClientCommands.literal("edit").executes(context -> openItemEdit()));
@@ -127,10 +137,13 @@ public final class VoidmarkClient implements ClientModInitializer {
 			vm.then(RawmatsCommands.command());
 			vm.then(EspCommands.command());
 			vm.then(LoadoutsCommands.command());
+			vm.then(WardrobeCommands.command());
 			dispatcher.register(vm);
 			dispatcher.register(ClientCommands.literal("loadouts").executes(context -> LoadoutsCommands.open()));
 			dispatcher.register(ClientCommands.literal("loadout").executes(context -> LoadoutsCommands.open()));
 			dispatcher.register(ClientCommands.literal("ld").executes(context -> LoadoutsCommands.open()));
+			dispatcher.register(ClientCommands.literal("wardrobe").executes(context -> WardrobeCommands.open()));
+			dispatcher.register(ClientCommands.literal("wd").executes(context -> WardrobeCommands.open()));
 		});
 
 		ClientTickEvents.START_CLIENT_TICK.register(client -> {
@@ -166,9 +179,17 @@ public final class VoidmarkClient implements ClientModInitializer {
 					LoadoutsCommands.open();
 				}
 			}
+			while (openWardrobe.consumeClick()) {
+				if (client.screen instanceof WardrobeScreen screen) {
+					screen.onClose();
+				} else if (client.screen == null) {
+					WardrobeCommands.open();
+				}
+			}
 
 			SkyblockLocation.tick(client);
 			LoadoutsScreen.tickSwap(client);
+			WardrobeScreen.tickSwap(client);
 			Hitsound.tick(client);
 			EnderNodeTracker.get().tick(client);
 			ConnectionPing.tick(client);
@@ -200,6 +221,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			FakeBan.reset();
 			MobGlowRenderer.reset();
 			LoadoutsScreen.resetPending();
+			WardrobeScreen.resetPending();
 		});
 	}
 

@@ -3,6 +3,7 @@ package dev.voidmark.client.mixin;
 import dev.voidmark.client.render.MobGlowRenderer;
 import dev.voidmark.client.ui.LoadoutsScreen;
 import dev.voidmark.client.ui.VoidmarkTitleScreen;
+import dev.voidmark.client.ui.WardrobeScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -20,7 +21,7 @@ public class MinecraftMixin {
 		if (screen instanceof TitleScreen) {
 			return new VoidmarkTitleScreen();
 		}
-		return LoadoutsScreen.wrap(screen);
+		return WardrobeScreen.wrap(LoadoutsScreen.wrap(screen));
 	}
 
 	/**

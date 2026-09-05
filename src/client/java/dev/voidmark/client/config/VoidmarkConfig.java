@@ -68,6 +68,7 @@ public final class VoidmarkConfig {
 	public boolean titaniumEspThroughWalls = true;
 	public boolean loadoutsMenuEnabled = true;
 	public boolean loadoutsOpenAnim = true;
+	public boolean wardrobeMenuEnabled = true;
 	public boolean hitsoundEnabled = true;
 	public boolean hitsoundMelee = true;
 	public boolean hitsoundArrows = true;

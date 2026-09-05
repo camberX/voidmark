@@ -2,7 +2,7 @@ package dev.voidmark.client.ui;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.voidmark.client.config.VoidmarkConfig;
-import dev.voidmark.client.item.LoadoutsMenus;
+import dev.voidmark.client.item.WardrobeMenus;
 import dev.voidmark.client.mixin.AbstractContainerScreenInvoker;
 import dev.voidmark.client.render.GuiDraw;
 import dev.voidmark.client.render.LoadoutPreview;
@@ -28,10 +28,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Custom Voidmark chrome for Hypixel {@code /loadouts}. The real chest stays
- * open; every click is sent through that screen's own {@code slotClicked}.
+ * Custom Voidmark chrome for Hypixel wardrobe ({@code (1/3) Armor Sets}).
+ * Armor only — clicks go through the real chest's {@code slotClicked}.
  */
-public class LoadoutsScreen extends Screen {
+public class WardrobeScreen extends Screen {
 	private static final float MENU_W = 440;
 	private static final float MENU_H = 248;
 	private static final float WELL = 20;
@@ -39,7 +39,7 @@ public class LoadoutsScreen extends Screen {
 	private static final float SLOTS_H = 148;
 	private static float savedYaw = 28f;
 	private static float savedPitch = 8f;
-	private static LoadoutsMenus.Snapshot cache = LoadoutsMenus.Snapshot.empty();
+	private static WardrobeMenus.Snapshot cache = WardrobeMenus.Snapshot.empty();
 	private static final List<QueuedClick> QUEUE = new ArrayList<>();
 	private static final long SUPPRESS_NS = 3_000_000_000L;
 	private static boolean silentFlush;
@@ -67,52 +67,49 @@ public class LoadoutsScreen extends Screen {
 	private float dt = 0.016f;
 	private float appear;
 	private ItemStack tooltip = ItemStack.EMPTY;
-	private LoadoutsMenus.Snapshot snapshot = LoadoutsMenus.Snapshot.empty();
+	private WardrobeMenus.Snapshot snapshot = WardrobeMenus.Snapshot.empty();
+	private WardrobeMenus.ArmorSet previewing;
 
-	public LoadoutsScreen(AbstractContainerScreen<?> vanilla) {
+	public WardrobeScreen(AbstractContainerScreen<?> vanilla) {
 		super(vanilla.getTitle());
 		this.vanilla = vanilla;
 		this.menu = vanilla.getMenu();
 	}
 
-	private LoadoutsScreen(LoadoutsMenus.Snapshot cached) {
-		super(Component.literal(cached.title().isBlank() ? "Loadouts" : cached.title()));
+	private WardrobeScreen(WardrobeMenus.Snapshot cached) {
+		super(Component.literal(cached.title().isBlank() ? "Armor Sets" : cached.title()));
 		this.vanilla = null;
 		this.menu = null;
 		this.snapshot = cached;
 	}
 
 	public static Screen wrap(Screen screen) {
-		if (screen instanceof LoadoutsScreen || screen instanceof WardrobeScreen) {
+		if (screen instanceof WardrobeScreen || screen instanceof LoadoutsScreen) {
 			return screen;
 		}
 		if (!(screen instanceof AbstractContainerScreen<?> chest)
-			|| !LoadoutsMenus.enabled()
-			|| !LoadoutsMenus.matches(chest.getTitle())) {
+			|| !WardrobeMenus.enabled()
+			|| !WardrobeMenus.matches(chest.getTitle())) {
 			return screen;
 		}
 		if (shouldDiscardIncoming()) {
 			return discardIncoming(chest);
 		}
 		Minecraft client = Minecraft.getInstance();
-		if (client.screen instanceof LoadoutsScreen existing) {
+		if (client.screen instanceof WardrobeScreen existing) {
 			existing.attach(chest);
 			return existing;
 		}
-		return new LoadoutsScreen(chest);
-	}
-
-	public static boolean open() {
-		return Minecraft.getInstance().screen instanceof LoadoutsScreen;
+		return new WardrobeScreen(chest);
 	}
 
 	public static boolean hasCache() {
-		return cache.hasLoadouts();
+		return cache.hasSets();
 	}
 
-	public static LoadoutsScreen fromCache() {
+	public static WardrobeScreen fromCache() {
 		allowReopen();
-		return new LoadoutsScreen(cache.copy());
+		return new WardrobeScreen(cache.copy());
 	}
 
 	public static void allowReopen() {
@@ -133,20 +130,20 @@ public class LoadoutsScreen extends Screen {
 		}
 		if (shouldDiscardIncoming()
 			&& client.screen instanceof AbstractContainerScreen<?> chest
-			&& LoadoutsMenus.matches(chest.getTitle())) {
+			&& WardrobeMenus.matches(chest.getTitle())) {
 			discardIncoming(chest);
 			client.setScreen(null);
 			return;
 		}
-		if (client.screen instanceof LoadoutsScreen loadouts) {
-			loadouts.followServer();
+		if (client.screen instanceof WardrobeScreen wardrobe) {
+			wardrobe.followServer();
 			return;
 		}
-		if (!LoadoutsMenus.enabled() || shouldDiscardIncoming()) {
+		if (client.screen instanceof LoadoutsScreen || !WardrobeMenus.enabled() || shouldDiscardIncoming()) {
 			return;
 		}
-		if (client.screen instanceof AbstractContainerScreen<?> chest && LoadoutsMenus.matches(chest.getTitle())) {
-			client.setScreen(new LoadoutsScreen(chest));
+		if (client.screen instanceof AbstractContainerScreen<?> chest && WardrobeMenus.matches(chest.getTitle())) {
+			client.setScreen(new WardrobeScreen(chest));
 		}
 	}
 
@@ -183,7 +180,7 @@ public class LoadoutsScreen extends Screen {
 			vanilla.init(width, height);
 		}
 		if (menu != null) {
-			snapshot = LoadoutsMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
+			snapshot = WardrobeMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
 			rememberCache();
 		}
 		if (attaching) {
@@ -226,7 +223,7 @@ public class LoadoutsScreen extends Screen {
 		hits.clear();
 		tooltip = ItemStack.EMPTY;
 		if (menu != null) {
-			snapshot = LoadoutsMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
+			snapshot = WardrobeMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
 		}
 		Font font = minecraft.font;
 		layout();
@@ -244,6 +241,7 @@ public class LoadoutsScreen extends Screen {
 		viewLift = lift;
 		int localMx = Math.round(localX(mouseX));
 		int localMy = Math.round(localY(mouseY));
+		previewing = setAt(localMx, localMy);
 
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(cx, cy + lift);
@@ -259,8 +257,8 @@ public class LoadoutsScreen extends Screen {
 
 		drawHeader(graphics, font, localMx, localMy);
 		drawPreview(graphics, font, localMx, localMy);
-		drawLoadouts(graphics, font, localMx, localMy);
-		drawContents(graphics, font, localMx, localMy);
+		drawSets(graphics, font, localMx, localMy);
+		drawArmor(graphics, font, localMx, localMy);
 
 		graphics.pose().popMatrix();
 
@@ -270,14 +268,14 @@ public class LoadoutsScreen extends Screen {
 	}
 
 	private void drawHeader(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
-		GuiDraw.title(graphics, font, "LOADOUTS", windowX + 12, windowY + 8, Theme.TEXT);
+		GuiDraw.title(graphics, font, "WARDROBE", windowX + 12, windowY + 8, Theme.TEXT);
 		String page = snapshot.page().isBlank() ? snapshot.title() : snapshot.page();
 		if (!page.isBlank()) {
 			GuiDraw.small(
 				graphics,
 				font,
 				page,
-				windowX + 12 + GuiDraw.titleWidth(font, "LOADOUTS") + 6,
+				windowX + 12 + GuiDraw.titleWidth(font, "WARDROBE") + 6,
 				windowY + 10,
 				Theme.ACCENT
 			);
@@ -303,7 +301,7 @@ public class LoadoutsScreen extends Screen {
 		int mouseX,
 		int mouseY,
 		String label,
-		LoadoutsMenus.Piece piece
+		WardrobeMenus.Piece piece
 	) {
 		boolean hover = GuiDraw.hovered(mouseX, mouseY, x, y, w, 16);
 		GuiDraw.panel(graphics, x, y, w, 16, 5, hover ? Theme.CARD_HOVER : Theme.CARD, hover ? Theme.ACCENT : Theme.LINE);
@@ -334,30 +332,31 @@ public class LoadoutsScreen extends Screen {
 				previewYaw %= 360f;
 			}
 		}
+		WardrobeMenus.ArmorSet set = previewing;
+		ItemStack helmet = set == null ? ItemStack.EMPTY : set.helmet();
+		ItemStack chest = set == null ? ItemStack.EMPTY : set.chest();
+		ItemStack legs = set == null ? ItemStack.EMPTY : set.legs();
+		ItemStack boots = set == null ? ItemStack.EMPTY : set.boots();
 		PlayerPreview.View view = new PlayerPreview.View(viewScale, viewCx, viewCy, viewLift);
-		boolean hasPet = !snapshot.pet().isEmpty();
-		float playerW = hasPet ? stageW * 0.58f : stageW;
 		PlayerPreview.Drawn player = LoadoutPreview.player(
 			graphics,
 			left + 4,
 			top + 2,
-			playerW - 8,
+			stageW - 8,
 			stageH - 18,
 			previewYaw,
 			previewPitch,
 			view,
-			snapshot.helmet(),
-			snapshot.chest(),
-			snapshot.legs(),
-			snapshot.boots()
+			helmet,
+			chest,
+			legs,
+			boots
 		);
 		if (player != null) {
 			NametagRenderer.drawVanilla(graphics, font, player.nameX(), player.nameY(), Component.literal(playerName()));
 		}
-		if (hasPet) {
-			drawFloatingPet(graphics, font, left + playerW, top, stageW - playerW, stageH);
-		} else {
-			GuiDraw.small(graphics, font, "No pet in this loadout", left + 10, top + stageH - 16, Theme.OFF);
+		if (set == null || !set.hasArmor()) {
+			GuiDraw.small(graphics, font, "Empty armor set", left + 10, top + stageH - 16, Theme.OFF);
 		}
 		if (GuiDraw.hovered(mouseX, mouseY, left, top, stageW, stageH)) {
 			GuiDraw.small(graphics, font, "Drag to rotate", left + 8, top + 6, Theme.MUTED);
@@ -365,53 +364,34 @@ public class LoadoutsScreen extends Screen {
 		hits.add(new Hit(left, top, stageW, stageH, -1, true, false));
 	}
 
-	private void drawFloatingPet(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, float h) {
-		ItemStack pet = snapshot.pet();
-		if (pet == null || pet.isEmpty()) {
-			return;
-		}
-		float size = Math.min(52f, Math.min(w - 12f, h - 36f));
-		float bob = (float) Math.sin(System.currentTimeMillis() / 420.0) * 3f;
-		float ix = x + (w - size) * 0.5f;
-		float iy = y + (h - size) * 0.48f + bob;
-		drawItem(graphics, pet, ix, iy, size / 16f);
-		Component name = snapshot.petName();
-		if (name != null && !name.getString().isBlank()) {
-			NametagRenderer.drawVanilla(graphics, font, x + w * 0.5f, iy - 14, name);
-		}
-	}
-
-	private void drawLoadouts(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
+	private void drawSets(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		float x = windowX + windowW - SLOTS_W - 10;
 		float y = windowY + 28;
 		GuiDraw.panel(graphics, x, y, SLOTS_W, SLOTS_H, 8, Theme.CARD, Theme.LINE);
-		GuiDraw.small(graphics, font, "SLOTS", x + 8, y + 6, Theme.ACCENT);
+		GuiDraw.small(graphics, font, "SETS", x + 8, y + 6, Theme.ACCENT);
 		boolean clip = GuiDraw.scissor(graphics, x + 1, y + 1, SLOTS_W - 2, SLOTS_H - 2);
-		List<LoadoutsMenus.Piece> loadouts = snapshot.loadouts();
+		List<WardrobeMenus.ArmorSet> sets = snapshot.sets();
 		int cols = 3;
-		int rows = 4;
+		int rows = 3;
 		float pad = 8f;
 		float head = 18f;
 		float gap = 3f;
 		float innerW = SLOTS_W - pad * 2f;
 		float innerH = SLOTS_H - head - pad;
 		float cell = Math.min((innerW - gap * (cols - 1)) / cols, (innerH - gap * (rows - 1)) / rows);
-		cell = Math.max(16f, Math.min(24f, cell));
+		cell = Math.max(16f, Math.min(28f, cell));
 		float gridW = cols * cell + (cols - 1) * gap;
 		float gridH = rows * cell + (rows - 1) * gap;
 		float gridX = x + pad + Math.max(0f, (innerW - gridW) * 0.5f);
 		float gridY = y + head + Math.max(0f, (innerH - gridH) * 0.5f);
-		int shown = Math.min(cols * rows, Math.max(loadouts.size(), 1));
+		int shown = Math.min(cols * rows, Math.max(sets.size(), 1));
 		for (int i = 0; i < shown; i++) {
 			int col = i % cols;
 			int row = i / cols;
 			float sx = gridX + col * (cell + gap);
 			float sy = gridY + row * (cell + gap);
-			if (sx + cell > x + SLOTS_W - 2f || sy + cell > y + SLOTS_H - 2f) {
-				continue;
-			}
-			LoadoutsMenus.Piece piece = i < loadouts.size() ? loadouts.get(i) : null;
-			boolean selected = piece != null && piece.selected();
+			WardrobeMenus.ArmorSet set = i < sets.size() ? sets.get(i) : null;
+			boolean selected = set != null && set.selected();
 			boolean hover = GuiDraw.hovered(mouseX, mouseY, sx, sy, cell, cell);
 			GuiDraw.well(
 				graphics,
@@ -422,14 +402,14 @@ public class LoadoutsScreen extends Screen {
 				selected ? 0xFF55FF55 : hover ? Theme.ACCENT : Theme.LINE
 			);
 			float icon = Math.min(16f, cell - 8f);
-			if (piece != null && !piece.stack().isEmpty()) {
-				drawItem(graphics, piece.stack(), sx + (cell - icon) * 0.5f, sy + (cell - icon) * 0.5f, icon / 16f);
+			if (set != null && !set.icon().isEmpty()) {
+				drawItem(graphics, set.icon(), sx + (cell - icon) * 0.5f, sy + (cell - icon) * 0.5f, icon / 16f);
 			}
 			String mark = String.valueOf(i + 1);
 			GuiDraw.small(graphics, font, mark, sx + 2, sy + 1, selected ? Theme.TEXT : Theme.MUTED);
-			hits.add(new Hit(sx, sy, cell, cell, piece == null ? -1 : piece.slot(), false, false));
-			if (hover && piece != null && !piece.stack().isEmpty()) {
-				tooltip = piece.stack();
+			hits.add(new Hit(sx, sy, cell, cell, set == null ? -1 : set.slot(), false, false));
+			if (hover && set != null && !set.icon().isEmpty()) {
+				tooltip = set.icon();
 			}
 		}
 		if (clip) {
@@ -437,7 +417,7 @@ public class LoadoutsScreen extends Screen {
 		}
 	}
 
-	private void drawContents(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
+	private void drawArmor(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		float x = windowX + 10;
 		float y = windowY + 182;
 		float w = windowW - 20;
@@ -445,61 +425,64 @@ public class LoadoutsScreen extends Screen {
 		GuiDraw.panel(graphics, x, y, w, h, 8, Theme.CARD, Theme.LINE);
 		float cx = x + 8;
 		float cy = y + 8;
-		for (LoadoutsMenus.Piece piece : labeledContents()) {
-			if (piece == null || piece.stack().isEmpty() || LoadoutsMenus.isFiller(piece.stack())) {
+		WardrobeMenus.ArmorSet set = previewing;
+		ItemStack[] pieces = set == null
+			? new ItemStack[0]
+			: new ItemStack[]{set.helmet(), set.chest(), set.legs(), set.boots()};
+		for (ItemStack stack : pieces) {
+			if (stack == null || stack.isEmpty()) {
 				continue;
 			}
 			if (cx + WELL + 4 > x + w - 8) {
 				break;
 			}
 			boolean hover = GuiDraw.hovered(mouseX, mouseY, cx, cy, WELL, WELL);
-			boolean selected = piece.selected();
 			GuiDraw.well(
 				graphics,
 				cx,
 				cy,
 				WELL,
-				selected ? Theme.withAlpha(0x55FF55, 60) : hover ? Theme.CARD_HOVER : Theme.TRACK,
-				selected ? 0xFF55FF55 : hover ? Theme.ACCENT : Theme.LINE
+				hover ? Theme.CARD_HOVER : Theme.TRACK,
+				hover ? Theme.ACCENT : Theme.LINE
 			);
-			if (!piece.stack().isEmpty()) {
-				drawItem(graphics, piece.stack(), cx + 2, cy + 2, 1f);
-			}
-			hits.add(new Hit(cx, cy, WELL, WELL, piece.slot(), false, false));
-			if (hover && !piece.stack().isEmpty()) {
-				tooltip = piece.stack();
+			drawItem(graphics, stack, cx + 2, cy + 2, 1f);
+			hits.add(new Hit(cx, cy, WELL, WELL, set == null ? -1 : set.slot(), false, false));
+			if (hover) {
+				tooltip = stack;
 			}
 			cx += WELL + 4;
 		}
 		GuiDraw.small(graphics, font, "1-9 equip and close · Right-click to edit", x + 8, y + h - 14, Theme.MUTED);
 	}
 
-	private List<LoadoutsMenus.Piece> labeledContents() {
-		List<LoadoutsMenus.Piece> out = new ArrayList<>();
-		LoadoutsMenus.Kind[] order = {
-			LoadoutsMenus.Kind.HELMET,
-			LoadoutsMenus.Kind.CHEST,
-			LoadoutsMenus.Kind.LEGS,
-			LoadoutsMenus.Kind.BOOTS,
-			LoadoutsMenus.Kind.NECKLACE,
-			LoadoutsMenus.Kind.CLOAK,
-			LoadoutsMenus.Kind.BELT,
-			LoadoutsMenus.Kind.GLOVES,
-			LoadoutsMenus.Kind.PET,
-			LoadoutsMenus.Kind.POWER,
-			LoadoutsMenus.Kind.TUNING,
-			LoadoutsMenus.Kind.HOTM,
-			LoadoutsMenus.Kind.HOTF,
-			LoadoutsMenus.Kind.OTHER
-		};
-		for (LoadoutsMenus.Kind kind : order) {
-			for (LoadoutsMenus.Piece piece : snapshot.contents()) {
-				if (piece.kind() == kind && piece.stack() != null && !piece.stack().isEmpty() && !LoadoutsMenus.isFiller(piece.stack())) {
-					out.add(piece);
-				}
+	private WardrobeMenus.ArmorSet setAt(int mouseX, int mouseY) {
+		float x = windowX + windowW - SLOTS_W - 10;
+		float y = windowY + 28;
+		List<WardrobeMenus.ArmorSet> sets = snapshot.sets();
+		int cols = 3;
+		int rows = 3;
+		float pad = 8f;
+		float head = 18f;
+		float gap = 3f;
+		float innerW = SLOTS_W - pad * 2f;
+		float innerH = SLOTS_H - head - pad;
+		float cell = Math.min((innerW - gap * (cols - 1)) / cols, (innerH - gap * (rows - 1)) / rows);
+		cell = Math.max(16f, Math.min(28f, cell));
+		float gridW = cols * cell + (cols - 1) * gap;
+		float gridH = rows * cell + (rows - 1) * gap;
+		float gridX = x + pad + Math.max(0f, (innerW - gridW) * 0.5f);
+		float gridY = y + head + Math.max(0f, (innerH - gridH) * 0.5f);
+		int shown = Math.min(cols * rows, sets.size());
+		for (int i = 0; i < shown; i++) {
+			int col = i % cols;
+			int row = i / cols;
+			float sx = gridX + col * (cell + gap);
+			float sy = gridY + row * (cell + gap);
+			if (GuiDraw.hovered(mouseX, mouseY, sx, sy, cell, cell)) {
+				return sets.get(i);
 			}
 		}
-		return out;
+		return snapshot.selected();
 	}
 
 	private void drawItem(GuiGraphicsExtractor graphics, ItemStack stack, float x, float y, float scale) {
@@ -642,15 +625,15 @@ public class LoadoutsScreen extends Screen {
 		cancelIncoming = false;
 		closeIncoming(chest);
 		Screen current = Minecraft.getInstance().screen;
-		if (current instanceof LoadoutsScreen
-			|| current instanceof AbstractContainerScreen<?> open && LoadoutsMenus.matches(open.getTitle())) {
+		if (current instanceof WardrobeScreen
+			|| current instanceof AbstractContainerScreen<?> open && WardrobeMenus.matches(open.getTitle())) {
 			return null;
 		}
 		return current;
 	}
 
 	private void rememberCache() {
-		if (snapshot != null && snapshot.hasLoadouts()) {
+		if (snapshot != null && snapshot.hasSets()) {
 			cache = snapshot.copy();
 		}
 	}
@@ -730,17 +713,17 @@ public class LoadoutsScreen extends Screen {
 
 	private void equipAndClose(int index) {
 		if (menu != null) {
-			snapshot = LoadoutsMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
+			snapshot = WardrobeMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
 		}
-		List<LoadoutsMenus.Piece> loadouts = snapshot.loadouts();
-		if (index < 0 || index >= loadouts.size()) {
+		List<WardrobeMenus.ArmorSet> sets = snapshot.sets();
+		if (index < 0 || index >= sets.size()) {
 			return;
 		}
-		LoadoutsMenus.Piece piece = loadouts.get(index);
-		if (piece == null || piece.slot() < 0) {
+		WardrobeMenus.ArmorSet set = sets.get(index);
+		if (set == null || set.slot() < 0) {
 			return;
 		}
-		clickSlot(piece.slot(), 0);
+		clickSlot(set.slot(), 0);
 		onClose();
 	}
 
