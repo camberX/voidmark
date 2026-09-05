@@ -108,21 +108,22 @@ public final class MediaSession {
 			hint = "SPOTIFY";
 			return out;
 		}
-		if (COMPANION.reachable() || COMPANION.awaitingAuth()) {
-			route = "ytm";
-			hint = COMPANION.statusHint();
-			return NowPlaying.none();
-		}
 		NowPlaying titled = TITLES.snapshot();
-		if (titled.present() && !(SpotifyNowPlaying.connected() && "SPOTIFY".equals(titled.sourceLabel()))) {
+		if (titled.present()) {
 			NowPlaying out = titled.cleaned();
 			if (!out.youtubeMusic()) {
 				out = TrackLookup.enrich(out);
 			}
-			out = out.carryTime(current);
-			route = "window";
-			hint = out.youtubeMusic() ? "YouTube Music API not connected" : out.sourceLabel();
-			return out;
+			NowPlaying api = SpotifyNowPlaying.last();
+			if (api.present() && NowPlaying.related(out, api)) {
+				out = api.cleaned();
+				route = "spotify";
+				hint = "SPOTIFY";
+			} else {
+				route = "window";
+				hint = out.youtubeMusic() ? "YouTube Music API not connected" : out.sourceLabel();
+			}
+			return out.carryTime(current);
 		}
 		NowPlaying linux = LINUX.snapshot();
 		if (linux.present()) {
@@ -130,6 +131,11 @@ public final class MediaSession {
 			route = "playerctl";
 			hint = out.sourceLabel();
 			return out;
+		}
+		if (COMPANION.reachable() || COMPANION.awaitingAuth()) {
+			route = "ytm";
+			hint = COMPANION.statusHint();
+			return NowPlaying.none();
 		}
 		route = "";
 		hint = "Play a track in Spotify or YouTube Music";

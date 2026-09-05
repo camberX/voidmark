@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.210", new String[]{
+			"Spotify Connected still shows the HUD from the desktop window when the API has no active player, instead of hiding as idle."
+		}),
 		new Entry("1.1.209", new String[]{
 			"Spotify progress keeps moving from the API clock. A brief empty poll no longer swaps in the window title, which has no time."
 		}),

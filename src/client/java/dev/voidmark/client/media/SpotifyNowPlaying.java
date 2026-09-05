@@ -128,6 +128,11 @@ public final class SpotifyNowPlaying {
 		thread.start();
 	}
 
+	static NowPlaying last() {
+		NowPlaying value = cached;
+		return value == null || !value.present() ? NowPlaying.none() : value;
+	}
+
 	static NowPlaying snapshot() {
 		if (!connected()) {
 			return NowPlaying.none();
@@ -382,6 +387,20 @@ public final class SpotifyNowPlaying {
 			JsonObject root = JsonParser.parseString(body).getAsJsonObject();
 			JsonObject item = object(root, "item");
 			if (item.size() == 0) {
+				NowPlaying previous = cached;
+				if (previous.present() && bool(root, "is_playing", false)) {
+					return NowPlaying.sampled(
+						previous.title(),
+						previous.artist(),
+						previous.album(),
+						"Spotify",
+						"spotify",
+						previous.cover(),
+						true,
+						Math.round(number(root, "progress_ms")),
+						previous.durationMs()
+					);
+				}
 				return NowPlaying.none();
 			}
 			String title = text(item, "name");
