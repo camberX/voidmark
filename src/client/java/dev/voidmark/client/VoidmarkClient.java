@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import dev.voidmark.Voidmark;
+import dev.voidmark.client.combat.Hitmarker;
 import dev.voidmark.client.combat.Hitsound;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
@@ -81,6 +82,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		MobGlowRenderer.init();
 		BlockOutlineGlow.init();
 		MiningWorldRenderer.init();
+		Hitmarker.init();
 		WatermarkRenderer.init();
 		InventoryHudRenderer.init();
 		NodeHudRenderer.init();
@@ -206,6 +208,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			MobGlowRenderer.reset();
 			Hitsound.reset();
+			Hitmarker.reset();
 			FakeBan.onJoin();
 			SkyblockProfileApi.refresh();
 			ShopCape.onJoin();
@@ -214,6 +217,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			SkyblockLocation.reset();
 			Hitsound.reset();
+			Hitmarker.reset();
 			EnderNodeTracker.get().clear();
 			ConnectionPing.reset();
 			MiningTracker.reset();

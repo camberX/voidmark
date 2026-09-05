@@ -27,8 +27,8 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Plays a hitsound as soon as this client lands a charged melee swing or one
  * of its own arrows overlaps a mob. Other players' hits are ignored.
- * Melee uses vanilla's attack-strength scale ({@code >= 0.9}, same as a
- * charged hit) so spam-clicks during cooldown stay quiet.
+ * Melee waits for vanilla charge ({@code >= 0.9}), the item's attack delay,
+ * and the target's hurt-time so spam-clicks during hit delay stay quiet.
  * Hypixel often reports mob health as 0, so we never gate on {@code isAlive()}.
  */
 public final class Hitsound {
@@ -37,8 +37,10 @@ public final class Hitsound {
 	private static final int ARROW_DEBOUNCE = 6;
 	private static final int VANILLA_PING_TICKS = 20;
 	private static final float CHARGED_HIT = 0.9f;
+	private static final int MIN_MELEE_DELAY = 10;
 	private static final Long2IntOpenHashMap HITS = new Long2IntOpenHashMap();
 	private static final Int2IntOpenHashMap TARGETS = new Int2IntOpenHashMap();
+	private static final Int2IntOpenHashMap MELEE = new Int2IntOpenHashMap();
 	private static int gameTick;
 	private static int lastVanillaSuppressTick = Integer.MIN_VALUE;
 
@@ -48,6 +50,7 @@ public final class Hitsound {
 	public static void reset() {
 		HITS.clear();
 		TARGETS.clear();
+		MELEE.clear();
 		gameTick = 0;
 		lastVanillaSuppressTick = Integer.MIN_VALUE;
 	}
@@ -58,7 +61,7 @@ public final class Hitsound {
 			prune();
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.hitsoundEnabled || !config.hitsoundArrows) {
+		if (!wantArrow(config)) {
 			return;
 		}
 		LocalPlayer player = client.player;
@@ -73,7 +76,9 @@ public final class Hitsound {
 
 	public static void onMelee(Entity attacker, Entity target) {
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.hitsoundEnabled || !config.hitsoundMelee) {
+		boolean sound = config.hitsoundEnabled && config.hitsoundMelee;
+		boolean mark = config.hitmarkerEnabled;
+		if (!sound && !mark) {
 			return;
 		}
 		Minecraft client = Minecraft.getInstance();
@@ -81,19 +86,17 @@ public final class Hitsound {
 		if (player == null || attacker != player || target == null || player.isSpectator()) {
 			return;
 		}
-		if (!isMeleeTarget(target, player)) {
+		if (!isMeleeTarget(target, player) || !meleeReady(player, target)) {
 			return;
 		}
-		if (player.getAttackStrengthScale(0.5f) < CHARGED_HIT) {
-			return;
-		}
-		play(config);
+		MELEE.put(target.getId(), gameTick);
+		land(config, sound, mark);
 		stampNearby(player, target);
 	}
 
 	public static void onArrowHit(AbstractArrow arrow, Entity target) {
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!config.hitsoundEnabled || !config.hitsoundArrows) {
+		if (!wantArrow(config)) {
 			return;
 		}
 		LocalPlayer player = Minecraft.getInstance().player;
@@ -101,7 +104,7 @@ public final class Hitsound {
 			return;
 		}
 		if (markHit(arrow.getId(), target.getId())) {
-			play(config);
+			land(config, config.hitsoundEnabled && config.hitsoundArrows, config.hitmarkerEnabled);
 		}
 	}
 
@@ -137,9 +140,38 @@ public final class Hitsound {
 			AABB hitbox = other.getBoundingBox().inflate(ARROW_MARGIN);
 			if (hitbox.contains(from) || hitbox.contains(to) || hitbox.clip(from, to).isPresent()) {
 				if (markHit(arrow.getId(), other.getId())) {
-					play(VoidmarkConfig.get());
+					VoidmarkConfig config = VoidmarkConfig.get();
+					land(config, config.hitsoundEnabled && config.hitsoundArrows, config.hitmarkerEnabled);
 				}
 			}
+		}
+	}
+
+	private static boolean wantArrow(VoidmarkConfig config) {
+		return config.hitmarkerEnabled || config.hitsoundEnabled && config.hitsoundArrows;
+	}
+
+	private static boolean meleeReady(LocalPlayer player, Entity target) {
+		if (player.cannotAttackWithItem(player.getWeaponItem(), 0)) {
+			return false;
+		}
+		if (player.getAttackStrengthScale(0.0f) < CHARGED_HIT) {
+			return false;
+		}
+		if (target instanceof LivingEntity living && living.hurtTime > 0) {
+			return false;
+		}
+		int last = MELEE.get(target.getId());
+		int wait = Math.max(MIN_MELEE_DELAY, Math.round(player.getCurrentItemAttackStrengthDelay()));
+		return last == 0 || gameTick - last >= wait;
+	}
+
+	private static void land(VoidmarkConfig config, boolean sound, boolean mark) {
+		if (sound) {
+			play(config);
+		}
+		if (mark) {
+			Hitmarker.flash();
 		}
 	}
 
@@ -268,6 +300,9 @@ public final class Hitsound {
 		}
 		if (!TARGETS.isEmpty()) {
 			TARGETS.int2IntEntrySet().removeIf(entry -> gameTick - entry.getIntValue() > 40);
+		}
+		if (!MELEE.isEmpty()) {
+			MELEE.int2IntEntrySet().removeIf(entry -> gameTick - entry.getIntValue() > 40);
 		}
 	}
 }

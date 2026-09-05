@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.193", new String[]{
+			"Melee hitsounds wait for the weapon hit delay, not every click on a mob. A CoD-style hitmarker flashes on the crosshair when a hit lands."
+		}),
 		new Entry("1.1.192", new String[]{
 			"The wardrobe menu is a grid of 3D armor models, one per slot, instead of a copy of the loadouts layout."
 		}),

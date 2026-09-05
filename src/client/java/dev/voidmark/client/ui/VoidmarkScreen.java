@@ -145,6 +145,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Hitsound", Tab.COMBAT, "Combat"),
 		new SearchEntry("Melee hitsound", Tab.COMBAT, "Combat"),
 		new SearchEntry("Arrow hitsound", Tab.COMBAT, "Combat"),
+		new SearchEntry("Hitmarker", Tab.COMBAT, "Combat"),
 		new SearchEntry("Hit volume", Tab.COMBAT, "Combat"),
 		new SearchEntry("Hit pitch", Tab.COMBAT, "Combat"),
 		new SearchEntry("Mob glow", Tab.ESP, "ESP"),
@@ -1265,7 +1266,7 @@ public class VoidmarkScreen extends Screen {
 				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v, Feature.VIEW);
 			}
 			case COMBAT -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Hitsound");
+				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Hitsound");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.hitsoundEnabled, v -> {
 					config.hitsoundEnabled = v;
 					if (v) {
@@ -1273,7 +1274,8 @@ public class VoidmarkScreen extends Screen {
 					}
 				}, Feature.HITSOUND);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Melee", config.hitsoundMelee, v -> config.hitsoundMelee = v);
-				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Arrows", config.hitsoundArrows, v -> config.hitsoundArrows = v);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Arrows", config.hitsoundArrows, v -> config.hitsoundArrows = v);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hitmarker", config.hitmarkerEnabled, v -> config.hitmarkerEnabled = v);
 
 				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Mix");
 				y = slider(graphics, font, rx, y, iw, "Volume", Math.round(config.hitsoundVolume * 100) + "%", config.hitsoundVolume, v -> config.hitsoundVolume = VoidmarkConfig.clamp(v, 0f, 1f));
@@ -1839,7 +1841,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.192");
+			.orElse("1.1.193");
 	}
 
 	@Override
