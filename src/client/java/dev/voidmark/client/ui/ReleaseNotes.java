@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.183", new String[]{
+			"The click GUI has more sidebar tabs: Combat, Menus, and Status sit next to World, ESP, Overlay, Bars, Nodes, and Mining so the list fills the pane."
+		}),
 		new Entry("1.1.182", new String[]{
 			"Auto update is off by default. Turn it on in the theme settings and the next launch waits for voidmark.cloud: if a newer jar is there it replaces the one in mods and Minecraft closes so you can relaunch."
 		}),

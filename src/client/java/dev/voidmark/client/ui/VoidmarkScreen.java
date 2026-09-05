@@ -77,11 +77,14 @@ public class VoidmarkScreen extends Screen {
 
 	private enum Tab {
 		WORLD("World", Group.VISUALS),
+		COMBAT("Combat", Group.VISUALS),
 		ESP("ESP", Group.VISUALS),
 		OVERLAY("Overlay", Group.HUD),
 		BARS("Bars", Group.HUD),
 		NODES("Nodes", Group.SKYBLOCK),
 		MINING("Mining", Group.SKYBLOCK),
+		MENUS("Menus", Group.SKYBLOCK),
+		STATUS("Status", Group.SKYBLOCK),
 		PLAYER("Player", Group.PLAYER);
 
 		final String label;
@@ -136,13 +139,14 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Lightmap", Tab.WORLD, "World"),
 		new SearchEntry("Shader", Tab.WORLD, "World"),
 		new SearchEntry("Skybox tint", Tab.WORLD, "World"),
-		new SearchEntry("Aspect ratio", Tab.WORLD, "World"),
-		new SearchEntry("Custom fog", Tab.WORLD, "World"),
-		new SearchEntry("Hitsound", Tab.WORLD, "Hitsound"),
-		new SearchEntry("Melee hitsound", Tab.WORLD, "Hitsound"),
-		new SearchEntry("Arrow hitsound", Tab.WORLD, "Hitsound"),
-		new SearchEntry("Hit volume", Tab.WORLD, "Hitsound"),
-		new SearchEntry("Hit pitch", Tab.WORLD, "Hitsound"),
+		new SearchEntry("Aspect ratio", Tab.WORLD, "Camera"),
+		new SearchEntry("Custom fog", Tab.WORLD, "Camera"),
+		new SearchEntry("Combat", Tab.COMBAT, "Combat"),
+		new SearchEntry("Hitsound", Tab.COMBAT, "Combat"),
+		new SearchEntry("Melee hitsound", Tab.COMBAT, "Combat"),
+		new SearchEntry("Arrow hitsound", Tab.COMBAT, "Combat"),
+		new SearchEntry("Hit volume", Tab.COMBAT, "Combat"),
+		new SearchEntry("Hit pitch", Tab.COMBAT, "Combat"),
 		new SearchEntry("Mob glow", Tab.ESP, "ESP"),
 		new SearchEntry("Nametag ESP", Tab.ESP, "ESP"),
 		new SearchEntry("Block outline", Tab.ESP, "ESP"),
@@ -160,13 +164,14 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Auto update", Tab.OVERLAY, "Theme"),
 		new SearchEntry("Auto-update", Tab.OVERLAY, "Theme"),
 		new SearchEntry("Markers", Tab.NODES, "Nodes"),
-		new SearchEntry("Loadouts", Tab.NODES, "Menus"),
-		new SearchEntry("Loadouts menu", Tab.NODES, "Menus"),
-		new SearchEntry("Loadouts animation", Tab.NODES, "Menus"),
-		new SearchEntry("Open animation", Tab.NODES, "Menus"),
-		new SearchEntry("Wardrobe", Tab.NODES, "Menus"),
-		new SearchEntry("Wardrobe menu", Tab.NODES, "Menus"),
-		new SearchEntry("Armor Sets", Tab.NODES, "Menus"),
+		new SearchEntry("Menus", Tab.MENUS, "Menus"),
+		new SearchEntry("Loadouts", Tab.MENUS, "Menus"),
+		new SearchEntry("Loadouts menu", Tab.MENUS, "Menus"),
+		new SearchEntry("Loadouts animation", Tab.MENUS, "Menus"),
+		new SearchEntry("Open animation", Tab.MENUS, "Menus"),
+		new SearchEntry("Wardrobe", Tab.MENUS, "Menus"),
+		new SearchEntry("Wardrobe menu", Tab.MENUS, "Menus"),
+		new SearchEntry("Armor Sets", Tab.MENUS, "Menus"),
 		new SearchEntry("Node HUD", Tab.NODES, "Nodes"),
 		new SearchEntry("Mining HUD", Tab.MINING, "Mining"),
 		new SearchEntry("Titanium ESP", Tab.MINING, "Mining"),
@@ -197,9 +202,10 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Font", Tab.OVERLAY, "Theme"),
 		new SearchEntry("UI font", Tab.OVERLAY, "Theme"),
 		new SearchEntry("Minecraft font", Tab.OVERLAY, "Theme"),
-		new SearchEntry("FPS", Tab.NODES, "Status"),
-		new SearchEntry("Ping", Tab.NODES, "Status"),
-		new SearchEntry("Hypixel", Tab.NODES, "Status"),
+		new SearchEntry("Status", Tab.STATUS, "Status"),
+		new SearchEntry("FPS", Tab.STATUS, "Status"),
+		new SearchEntry("Ping", Tab.STATUS, "Status"),
+		new SearchEntry("Hypixel", Tab.STATUS, "Status"),
 		new SearchEntry("Nick hider", Tab.PLAYER, "Player"),
 		new SearchEntry("Cape", Tab.PLAYER, "Player"),
 		new SearchEntry("Cape creator", Tab.PLAYER, "Player"),
@@ -872,11 +878,14 @@ public class VoidmarkScreen extends Screen {
 	private static String tabGlyph(Tab value) {
 		return switch (value) {
 			case WORLD -> MenuFont.GLOBE;
+			case COMBAT -> MenuFont.FLAG;
 			case ESP -> MenuFont.MOB;
 			case OVERLAY -> MenuFont.MONITOR;
 			case BARS -> MenuFont.HUD;
 			case NODES -> MenuFont.CUBE;
 			case MINING -> MenuFont.CUBE;
+			case MENUS -> MenuFont.BAG;
+			case STATUS -> MenuFont.SIGNAL;
 			case PLAYER -> MenuFont.PERSON;
 		};
 	}
@@ -1249,7 +1258,12 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "World tint", config.worldTintEnabled, v -> config.worldTintEnabled = v, Feature.WORLD);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Skybox", config.skyTintEnabled, v -> config.skyTintEnabled = v, Feature.SKY);
 
-				y = featureCard(graphics, font, left, top + cardHeight(2) + 8, col, cardHeight(3), "Hitsound");
+				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Camera");
+				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Fog", config.fogEnabled, v -> config.fogEnabled = v, Feature.FOG);
+				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v, Feature.VIEW);
+			}
+			case COMBAT -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Hitsound");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.hitsoundEnabled, v -> {
 					config.hitsoundEnabled = v;
 					if (v) {
@@ -1259,9 +1273,9 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Melee", config.hitsoundMelee, v -> config.hitsoundMelee = v);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Arrows", config.hitsoundArrows, v -> config.hitsoundArrows = v);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Camera");
-				y = toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Fog", config.fogEnabled, v -> config.fogEnabled = v, Feature.FOG);
-				toggle(graphics, font, rx, y, iw, mouseX, mouseY, "Aspect ratio", config.aspectEnabled, v -> config.aspectEnabled = v, Feature.VIEW);
+				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Mix");
+				y = slider(graphics, font, rx, y, iw, "Volume", Math.round(config.hitsoundVolume * 100) + "%", config.hitsoundVolume, v -> config.hitsoundVolume = VoidmarkConfig.clamp(v, 0f, 1f));
+				slider(graphics, font, rx, y, iw, "Pitch", String.format(Locale.ROOT, "%.2f", config.hitsoundPitch), (config.hitsoundPitch - 0.50f) / 1.00f, v -> config.hitsoundPitch = VoidmarkConfig.clamp(0.50f + v, 0.50f, 1.50f));
 			}
 			case ESP -> drawMobsTab(graphics, font, mouseX, mouseY);
 			case OVERLAY -> {
@@ -1294,20 +1308,29 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Enable", config.markersEnabled, v -> config.markersEnabled = v, Feature.NODES);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node HUD", config.hudEnabled, v -> config.hudEnabled = v);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Node ESP", config.boxFill, v -> config.boxFill = v, Feature.NODE_ESP);
-
-				y = featureCard(graphics, font, left, top + cardHeight(3) + 8, col, cardHeight(3), "Menus");
+			}
+			case MENUS -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(3), "Menus");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Loadouts menu", config.loadoutsMenuEnabled, v -> config.loadoutsMenuEnabled = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Wardrobe menu", config.wardrobeMenuEnabled, v -> config.wardrobeMenuEnabled = v);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Open animation", config.loadoutsOpenAnim, v -> config.loadoutsOpenAnim = v);
 
-				y = featureCard(graphics, font, right, top, col, cardHeight(6), "Status");
-				y = readout(graphics, font, rx, y, iw, "Hypixel", SkyblockLocation.onHypixel);
-				y = readout(graphics, font, rx, y, iw, "Skyblock", SkyblockLocation.inSkyblock);
-				y = readout(graphics, font, rx, y, iw, "The End", SkyblockLocation.inTheEnd);
-				y = statRow(graphics, font, rx, y, iw, "FPS", HudStats.fps() + "");
-				y = statRow(graphics, font, rx, y, iw, "Ping", HudStats.pingLabel());
+				y = featureCard(graphics, font, right, top, col, cardHeight(3), "Commands");
+				GuiDraw.menu(graphics, font, "/loadouts  /ld", rx, y + 2, Theme.TEXT);
+				GuiDraw.menu(graphics, font, "/wardrobe  /wd", rx, y + 16, Theme.TEXT);
+				GuiDraw.menu(graphics, font, "1-9 equips and closes", rx, y + 30, Theme.MUTED);
+			}
+			case STATUS -> {
+				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "Location");
+				y = readout(graphics, font, ix, y, iw, "Hypixel", SkyblockLocation.onHypixel);
+				y = readout(graphics, font, ix, y, iw, "Skyblock", SkyblockLocation.inSkyblock);
+				y = readout(graphics, font, ix, y, iw, "The End", SkyblockLocation.inTheEnd);
 				String area = SkyblockLocation.area.isEmpty() ? "Unknown" : SkyblockLocation.area;
-				GuiDraw.menu(graphics, font, clip(font, area, (int) iw - 4), rx, GuiDraw.middle(y, ROW), Theme.MUTED);
+				GuiDraw.menu(graphics, font, clip(font, area, (int) iw - 4), ix, GuiDraw.middle(y, ROW), Theme.MUTED);
+
+				y = featureCard(graphics, font, right, top, col, cardHeight(2), "Client");
+				y = statRow(graphics, font, rx, y, iw, "FPS", HudStats.fps() + "");
+				statRow(graphics, font, rx, y, iw, "Ping", HudStats.pingLabel());
 			}
 			case MINING -> {
 				float y = featureCard(graphics, font, left, top, col, cardHeight(2), "Mining");
@@ -1814,7 +1837,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.182");
+			.orElse("1.1.183");
 	}
 
 	@Override

@@ -556,12 +556,15 @@ public final class VoidmarkConfig {
 		}
 		String name = tab.trim().toUpperCase(java.util.Locale.ROOT);
 		return switch (name) {
-			case "WORLD", "VIEW", "FOG" -> "WORLD";
+			case "WORLD", "VIEW", "FOG", "CAMERA" -> "WORLD";
+			case "COMBAT", "HITSOUND" -> "COMBAT";
 			case "ESP", "MOBS" -> "ESP";
 			case "OVERLAY", "DISPLAY", "INVENTORY" -> "OVERLAY";
 			case "BARS", "HUD" -> "BARS";
-			case "NODES", "MARKERS", "STATUS" -> "NODES";
+			case "NODES", "MARKERS" -> "NODES";
 			case "MINING" -> "MINING";
+			case "MENUS", "LOADOUTS", "WARDROBE" -> "MENUS";
+			case "STATUS" -> "STATUS";
 			case "PLAYER", "NICK", "CAPE" -> "PLAYER";
 			default -> "WORLD";
 		};
