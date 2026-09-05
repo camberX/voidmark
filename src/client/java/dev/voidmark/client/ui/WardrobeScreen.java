@@ -31,7 +31,8 @@ import java.util.List;
  */
 public class WardrobeScreen extends Screen {
 	private static final float MENU_W = 412;
-	private static final float MENU_H = 292;
+	private static final float MENU_H = 318;
+	private static final float ARMOR_ICON = 12f;
 	private static float savedYaw = 28f;
 	private static float savedPitch = 8f;
 	private static WardrobeMenus.Snapshot cache = WardrobeMenus.Snapshot.empty();
@@ -343,23 +344,25 @@ public class WardrobeScreen extends Screen {
 			boolean selected = set != null && set.selected();
 			boolean locked = set != null && set.locked();
 			boolean hover = GuiDraw.hovered(mouseX, mouseY, sx, sy, cellW, cellH);
-			int fill = hover || selected ? Theme.CARD_HOVER : Theme.CARD;
-			int line = selected ? Theme.ACCENT : hover ? Theme.withAlpha(Theme.ACCENT, 160) : Theme.LINE;
+			int fill = hover ? Theme.CARD_HOVER : Theme.CARD;
+			int line = selected ? Theme.ACCENT : Theme.LINE;
 			GuiDraw.panel(graphics, sx, sy, cellW, cellH, 8, fill, line);
 			String mark = String.valueOf(i + 1);
 			GuiDraw.small(graphics, font, mark, sx + 5, sy + 4, selected ? Theme.ACCENT : Theme.MUTED);
+			float iconRow = ARMOR_ICON + 6f;
 			if (set != null && set.hasArmor() && !locked) {
 				PlayerPreview.drawMini(
 					graphics,
 					sx + 2,
 					sy + 10,
 					cellW - 4,
-					cellH - 14,
+					cellH - 14 - iconRow,
 					previewYaw,
 					previewPitch,
 					view,
 					new PlayerPreview.Gear(set.helmet(), set.chest(), set.legs(), set.boots())
 				);
+				drawArmorIcons(graphics, set, sx, sy + cellH - iconRow - 2f, cellW, mouseX, mouseY);
 			} else {
 				String label = locked ? "Locked" : "Empty";
 				GuiDraw.small(
@@ -372,11 +375,38 @@ public class WardrobeScreen extends Screen {
 				);
 			}
 			hits.add(new Hit(sx, sy, cellW, cellH, set == null ? -1 : set.slot(), false, false));
-			if (hover && set != null) {
+			if (hover && set != null && tooltip.isEmpty()) {
 				tooltip = hoverStack(set);
 			}
 		}
 		GuiDraw.small(graphics, font, "1-9 equip and close · Drag a model to rotate", x, y + h - 10, Theme.MUTED);
+	}
+
+	private void drawArmorIcons(
+		GuiGraphicsExtractor graphics,
+		WardrobeMenus.ArmorSet set,
+		float x,
+		float y,
+		float w,
+		int mouseX,
+		int mouseY
+	) {
+		ItemStack[] pieces = {set.helmet(), set.chest(), set.legs(), set.boots()};
+		float gap = 2f;
+		float rowW = pieces.length * ARMOR_ICON + (pieces.length - 1) * gap;
+		float ix = x + (w - rowW) * 0.5f;
+		for (ItemStack stack : pieces) {
+			boolean hover = GuiDraw.hovered(mouseX, mouseY, ix, y, ARMOR_ICON, ARMOR_ICON);
+			GuiDraw.well(graphics, ix, y, ARMOR_ICON, hover ? Theme.CARD_HOVER : Theme.TRACK, Theme.LINE);
+			if (stack != null && !stack.isEmpty()) {
+				float scale = Math.max(0.45f, (ARMOR_ICON - 2f) / 16f);
+				drawItem(graphics, stack, ix + (ARMOR_ICON - 16f * scale) * 0.5f, y + (ARMOR_ICON - 16f * scale) * 0.5f, scale);
+				if (hover) {
+					tooltip = stack;
+				}
+			}
+			ix += ARMOR_ICON + gap;
+		}
 	}
 
 	private static ItemStack hoverStack(WardrobeMenus.ArmorSet set) {

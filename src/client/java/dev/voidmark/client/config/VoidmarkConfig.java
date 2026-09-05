@@ -19,16 +19,16 @@ public final class VoidmarkConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("voidmark.json");
 	private static VoidmarkConfig instance = new VoidmarkConfig();
-	public boolean markersEnabled = true;
-	public boolean hudEnabled = true;
-	public boolean tracersEnabled = true;
+	public boolean markersEnabled = false;
+	public boolean hudEnabled = false;
+	public boolean tracersEnabled = false;
 	public boolean boxFill = true;
 	public boolean boxOutline = true;
 	public boolean throughWalls = true;
 	public boolean onlyInTheEnd = true;
 	public boolean forceEnable = false;
-	public boolean particleDetection = true;
-	public boolean blockScan = true;
+	public boolean particleDetection = false;
+	public boolean blockScan = false;
 	public int scanRadius = 48;
 	public float fillOpacity = 0.32f;
 	public int colorRgb = 0x2FB5FF;
@@ -53,29 +53,29 @@ public final class VoidmarkConfig {
 	public String themePreset = "cyan";
 	public boolean uiAnimations = true;
 	public boolean autoUpdate = false;
-	public boolean watermarkEnabled = true;
-	public boolean watermarkFps = true;
-	public boolean watermarkPing = true;
-	public boolean watermarkTime = true;
+	public boolean watermarkEnabled = false;
+	public boolean watermarkFps = false;
+	public boolean watermarkPing = false;
+	public boolean watermarkTime = false;
 	public boolean watermarkName = false;
-	public boolean musicHudEnabled = true;
+	public boolean musicHudEnabled = false;
 	public boolean musicHideIdle = false;
 	public int musicApiPort = 0;
 	public String musicApiToken = "";
-	public boolean rawmatsHudEnabled = true;
-	public boolean miningHudEnabled = true;
-	public boolean miningAbilityAlert = true;
-	public boolean farmingYawPitch = true;
+	public boolean rawmatsHudEnabled = false;
+	public boolean miningHudEnabled = false;
+	public boolean miningAbilityAlert = false;
+	public boolean farmingYawPitch = false;
 	public float farmingYawPitchScale = 1.00f;
-	public boolean titaniumEsp = true;
+	public boolean titaniumEsp = false;
 	public boolean titaniumEspThroughWalls = true;
-	public boolean loadoutsMenuEnabled = true;
+	public boolean loadoutsMenuEnabled = false;
 	public boolean loadoutsOpenAnim = true;
-	public boolean wardrobeMenuEnabled = true;
-	public boolean hitsoundEnabled = true;
-	public boolean hitsoundMelee = true;
-	public boolean hitsoundArrows = true;
-	public boolean hitmarkerEnabled = true;
+	public boolean wardrobeMenuEnabled = false;
+	public boolean hitsoundEnabled = false;
+	public boolean hitsoundMelee = false;
+	public boolean hitsoundArrows = false;
+	public boolean hitmarkerEnabled = false;
 	public float hitmarkerScale = 1.00f;
 	public float hitsoundVolume = 0.80f;
 	public float hitsoundPitch = 1.00f;
@@ -83,7 +83,7 @@ public final class VoidmarkConfig {
 	public int titaniumEspRgb = 0xE8ECF2;
 	public boolean rawmatsEnchanted = false;
 	public String rawmatsItemId = "";
-	public boolean inventoryHudEnabled = true;
+	public boolean inventoryHudEnabled = false;
 	public boolean inventoryHudHotbar = true;
 	public boolean inventoryHudArmor = true;
 	public boolean inventoryHudCount = true;
@@ -140,21 +140,21 @@ public final class VoidmarkConfig {
 	public String capeShopKey = "";
 	public boolean nickEnabled = false;
 	public String nick = "";
-	public boolean nametagsEnabled = true;
-	public boolean nametagSelf = true;
+	public boolean nametagsEnabled = false;
+	public boolean nametagSelf = false;
 	public boolean nametagThroughWalls = false;
-	public boolean nametagDistance = true;
+	public boolean nametagDistance = false;
 	public String nametagStyle = "custom";
 	public int nametagRange = 128;
 	public float nametagScale = 1.0f;
 	public float nametagOpacity = 1.0f;
 	public float menuScale = 1.0f;
-	public boolean menuStarfield = true;
+	public boolean menuStarfield = false;
 	public boolean hudStarfield = false;
 	public String uiFont = "";
 	public boolean mobGlowEnabled = false;
 	public boolean mobGlowThroughWalls = true;
-	public boolean blockOutlineGlow = true;
+	public boolean blockOutlineGlow = false;
 	public float blockOutlineOpacity = 0.58f;
 	public int blockOutlineRgb = 0x2FB5FF;
 	public String mobGlowId = "";
@@ -324,10 +324,6 @@ public final class VoidmarkConfig {
 					loaded.themePaneRgb = 0x0B0E14;
 					loaded.themePreset = "cyan";
 					loaded.uiAnimations = true;
-					loaded.watermarkEnabled = true;
-					loaded.watermarkFps = true;
-					loaded.watermarkPing = true;
-					loaded.watermarkTime = true;
 				} else {
 					loaded.themeAccentRgb = loaded.themeAccentRgb & 0xFFFFFF;
 					if (loaded.themeAccentRgb == 0) {
@@ -410,16 +406,16 @@ public final class VoidmarkConfig {
 					loaded.uiFont = "Minecraft";
 				}
 				if (!json.has("hitsoundEnabled")) {
-					loaded.hitsoundEnabled = true;
+					loaded.hitsoundEnabled = false;
 				}
 				if (!json.has("hitsoundMelee")) {
-					loaded.hitsoundMelee = true;
+					loaded.hitsoundMelee = false;
 				}
 				if (!json.has("hitsoundArrows")) {
-					loaded.hitsoundArrows = true;
+					loaded.hitsoundArrows = false;
 				}
 				if (!json.has("hitmarkerEnabled")) {
-					loaded.hitmarkerEnabled = true;
+					loaded.hitmarkerEnabled = false;
 				}
 				loaded.hitmarkerScale = json.has("hitmarkerScale")
 					? clampHudScale(loaded.hitmarkerScale)
@@ -442,7 +438,7 @@ public final class VoidmarkConfig {
 				loaded.hudRawmatsScale = clampHudScale(loaded.hudRawmatsScale);
 				loaded.hudMiningScale = clampHudScale(loaded.hudMiningScale);
 				if (!json.has("farmingYawPitch")) {
-					loaded.farmingYawPitch = true;
+					loaded.farmingYawPitch = false;
 				}
 				loaded.farmingYawPitchScale = json.has("farmingYawPitchScale")
 					? clampHudScale(loaded.farmingYawPitchScale)

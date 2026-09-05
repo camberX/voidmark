@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.202", new String[]{
+			"Only the equipped loadout and wardrobe set are outlined. Wardrobe shows helmet, chest, legs, and boots under each model. New installs start with every optional feature off."
+		}),
 		new Entry("1.1.201", new String[]{
 			"Closing loadouts with the hotkey keeps the last snapshot, so the next open still comes from cache instead of a blank wait."
 		}),

@@ -416,8 +416,8 @@ public class LoadoutsScreen extends Screen {
 				sx,
 				sy,
 				cell,
-				selected || hover ? Theme.CARD_HOVER : Theme.TRACK,
-				selected ? Theme.ACCENT : hover ? Theme.withAlpha(Theme.ACCENT, 160) : Theme.LINE
+				hover ? Theme.CARD_HOVER : Theme.TRACK,
+				selected ? Theme.ACCENT : Theme.LINE
 			);
 			float icon = Math.min(16f, cell - 8f);
 			if (piece != null && !piece.stack().isEmpty()) {
@@ -451,14 +451,13 @@ public class LoadoutsScreen extends Screen {
 				break;
 			}
 			boolean hover = GuiDraw.hovered(mouseX, mouseY, cx, cy, WELL, WELL);
-			boolean selected = piece.selected();
 			GuiDraw.well(
 				graphics,
 				cx,
 				cy,
 				WELL,
-				selected || hover ? Theme.CARD_HOVER : Theme.TRACK,
-				selected ? Theme.ACCENT : hover ? Theme.withAlpha(Theme.ACCENT, 160) : Theme.LINE
+				hover ? Theme.CARD_HOVER : Theme.TRACK,
+				Theme.LINE
 			);
 			if (!piece.stack().isEmpty()) {
 				drawItem(graphics, piece.stack(), cx + 2, cy + 2, 1f);
