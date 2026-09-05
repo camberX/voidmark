@@ -343,13 +343,12 @@ public class WardrobeScreen extends Screen {
 			boolean selected = set != null && set.selected();
 			boolean locked = set != null && set.locked();
 			boolean hover = GuiDraw.hovered(mouseX, mouseY, sx, sy, cellW, cellH);
-			int fill = selected ? Theme.withAlpha(0x55FF55, 36) : hover ? Theme.CARD_HOVER : Theme.CARD;
-			int line = selected ? 0xFF55FF55 : hover ? Theme.ACCENT : Theme.LINE;
+			int fill = hover || selected ? Theme.CARD_HOVER : Theme.CARD;
+			int line = selected ? Theme.ACCENT : hover ? Theme.withAlpha(Theme.ACCENT, 160) : Theme.LINE;
 			GuiDraw.panel(graphics, sx, sy, cellW, cellH, 8, fill, line);
 			String mark = String.valueOf(i + 1);
-			GuiDraw.small(graphics, font, mark, sx + 5, sy + 4, selected ? Theme.TEXT : Theme.MUTED);
+			GuiDraw.small(graphics, font, mark, sx + 5, sy + 4, selected ? Theme.ACCENT : Theme.MUTED);
 			if (set != null && set.hasArmor() && !locked) {
-				boolean modelClip = GuiDraw.scissor(graphics, sx + 2, sy + 2, cellW - 4, cellH - 4);
 				PlayerPreview.drawMini(
 					graphics,
 					sx + 2,
@@ -361,9 +360,6 @@ public class WardrobeScreen extends Screen {
 					view,
 					new PlayerPreview.Gear(set.helmet(), set.chest(), set.legs(), set.boots())
 				);
-				if (modelClip) {
-					GuiDraw.disableScissor(graphics);
-				}
 			} else {
 				String label = locked ? "Locked" : "Empty";
 				GuiDraw.small(

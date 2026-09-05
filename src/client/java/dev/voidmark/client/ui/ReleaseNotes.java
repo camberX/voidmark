@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.194", new String[]{
+			"Wardrobe and loadouts no longer flash a lime green plate behind 3D models. Equipped slots use the accent rim instead."
+		}),
 		new Entry("1.1.193", new String[]{
 			"Melee hitsounds wait for the weapon hit delay, not every click on a mob. A CoD-style hitmarker flashes on the crosshair when a hit lands."
 		}),
