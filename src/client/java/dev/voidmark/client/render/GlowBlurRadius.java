@@ -65,6 +65,9 @@ public final class GlowBlurRadius {
 			return;
 		}
 		float radius = VoidmarkConfig.clamp(VoidmarkConfig.get().mobGlowRadius, MIN, MAX);
+		if (BlockOutlineGlow.cheapBlur()) {
+			radius = Math.min(radius, 5f);
+		}
 		int size = new Std140SizeCalculator().putVec2().putFloat().get();
 		if (buffer.size() < size) {
 			return;

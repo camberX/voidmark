@@ -26,8 +26,11 @@ void main() {
     vec4 acc = vec4(0.0);
     float wsum = 0.0;
     for (int i = -32; i <= 32; i++) {
-        if (abs(i) > radius) {
+        if (i < -radius) {
             continue;
+        }
+        if (i > radius) {
+            break;
         }
         float w = exp(-(float(i) * float(i)) / twoSigmaSq);
         acc += texture(InSampler, texCoord + stepDir * float(i)) * w;
