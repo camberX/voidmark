@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.203", new String[]{
+			"Auto-update removes the old jar from mods. If Windows has it locked, it is moved out of the way and deleted on the next launch."
+		}),
 		new Entry("1.1.202", new String[]{
 			"Only the equipped loadout and wardrobe set are outlined. Wardrobe shows helmet, chest, legs, and boots under each model. New installs start with every optional feature off."
 		}),

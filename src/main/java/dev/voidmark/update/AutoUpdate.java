@@ -51,7 +51,7 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 		}
 		Path mods = current.getParent();
 		if (mods != null) {
-			sweep(mods);
+			sweep(mods, current);
 		}
 		if (!enabled()) {
 			return;
@@ -197,6 +197,7 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 		for (Path old : staleJars(mods, dest)) {
 			retire(old);
 		}
+		sweep(mods, dest);
 		return dest;
 	}
 
@@ -256,29 +257,110 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 	}
 
 	private static void retire(Path old) {
-		try {
-			Files.deleteIfExists(old);
+		if (old == null || !Files.exists(old)) {
 			return;
-		} catch (Exception ignored) {
 		}
-		Path retired = old.resolveSibling(old.getFileName().toString() + ".old");
-		try {
-			Files.move(old, retired, StandardCopyOption.REPLACE_EXISTING);
-			retired.toFile().deleteOnExit();
+		if (deleteQuiet(old)) {
+			log("Removed old jar " + old.getFileName());
 			return;
-		} catch (Exception ignored) {
+		}
+		for (Path dest : retireTargets(old)) {
+			if (moveQuiet(old, dest)) {
+				log("Moved in-use jar " + old.getFileName() + " to " + dest.getFileName() + ".");
+				dest.toFile().deleteOnExit();
+				rememberPurge(dest);
+				deleteQuiet(dest);
+				return;
+			}
 		}
 		old.toFile().deleteOnExit();
+		rememberPurge(old);
+		log("Could not remove " + old.getFileName() + ". Delete it from the mods folder before the next launch.");
 	}
 
-	private static void sweep(Path mods) {
+	private static List<Path> retireTargets(Path old) {
+		String name = old.getFileName().toString();
+		List<Path> targets = new ArrayList<>();
+		targets.add(old.resolveSibling(name + ".old"));
+		targets.add(old.resolveSibling(name + ".disabled"));
+		Path mods = old.getParent();
+		if (mods != null && mods.getParent() != null) {
+			targets.add(mods.getParent().resolve(name + ".old"));
+		}
+		try {
+			targets.add(Path.of(System.getProperty("java.io.tmpdir")).resolve("voidmark-" + name + ".old"));
+		} catch (Exception ignored) {
+		}
+		return targets;
+	}
+
+	private static boolean deleteQuiet(Path path) {
+		try {
+			return Files.deleteIfExists(path);
+		} catch (Exception ignored) {
+			return false;
+		}
+	}
+
+	private static boolean moveQuiet(Path from, Path to) {
+		if (to == null || from.equals(to)) {
+			return false;
+		}
+		try {
+			Files.createDirectories(to.getParent());
+			Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
+			return true;
+		} catch (Exception ignored) {
+			return false;
+		}
+	}
+
+	private static Path purgeFile() {
+		return FabricLoader.getInstance().getConfigDir().resolve("voidmark-purge.txt");
+	}
+
+	private static void rememberPurge(Path path) {
+		try {
+			Path file = purgeFile();
+			String line = path.toAbsolutePath().normalize() + System.lineSeparator();
+			Files.writeString(
+				file,
+				Files.isRegularFile(file) ? Files.readString(file) + line : line
+			);
+		} catch (Exception ignored) {
+		}
+	}
+
+	private static void sweep(Path mods, Path keep) {
+		Path keepAbs = keep == null ? null : keep.toAbsolutePath().normalize();
+		try {
+			Path file = purgeFile();
+			if (Files.isRegularFile(file)) {
+				for (String line : Files.readAllLines(file)) {
+					if (!line.isBlank()) {
+						deleteQuiet(Path.of(line.trim()));
+					}
+				}
+				deleteQuiet(file);
+			}
+		} catch (Exception ignored) {
+		}
 		try (DirectoryStream<Path> stream = Files.newDirectoryStream(mods, "voidmark*")) {
 			for (Path path : stream) {
+				Path absolute = path.toAbsolutePath().normalize();
 				String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-				if (name.endsWith(".old") || name.endsWith(".part") || name.endsWith(".jar.old")) {
-					try {
-						Files.deleteIfExists(path);
-					} catch (Exception ignored) {
+				boolean trash = name.endsWith(".old")
+					|| name.endsWith(".part")
+					|| name.endsWith(".disabled")
+					|| name.endsWith(".jar.old");
+				boolean extraJar = name.endsWith(".jar") && (keepAbs == null || !absolute.equals(keepAbs));
+				if (trash || extraJar) {
+					if (deleteQuiet(absolute)) {
+						if (extraJar) {
+							log("Removed leftover jar " + path.getFileName());
+						}
+					} else if (extraJar) {
+						retire(absolute);
 					}
 				}
 			}
