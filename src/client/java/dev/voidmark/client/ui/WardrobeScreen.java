@@ -5,8 +5,6 @@ import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.item.WardrobeMenus;
 import dev.voidmark.client.mixin.AbstractContainerScreenInvoker;
 import dev.voidmark.client.render.GuiDraw;
-import dev.voidmark.client.render.LoadoutPreview;
-import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.render.PlayerPreview;
 import dev.voidmark.client.render.Starfield;
 import net.minecraft.client.Minecraft;
@@ -29,14 +27,11 @@ import java.util.List;
 
 /**
  * Custom Voidmark chrome for Hypixel wardrobe ({@code (1/3) Armor Sets}).
- * Armor only — clicks go through the real chest's {@code slotClicked}.
+ * One 3D armor model per slot — clicks go through the real chest's {@code slotClicked}.
  */
 public class WardrobeScreen extends Screen {
-	private static final float MENU_W = 440;
-	private static final float MENU_H = 248;
-	private static final float WELL = 20;
-	private static final float SLOTS_W = 128;
-	private static final float SLOTS_H = 148;
+	private static final float MENU_W = 412;
+	private static final float MENU_H = 292;
 	private static float savedYaw = 28f;
 	private static float savedPitch = 8f;
 	private static WardrobeMenus.Snapshot cache = WardrobeMenus.Snapshot.empty();
@@ -60,6 +55,9 @@ public class WardrobeScreen extends Screen {
 	private float previewYaw = savedYaw;
 	private float previewPitch = savedPitch;
 	private boolean previewDrag;
+	private int pendingSlot = -1;
+	private int pendingButton;
+	private float dragDist;
 	private boolean placed;
 	private boolean closingMenu;
 	private boolean attaching;
@@ -68,7 +66,6 @@ public class WardrobeScreen extends Screen {
 	private float appear;
 	private ItemStack tooltip = ItemStack.EMPTY;
 	private WardrobeMenus.Snapshot snapshot = WardrobeMenus.Snapshot.empty();
-	private WardrobeMenus.ArmorSet previewing;
 
 	public WardrobeScreen(AbstractContainerScreen<?> vanilla) {
 		super(vanilla.getTitle());
@@ -241,7 +238,6 @@ public class WardrobeScreen extends Screen {
 		viewLift = lift;
 		int localMx = Math.round(localX(mouseX));
 		int localMy = Math.round(localY(mouseY));
-		previewing = setAt(localMx, localMy);
 
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(cx, cy + lift);
@@ -256,9 +252,7 @@ public class WardrobeScreen extends Screen {
 		}
 
 		drawHeader(graphics, font, localMx, localMy);
-		drawPreview(graphics, font, localMx, localMy);
-		drawSets(graphics, font, localMx, localMy);
-		drawArmor(graphics, font, localMx, localMy);
+		drawSlots(graphics, font, localMx, localMy);
 
 		graphics.pose().popMatrix();
 
@@ -320,169 +314,92 @@ public class WardrobeScreen extends Screen {
 		}
 	}
 
-	private void drawPreview(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
-		float left = windowX + 10;
-		float top = windowY + 28;
-		float stageW = windowX + windowW - SLOTS_W - 20 - left;
-		float stageH = 148;
-		GuiDraw.panel(graphics, left, top, stageW, stageH, 8, Theme.PANEL, Theme.LINE);
+	private void drawSlots(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
+		float x = windowX + 10;
+		float y = windowY + 28;
+		float w = windowW - 20;
+		float h = windowH - 48;
 		if (!previewDrag) {
 			previewYaw += dt * 18f;
 			if (previewYaw > 360f || previewYaw < -360f) {
 				previewYaw %= 360f;
 			}
 		}
-		WardrobeMenus.ArmorSet set = previewing;
-		ItemStack helmet = set == null ? ItemStack.EMPTY : set.helmet();
-		ItemStack chest = set == null ? ItemStack.EMPTY : set.chest();
-		ItemStack legs = set == null ? ItemStack.EMPTY : set.legs();
-		ItemStack boots = set == null ? ItemStack.EMPTY : set.boots();
-		PlayerPreview.View view = new PlayerPreview.View(viewScale, viewCx, viewCy, viewLift);
-		PlayerPreview.Drawn player = LoadoutPreview.player(
-			graphics,
-			left + 4,
-			top + 2,
-			stageW - 8,
-			stageH - 18,
-			previewYaw,
-			previewPitch,
-			view,
-			helmet,
-			chest,
-			legs,
-			boots
-		);
-		if (player != null) {
-			NametagRenderer.drawVanilla(graphics, font, player.nameX(), player.nameY(), Component.literal(playerName()));
-		}
-		if (set == null || !set.hasArmor()) {
-			GuiDraw.small(graphics, font, "Empty armor set", left + 10, top + stageH - 16, Theme.OFF);
-		}
-		if (GuiDraw.hovered(mouseX, mouseY, left, top, stageW, stageH)) {
-			GuiDraw.small(graphics, font, "Drag to rotate", left + 8, top + 6, Theme.MUTED);
-		}
-		hits.add(new Hit(left, top, stageW, stageH, -1, true, false));
-	}
-
-	private void drawSets(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
-		float x = windowX + windowW - SLOTS_W - 10;
-		float y = windowY + 28;
-		GuiDraw.panel(graphics, x, y, SLOTS_W, SLOTS_H, 8, Theme.CARD, Theme.LINE);
-		GuiDraw.small(graphics, font, "SETS", x + 8, y + 6, Theme.ACCENT);
-		boolean clip = GuiDraw.scissor(graphics, x + 1, y + 1, SLOTS_W - 2, SLOTS_H - 2);
+		hits.add(new Hit(x, y, w, h, -1, true, false));
 		List<WardrobeMenus.ArmorSet> sets = snapshot.sets();
-		int cols = 3;
-		int rows = 3;
-		float pad = 8f;
-		float head = 18f;
-		float gap = 3f;
-		float innerW = SLOTS_W - pad * 2f;
-		float innerH = SLOTS_H - head - pad;
-		float cell = Math.min((innerW - gap * (cols - 1)) / cols, (innerH - gap * (rows - 1)) / rows);
-		cell = Math.max(16f, Math.min(28f, cell));
-		float gridW = cols * cell + (cols - 1) * gap;
-		float gridH = rows * cell + (rows - 1) * gap;
-		float gridX = x + pad + Math.max(0f, (innerW - gridW) * 0.5f);
-		float gridY = y + head + Math.max(0f, (innerH - gridH) * 0.5f);
-		int shown = Math.min(cols * rows, Math.max(sets.size(), 1));
+		int shown = Math.min(9, Math.max(sets.size(), 1));
+		int cols = shown <= 4 ? Math.max(1, shown) : 3;
+		int rows = Math.max(1, (shown + cols - 1) / cols);
+		float gap = 6f;
+		float cellW = (w - gap * (cols - 1)) / cols;
+		float cellH = (h - 14f - gap * (rows - 1)) / rows;
+		PlayerPreview.View view = new PlayerPreview.View(viewScale, viewCx, viewCy, viewLift);
 		for (int i = 0; i < shown; i++) {
 			int col = i % cols;
 			int row = i / cols;
-			float sx = gridX + col * (cell + gap);
-			float sy = gridY + row * (cell + gap);
+			float sx = x + col * (cellW + gap);
+			float sy = y + row * (cellH + gap);
 			WardrobeMenus.ArmorSet set = i < sets.size() ? sets.get(i) : null;
 			boolean selected = set != null && set.selected();
-			boolean hover = GuiDraw.hovered(mouseX, mouseY, sx, sy, cell, cell);
-			GuiDraw.well(
-				graphics,
-				sx,
-				sy,
-				cell,
-				selected ? Theme.withAlpha(0x55FF55, 70) : hover ? Theme.CARD_HOVER : Theme.TRACK,
-				selected ? 0xFF55FF55 : hover ? Theme.ACCENT : Theme.LINE
-			);
-			float icon = Math.min(16f, cell - 8f);
-			if (set != null && !set.icon().isEmpty()) {
-				drawItem(graphics, set.icon(), sx + (cell - icon) * 0.5f, sy + (cell - icon) * 0.5f, icon / 16f);
-			}
+			boolean locked = set != null && set.locked();
+			boolean hover = GuiDraw.hovered(mouseX, mouseY, sx, sy, cellW, cellH);
+			int fill = selected ? Theme.withAlpha(0x55FF55, 36) : hover ? Theme.CARD_HOVER : Theme.CARD;
+			int line = selected ? 0xFF55FF55 : hover ? Theme.ACCENT : Theme.LINE;
+			GuiDraw.panel(graphics, sx, sy, cellW, cellH, 8, fill, line);
 			String mark = String.valueOf(i + 1);
-			GuiDraw.small(graphics, font, mark, sx + 2, sy + 1, selected ? Theme.TEXT : Theme.MUTED);
-			hits.add(new Hit(sx, sy, cell, cell, set == null ? -1 : set.slot(), false, false));
-			if (hover && set != null && !set.icon().isEmpty()) {
-				tooltip = set.icon();
+			GuiDraw.small(graphics, font, mark, sx + 5, sy + 4, selected ? Theme.TEXT : Theme.MUTED);
+			if (set != null && set.hasArmor() && !locked) {
+				boolean modelClip = GuiDraw.scissor(graphics, sx + 2, sy + 2, cellW - 4, cellH - 4);
+				PlayerPreview.drawMini(
+					graphics,
+					sx + 2,
+					sy + 10,
+					cellW - 4,
+					cellH - 14,
+					previewYaw,
+					previewPitch,
+					view,
+					new PlayerPreview.Gear(set.helmet(), set.chest(), set.legs(), set.boots())
+				);
+				if (modelClip) {
+					GuiDraw.disableScissor(graphics);
+				}
+			} else {
+				String label = locked ? "Locked" : "Empty";
+				GuiDraw.small(
+					graphics,
+					font,
+					label,
+					sx + (cellW - GuiDraw.smallWidth(font, label)) * 0.5f,
+					sy + cellH * 0.5f - 4,
+					Theme.OFF
+				);
+			}
+			hits.add(new Hit(sx, sy, cellW, cellH, set == null ? -1 : set.slot(), false, false));
+			if (hover && set != null) {
+				tooltip = hoverStack(set);
 			}
 		}
-		if (clip) {
-			GuiDraw.disableScissor(graphics);
-		}
+		GuiDraw.small(graphics, font, "1-9 equip and close · Drag a model to rotate", x, y + h - 10, Theme.MUTED);
 	}
 
-	private void drawArmor(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
-		float x = windowX + 10;
-		float y = windowY + 182;
-		float w = windowW - 20;
-		float h = windowH - 190;
-		GuiDraw.panel(graphics, x, y, w, h, 8, Theme.CARD, Theme.LINE);
-		float cx = x + 8;
-		float cy = y + 8;
-		WardrobeMenus.ArmorSet set = previewing;
-		ItemStack[] pieces = set == null
-			? new ItemStack[0]
-			: new ItemStack[]{set.helmet(), set.chest(), set.legs(), set.boots()};
-		for (ItemStack stack : pieces) {
-			if (stack == null || stack.isEmpty()) {
-				continue;
-			}
-			if (cx + WELL + 4 > x + w - 8) {
-				break;
-			}
-			boolean hover = GuiDraw.hovered(mouseX, mouseY, cx, cy, WELL, WELL);
-			GuiDraw.well(
-				graphics,
-				cx,
-				cy,
-				WELL,
-				hover ? Theme.CARD_HOVER : Theme.TRACK,
-				hover ? Theme.ACCENT : Theme.LINE
-			);
-			drawItem(graphics, stack, cx + 2, cy + 2, 1f);
-			hits.add(new Hit(cx, cy, WELL, WELL, set == null ? -1 : set.slot(), false, false));
-			if (hover) {
-				tooltip = stack;
-			}
-			cx += WELL + 4;
+	private static ItemStack hoverStack(WardrobeMenus.ArmorSet set) {
+		if (set == null) {
+			return ItemStack.EMPTY;
 		}
-		GuiDraw.small(graphics, font, "1-9 equip and close · Right-click to edit", x + 8, y + h - 14, Theme.MUTED);
-	}
-
-	private WardrobeMenus.ArmorSet setAt(int mouseX, int mouseY) {
-		float x = windowX + windowW - SLOTS_W - 10;
-		float y = windowY + 28;
-		List<WardrobeMenus.ArmorSet> sets = snapshot.sets();
-		int cols = 3;
-		int rows = 3;
-		float pad = 8f;
-		float head = 18f;
-		float gap = 3f;
-		float innerW = SLOTS_W - pad * 2f;
-		float innerH = SLOTS_H - head - pad;
-		float cell = Math.min((innerW - gap * (cols - 1)) / cols, (innerH - gap * (rows - 1)) / rows);
-		cell = Math.max(16f, Math.min(28f, cell));
-		float gridW = cols * cell + (cols - 1) * gap;
-		float gridH = rows * cell + (rows - 1) * gap;
-		float gridX = x + pad + Math.max(0f, (innerW - gridW) * 0.5f);
-		float gridY = y + head + Math.max(0f, (innerH - gridH) * 0.5f);
-		int shown = Math.min(cols * rows, sets.size());
-		for (int i = 0; i < shown; i++) {
-			int col = i % cols;
-			int row = i / cols;
-			float sx = gridX + col * (cell + gap);
-			float sy = gridY + row * (cell + gap);
-			if (GuiDraw.hovered(mouseX, mouseY, sx, sy, cell, cell)) {
-				return sets.get(i);
-			}
+		if (!set.icon().isEmpty()) {
+			return set.icon();
 		}
-		return snapshot.selected();
+		if (!set.helmet().isEmpty()) {
+			return set.helmet();
+		}
+		if (!set.chest().isEmpty()) {
+			return set.chest();
+		}
+		if (!set.legs().isEmpty()) {
+			return set.legs();
+		}
+		return set.boots();
 	}
 
 	private void drawItem(GuiGraphicsExtractor graphics, ItemStack stack, float x, float y, float scale) {
@@ -504,8 +421,8 @@ public class WardrobeScreen extends Screen {
 	}
 
 	private void layout() {
-		windowW = Math.min(MENU_W, Math.max(280, width - 16));
-		windowH = Math.min(MENU_H, Math.max(200, height - 16));
+		windowW = Math.min(MENU_W, Math.max(300, width - 16));
+		windowH = Math.min(MENU_H, Math.max(220, height - 16));
 		if (!placed) {
 			windowX = (width - windowW) * 0.5f;
 			windowY = (height - windowH) * 0.5f;
@@ -536,11 +453,6 @@ public class WardrobeScreen extends Screen {
 
 	private float localY(double my) {
 		return (float) ((my - viewCy - viewLift) / viewScale + viewCy);
-	}
-
-	private String playerName() {
-		LocalPlayer player = minecraft.player;
-		return player == null ? "You" : player.getGameProfile().name();
 	}
 
 	private void clickSlot(int slot, int button) {
@@ -643,14 +555,12 @@ public class WardrobeScreen extends Screen {
 		double lx = localX(event.x());
 		double ly = localY(event.y());
 		previewDrag = false;
+		pendingSlot = -1;
+		dragDist = 0f;
 		for (int i = hits.size() - 1; i >= 0; i--) {
 			Hit hit = hits.get(i);
 			if (!hit.contains(lx, ly)) {
 				continue;
-			}
-			if (hit.rotate && event.button() == 0) {
-				previewDrag = true;
-				return true;
 			}
 			if (hit.close) {
 				if (event.button() == 0) {
@@ -659,7 +569,15 @@ public class WardrobeScreen extends Screen {
 				return true;
 			}
 			if (hit.slot >= 0 && (event.button() == 0 || event.button() == 1)) {
-				clickSlot(hit.slot, event.button());
+				pendingSlot = hit.slot;
+				pendingButton = event.button();
+				if (event.button() == 0) {
+					previewDrag = true;
+				}
+				return true;
+			}
+			if (hit.rotate && event.button() == 0) {
+				previewDrag = true;
 				return true;
 			}
 			return true;
@@ -672,6 +590,10 @@ public class WardrobeScreen extends Screen {
 		if (previewDrag && event.button() == 0) {
 			previewYaw += (float) dx * 0.7f;
 			previewPitch = Mth.clamp(previewPitch - (float) dy * 0.45f, -35f, 35f);
+			dragDist += (float) (Math.abs(dx) + Math.abs(dy));
+			if (dragDist > 4f) {
+				pendingSlot = -1;
+			}
 			return true;
 		}
 		return true;
@@ -679,6 +601,10 @@ public class WardrobeScreen extends Screen {
 
 	@Override
 	public boolean mouseReleased(MouseButtonEvent event) {
+		if (pendingSlot >= 0 && event.button() == pendingButton) {
+			clickSlot(pendingSlot, pendingButton);
+		}
+		pendingSlot = -1;
 		if (event.button() == 0) {
 			previewDrag = false;
 			savedYaw = previewYaw;
@@ -760,7 +686,6 @@ public class WardrobeScreen extends Screen {
 		if (attaching) {
 			return;
 		}
-		LoadoutPreview.clear();
 		rememberCache();
 		if (vanilla != null && !closingMenu) {
 			vanilla.removed();

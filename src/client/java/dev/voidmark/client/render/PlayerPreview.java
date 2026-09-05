@@ -103,7 +103,33 @@ public final class PlayerPreview {
 		state.outlineColor = 0;
 		state.nameTag = null;
 		freeze(state, yaw, pitch, strip ? Gear.none() : gear, strip);
-		return paint(graphics, state, x, y, w, h, yaw, pitch, view, scale, 1.5f, 62f);
+		return paint(graphics, state, x, y, w, h, yaw, pitch, view, scale, 1.5f, 62f, 20f, 16f, 44f);
+	}
+
+	public static Drawn drawMini(
+		GuiGraphicsExtractor graphics,
+		float x,
+		float y,
+		float w,
+		float h,
+		float yaw,
+		float pitch,
+		View view,
+		Gear gear
+	) {
+		Minecraft client = Minecraft.getInstance();
+		LocalPlayer player = client.player;
+		if (player == null || view == null || w < 16f || h < 28f) {
+			return null;
+		}
+		float scale = Math.max(0.35f, view.scale);
+		EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
+		EntityRenderState state = dispatcher.extractEntity(player, 1f);
+		state.shadowPieces.clear();
+		state.outlineColor = 0;
+		state.nameTag = null;
+		freeze(state, yaw, pitch, gear == null ? Gear.none() : gear, true);
+		return paint(graphics, state, x, y, w, h, yaw, pitch, view, scale, 1.45f, 36f, 2f, 2f, 18f);
 	}
 
 	public static Drawn drawEntity(
@@ -125,7 +151,7 @@ public final class PlayerPreview {
 		state.outlineColor = 0;
 		state.nameTag = null;
 		freeze(state, yaw, pitch, Gear.none(), true);
-		return paint(graphics, state, x, y, w, h, yaw, pitch, view, Math.max(0.35f, view.scale), minBody, 48f);
+		return paint(graphics, state, x, y, w, h, yaw, pitch, view, Math.max(0.35f, view.scale), minBody, 48f, NAME_PAD, HINT_PAD, 44f);
 	}
 
 	private static Drawn paint(
@@ -140,20 +166,23 @@ public final class PlayerPreview {
 		View view,
 		float scale,
 		float minBody,
-		float maxSize
+		float maxSize,
+		float namePad,
+		float hintPad,
+		float minBoxW
 	) {
 		float body = Math.max(minBody, Math.min(4.5f, state.boundingBoxHeight));
-		float size = Math.min(maxSize, Math.max(28f, h * 0.28f));
+		float size = Math.min(maxSize, Math.max(16f, h * 0.34f));
 		float visH = size * body;
-		float boxW = Math.min(w - 8f, Math.max(44f, size * 1.35f));
-		float boxH = visH + 24f;
-		if (boxH > h - NAME_PAD - HINT_PAD) {
-			boxH = Math.max(28f, h - NAME_PAD - HINT_PAD);
-			size = (boxH - 24f) / body;
+		float boxW = Math.min(w - 4f, Math.max(minBoxW, size * 1.2f));
+		float boxH = visH + 12f;
+		if (boxH > h - namePad - hintPad) {
+			boxH = Math.max(20f, h - namePad - hintPad);
+			size = (boxH - 12f) / body;
 			visH = size * body;
 		}
 		float boxX = x + (w - boxW) * 0.5f;
-		float boxY = y + NAME_PAD + Math.max(0f, (h - NAME_PAD - HINT_PAD - boxH) * 0.45f);
+		float boxY = y + namePad + Math.max(0f, (h - namePad - hintPad - boxH) * 0.45f);
 		int x0 = view.sx(boxX);
 		int y0 = view.sy(boxY);
 		int x1 = view.sx(boxX + boxW);

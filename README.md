@@ -49,7 +49,7 @@ Click one or more types in the scrollable list of every living vanilla type plus
 
 ### Skyblock → Nodes
 
-Markers only run in Skyblock by default. Enable **Force enable** on the Nodes cog to test in singleplayer with magenta terracotta. **Node HUD** and **Node ESP** (boxes, tracers, fill, color) are on this page. Status (Hypixel / Skyblock / The End, FPS, ping) is on the Status tab. **Loadouts menu** and **Wardrobe menu** (Menus tab, on by default) replace Hypixel's chests with Voidmark windows; clicks still go through those chests.
+Markers only run in Skyblock by default. Enable **Force enable** on the Nodes cog to test in singleplayer with magenta terracotta. **Node HUD** and **Node ESP** (boxes, tracers, fill, color) are on this page. Status (Hypixel / Skyblock / The End, FPS, ping) is on the Status tab. **Loadouts menu** and **Wardrobe menu** (Menus tab, on by default) replace Hypixel's chests with Voidmark windows; clicks still go through those chests. Wardrobe shows a 3D model for each armor set.
 
 ### Skyblock → Mining
 

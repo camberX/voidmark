@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.192", new String[]{
+			"The wardrobe menu is a grid of 3D armor models, one per slot, instead of a copy of the loadouts layout."
+		}),
 		new Entry("1.1.191", new String[]{
 			"Auto update replaces the jar and stops this launch so the next start loads the new code."
 		}),
