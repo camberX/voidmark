@@ -86,7 +86,7 @@ async function route(req, res) {
 		return;
 	}
 	if (req.method === "GET" && path === "/api/spotify") {
-		json(res, 200, { clientId: String(process.env.SPOTIFY_CLIENT_ID || "") });
+		json(res, 200, { clientId: String(process.env.SPOTIFY_CLIENT_ID || "9d11fac0f4774593bc06a0edb93423e7") });
 		return;
 	}
 	if (req.method === "GET" && path === "/api/mod") {

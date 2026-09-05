@@ -27,7 +27,7 @@ async function route(request, env) {
 		return serveModInfo(request, env);
 	}
 	if (request.method === "GET" && path === "/api/spotify") {
-		return json(200, { clientId: String(env.SPOTIFY_CLIENT_ID || "") });
+		return json(200, { clientId: String(env.SPOTIFY_CLIENT_ID || "9d11fac0f4774593bc06a0edb93423e7") });
 	}
 	if (request.method === "GET" && (path === "/download" || path === "/voidmark.jar")) {
 		return serveModJar(request, env);

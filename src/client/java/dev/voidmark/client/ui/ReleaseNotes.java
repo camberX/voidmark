@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.208", new String[]{
+			"Spotify Connect ships the shared app ID in the jar, so Connect opens the browser login instead of Need Client ID."
+		}),
 		new Entry("1.1.207", new String[]{
 			"Spotify Connect loads the shared client ID from GitHub instead of the shop worker, so friends are not stuck on Need Client ID when /api/spotify is missing."
 		}),

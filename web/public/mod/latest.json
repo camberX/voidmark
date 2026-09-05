@@ -1,5 +1,6 @@
 {
-    "version": "1.1.207",
+    "version": "1.1.208",
     "minecraft": "26.1.2",
-    "file": "voidmark-1.1.207.jar"
+    "file": "voidmark-1.1.208.jar",
+    "spotifyClientId": "9d11fac0f4774593bc06a0edb93423e7"
 }
