@@ -174,6 +174,9 @@ public final class LoadoutsMenus {
 				}
 				continue;
 			}
+			if (!loadoutIndex(i, chest) && isFiller(stack)) {
+				continue;
+			}
 			Kind kind = classify(stack, i, chest);
 			String name = nameOf(stack);
 			boolean selected = selected(stack, name);
@@ -349,6 +352,30 @@ public final class LoadoutsMenus {
 		return contains(blob, "selected", "currently equipped", "currently active", "this loadout is", "equipped!")
 			|| name.contains("✔")
 			|| name.contains("✓");
+	}
+
+	public static boolean isFiller(ItemStack stack) {
+		if (stack == null || stack.isEmpty()) {
+			return true;
+		}
+		if (stack.is(Items.GLASS_PANE)
+			|| stack.is(Items.GRAY_STAINED_GLASS_PANE)
+			|| stack.is(Items.LIGHT_GRAY_STAINED_GLASS_PANE)
+			|| stack.is(Items.BLACK_STAINED_GLASS_PANE)
+			|| stack.is(Items.WHITE_STAINED_GLASS_PANE)
+			|| stack.is(Items.BROWN_STAINED_GLASS_PANE)) {
+			return true;
+		}
+		String id = ItemIds.skyblockId(stack);
+		if (id != null && (id.contains("STAINED_GLASS") || id.endsWith("_GLASS_PANE") || id.equals("GLASS_PANE"))) {
+			return true;
+		}
+		String blob = blob(stack);
+		if (contains(blob, "empty slot", "no item", "not equipped", "no accessory", "empty equipment")) {
+			return true;
+		}
+		String name = nameOf(stack).toLowerCase(Locale.ROOT);
+		return name.isBlank() || name.equals("empty");
 	}
 
 	public static boolean looksLikePet(String blob, ItemStack stack) {

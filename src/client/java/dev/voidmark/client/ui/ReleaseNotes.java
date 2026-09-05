@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.180", new String[]{
+			"The loadouts gear row only shows armor and equipment that is actually there. Empty placeholder slots to the right are gone."
+		}),
 		new Entry("1.1.179", new String[]{
 			"1-9 no longer flashes the loadouts menu after it closes. Late Hypixel chest packets are dropped until you open it again."
 		}),

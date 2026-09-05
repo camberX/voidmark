@@ -446,6 +446,9 @@ public class LoadoutsScreen extends Screen {
 		float cx = x + 8;
 		float cy = y + 8;
 		for (LoadoutsMenus.Piece piece : labeledContents()) {
+			if (piece == null || piece.stack().isEmpty() || LoadoutsMenus.isFiller(piece.stack())) {
+				continue;
+			}
 			if (cx + WELL + 4 > x + w - 8) {
 				break;
 			}
@@ -491,7 +494,7 @@ public class LoadoutsScreen extends Screen {
 		};
 		for (LoadoutsMenus.Kind kind : order) {
 			for (LoadoutsMenus.Piece piece : snapshot.contents()) {
-				if (piece.kind() == kind) {
+				if (piece.kind() == kind && piece.stack() != null && !piece.stack().isEmpty() && !LoadoutsMenus.isFiller(piece.stack())) {
 					out.add(piece);
 				}
 			}
