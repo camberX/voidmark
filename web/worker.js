@@ -1309,10 +1309,10 @@ const STORE_HTML = `<!DOCTYPE html>
 		.menu.in { opacity: 1; transform: scale(1) translateY(0); }
 		.side { position: relative; background: var(--vm-side); padding: 16px 0 12px; display: flex; flex-direction: column; }
 		.side::after { content: ""; position: absolute; top: 0; right: 0; width: 2px; height: 100%; background: color-mix(in srgb, var(--vm-accent) 35%, transparent); }
-		.brand { padding: 0 20px; font-size: 18px; font-weight: 800; letter-spacing: 0.03em; color: var(--vm-text); }
-		.brand span { color: var(--vm-accent); font-weight: 700; letter-spacing: 0; margin-left: 6px; font-size: 13px; }
-		.tick { width: 32px; height: 4px; margin: 8px 20px 14px; background: var(--vm-accent); border-radius: 2px; }
-		.grp { padding: 10px 20px 4px; font-size: 12px; letter-spacing: 0.08em; color: var(--vm-header); font-weight: 700; }
+		.brand { padding: 0 20px; font-size: 15px; font-weight: 800; letter-spacing: 0.04em; color: var(--vm-text); display: flex; align-items: baseline; gap: 6px; }
+		.brand span { color: var(--vm-accent); font-weight: 700; letter-spacing: 0; font-size: 10px; line-height: 1; }
+		.tick { width: 32px; height: 3px; margin: 7px 20px 12px; background: var(--vm-accent); border-radius: 2px; }
+		.grp { padding: 10px 20px 4px; font-size: 10px; letter-spacing: 0.1em; color: var(--vm-header); font-weight: 700; }
 		.nav-pill {
 			position: absolute;
 			left: 12px;
@@ -1364,7 +1364,7 @@ const STORE_HTML = `<!DOCTYPE html>
 		.cols.on { opacity: 1; transform: none; pointer-events: auto; }
 		.cols.one { grid-template-columns: 1fr; }
 		.card { background: var(--vm-card); border-radius: 12px; padding: 10px 12px 12px; }
-		.card h3 { margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--vm-line); font-size: 12px; letter-spacing: 0.08em; color: var(--vm-header); font-weight: 800; }
+		.card h3 { margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--vm-line); font-size: 11px; letter-spacing: 0.08em; color: var(--vm-header); font-weight: 800; }
 		.row { display: flex; align-items: center; justify-content: space-between; min-height: 32px; gap: 10px; }
 		.row span { font-size: 16px; font-weight: 700; color: var(--vm-text); }
 		.row em { font-style: normal; font-size: 14px; color: var(--vm-muted); }
@@ -1391,13 +1391,18 @@ const STORE_HTML = `<!DOCTYPE html>
 			transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 		}
 		.sheet.on { opacity: 1; transform: none; pointer-events: auto; }
-		.sheet h3 { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.08em; color: var(--vm-header); }
+		.sheet h3 { margin: 0 0 10px; font-size: 11px; letter-spacing: 0.08em; color: var(--vm-header); }
 		.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 		.swatches button { width: 22px; height: 22px; border: 1px solid #0006; border-radius: 5px; padding: 0; cursor: pointer; transition: transform 0.14s ease; }
 		.swatches button.on { outline: 2px solid var(--vm-text); }
 		.swatches button:hover { transform: scale(1.08); }
 		.nick { width: 100%; background: var(--vm-track); border: 1px solid var(--vm-line); color: var(--vm-text); font: 700 16px "Nunito Sans", sans-serif; padding: 8px 10px; border-radius: 6px; }
 		.skin { width: 90px; height: 120px; margin: 10px auto 10px; background: linear-gradient(#c2a27a, #8a6a4a); border-radius: 6px; }
+		.feats { width: min(800px, 100%); margin: 28px auto 0; padding-top: 20px; border-top: 1px solid var(--line); }
+		.feats h2 { margin: 0 0 14px; font-size: 16px; font-weight: 800; }
+		.feats ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px; }
+		.feats li { color: var(--muted); font-size: 14px; line-height: 1.4; }
+		.feats b { display: block; color: var(--text); font-size: 13px; margin-bottom: 2px; }
 		.cape { width: min(800px, 100%); margin: 22px auto 0; padding-top: 18px; border-top: 1px solid var(--line); }
 		.cape h2 { margin: 0 0 8px; font-size: 16px; font-weight: 800; }
 		.who { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
@@ -1412,6 +1417,7 @@ const STORE_HTML = `<!DOCTYPE html>
 			.menu.in { transform: scale(0.72); }
 			.site { display: block; }
 			.site-actions { margin-top: 12px; }
+			.feats ul { grid-template-columns: 1fr; }
 		}
 	</style>
 </head>
@@ -1560,6 +1566,19 @@ const STORE_HTML = `<!DOCTYPE html>
 		</div>
 	</div>
 
+	<section class="feats">
+		<h2>Features</h2>
+		<ul>
+			<li><b>World</b> Terrain tint, skybox, fog, aspect ratio, hitsounds</li>
+			<li><b>ESP</b> Mob glow, nametag filters, block outline, long-range nametags</li>
+			<li><b>Overlay</b> Watermark, music HUD, raw mats tracker, inventory HUD</li>
+			<li><b>Bars</b> Restyled hotbar, health, scoreboard, and the rest of vanilla HUD</li>
+			<li><b>Nodes</b> Ender node ESP, tracers, and a live Hypixel / End status card</li>
+			<li><b>Mining</b> Commission HUD, pickaxe cooldown, titanium ESP</li>
+			<li><b>You</b> Nick, custom capes, head tags — other Voidmark users see them</li>
+			<li><b>Menus</b> Title screen and vanilla menus use the same chrome</li>
+		</ul>
+	</section>
 	<section class="cape">
 		<h2>Want a custom cape?</h2>
 		<div class="who">
