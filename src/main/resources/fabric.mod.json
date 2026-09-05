@@ -14,6 +14,9 @@
 	"icon": "assets/voidmark/icon.png",
 	"environment": "client",
 	"entrypoints": {
+		"preLaunch": [
+			"dev.voidmark.update.AutoUpdate"
+		],
 		"main": [
 			"dev.voidmark.Voidmark"
 		],

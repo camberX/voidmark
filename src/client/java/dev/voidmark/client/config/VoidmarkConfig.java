@@ -52,6 +52,7 @@ public final class VoidmarkConfig {
 	public int themePaneRgb = 0x0B0E14;
 	public String themePreset = "cyan";
 	public boolean uiAnimations = true;
+	public boolean autoUpdate = false;
 	public boolean watermarkEnabled = true;
 	public boolean watermarkFps = true;
 	public boolean watermarkPing = true;

@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.182", new String[]{
+			"Auto update is off by default. Turn it on in the theme settings and the next launch waits for voidmark.cloud: if a newer jar is there it replaces the one in mods and Minecraft closes so you can relaunch."
+		}),
 		new Entry("1.1.181", new String[]{
 			"Hypixel wardrobe ((1/3) Armor Sets) opens a Voidmark menu with a 3D armor preview and the set slots on the right. Pets and extra gear are left out. Clicks go through the real chest."
 		}),
