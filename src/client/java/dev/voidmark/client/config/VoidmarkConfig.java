@@ -77,6 +77,7 @@ public final class VoidmarkConfig {
 	public boolean chestEspEnabled = false;
 	public boolean chestEspTracers = true;
 	public boolean chestEspThroughWalls = true;
+	public float chestAimSpeed = 1.00f;
 	public int chestEspRgb = 0xF4C14E;
 	public boolean loadoutsMenuEnabled = false;
 	public boolean loadoutsOpenAnim = true;
@@ -400,6 +401,7 @@ public final class VoidmarkConfig {
 				if (!json.has("chestEspThroughWalls")) {
 					loaded.chestEspThroughWalls = true;
 				}
+				loaded.chestAimSpeed = clamp(loaded.chestAimSpeed <= 0f ? 1.00f : loaded.chestAimSpeed, 0.25f, 2.00f);
 				loaded.chestEspRgb = loaded.chestEspRgb & 0xFFFFFF;
 				if (loaded.chestEspRgb == 0) {
 					loaded.chestEspRgb = 0xF4C14E;

@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.223", new String[]{
+			"Chest ESP has a Speed slider for how fast Chest Aim turns."
+		}),
 		new Entry("1.1.222", new String[]{
 			"Chest Aim uses a timed ease-in-out look: shortest-path yaw, lerp pitch, then a mouse-step snap."
 		}),

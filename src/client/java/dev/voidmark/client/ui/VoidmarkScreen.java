@@ -159,6 +159,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Block outline color", Tab.ESP, "ESP"),
 		new SearchEntry("Chest ESP", Tab.ESP, "ESP"),
 		new SearchEntry("Chest tracers", Tab.ESP, "ESP"),
+		new SearchEntry("Chest aim speed", Tab.ESP, "ESP"),
 		new SearchEntry("Mobs", Tab.ESP, "ESP"),
 		new SearchEntry("Node ESP", Tab.NODES, "Nodes"),
 		new SearchEntry("Nametags", Tab.ESP, "ESP"),
@@ -1628,8 +1629,8 @@ public class VoidmarkScreen extends Screen {
 			case CHEST -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Tracers", config.chestEspTracers, v -> config.chestEspTracers = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.chestEspThroughWalls, v -> config.chestEspThroughWalls = v);
-				hint(graphics, font, ix, y, iw, "Bind Chest Aim in Controls");
-				colorRow(graphics, font, ix, y + ROW, iw, mouseX, mouseY, "Color", config.chestEspRgb, PickerTarget.CHEST);
+				y = slider(graphics, font, ix, y, iw, "Speed", Math.round(config.chestAimSpeed * 100) + "%", (config.chestAimSpeed - 0.25f) / 1.75f, v -> config.chestAimSpeed = VoidmarkConfig.clamp(0.25f + v * 1.75f, 0.25f, 2.00f));
+				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.chestEspRgb, PickerTarget.CHEST);
 			}
 			case NODE_ESP -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v);
@@ -1891,7 +1892,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.222");
+			.orElse("1.1.223");
 	}
 
 	@Override

@@ -1,5 +1,6 @@
 package dev.voidmark.client.mining;
 
+import dev.voidmark.client.config.VoidmarkConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
@@ -132,7 +133,9 @@ public final class ChestAimer {
 			Math.abs(SmoothRotate.normalizeYaw(to.yaw() - from.yaw())),
 			Math.abs(to.pitch() - from.pitch())
 		);
-		turnMs = Math.max(180L, Math.min(450L, 160L + Math.round(span * 2.4f)));
+		float speed = VoidmarkConfig.clamp(VoidmarkConfig.get().chestAimSpeed, 0.25f, 2.00f);
+		long base = 160L + Math.round(span * 2.4f);
+		turnMs = Math.max(80L, Math.min(800L, Math.round(base / speed)));
 		turnStart = System.currentTimeMillis();
 		turning = true;
 	}
