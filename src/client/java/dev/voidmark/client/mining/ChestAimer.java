@@ -7,14 +7,18 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.List;
+
 /**
- * Smoothly looks at the moving crit box on a nearby treasure chest. Five
- * locked-on boxes is one pass; if the chest is still there it keeps going.
+ * Smoothly looks at each distinct crit box on a nearby treasure chest, waits
+ * until that box jumps or vanishes, then turns to another. Five locks is one
+ * pass; if the chest is still there it keeps going.
  */
 public final class ChestAimer {
 	private static final float TOLERANCE = 1f;
 	private static final long MOVE_WAIT_MS = 3_000L;
 	private static final int PASS = 5;
+	private static final double SAME = 0.45;
 
 	private static boolean running;
 	private static ChestEsp.Mark chest;
@@ -45,7 +49,7 @@ public final class ChestAimer {
 			tell(client, "Chest ESP is off, or you are not in Dwarven Mines / Crystal Hollows");
 			return;
 		}
-		if (!retarget(client.player)) {
+		if (!bindChest(client.player)) {
 			tell(client, "No chest box nearby");
 			return;
 		}
@@ -73,47 +77,108 @@ public final class ChestAimer {
 			tries = 0;
 			waiting = false;
 			turning = false;
-			if (!retarget(player)) {
+			if (!bindChest(player)) {
 				stop(client, "Chest aim done");
 				return;
 			}
 		}
-		ChestEsp.Mark box = ChestEsp.get().nearestBox(chest);
-		if (box == null) {
-			return;
-		}
-		Vec3 next = box.box();
-		if (!waiting) {
-			if (!turning) {
-				beginTurn(player, next);
-			}
+		if (turning) {
 			if (advance(player)) {
 				waiting = true;
 				turning = false;
 				waitedAt = System.currentTimeMillis();
-				box.moved = false;
+				tries++;
+				if (tries >= PASS && ChestEsp.get().chestAt(chest.pos) != null) {
+					tries = 0;
+				}
 			}
 			return;
 		}
-		if (box.consumeMove() || moved(look, next) || System.currentTimeMillis() - waitedAt > MOVE_WAIT_MS) {
-			look = next;
-			waiting = false;
-			turning = false;
-			tries++;
-			if (tries >= PASS && ChestEsp.get().chestAt(chest.pos) != null) {
-				tries = 0;
+		if (waiting) {
+			if (lockedStillHere() && !dueForOther()) {
+				return;
 			}
+			Vec3 next = pickNext(player, look);
+			if (next == null) {
+				return;
+			}
+			waiting = false;
+			beginTurn(player, next);
+			return;
+		}
+		Vec3 first = pickFirst(player);
+		if (first != null) {
+			beginTurn(player, first);
 		}
 	}
 
-	private static boolean retarget(LocalPlayer player) {
+	private static boolean bindChest(LocalPlayer player) {
 		chest = ChestEsp.get().nearestChest(player.position());
-		if (chest == null) {
+		return chest != null;
+	}
+
+	private static List<Vec3> boxes() {
+		return ChestEsp.get().boxesNear(chest);
+	}
+
+	private static Vec3 pickFirst(LocalPlayer player) {
+		Vec3 best = null;
+		float bestAng = Float.MAX_VALUE;
+		for (Vec3 point : boxes()) {
+			float ang = angleTo(player, point);
+			if (ang < bestAng) {
+				bestAng = ang;
+				best = point;
+			}
+		}
+		return best;
+	}
+
+	private static Vec3 pickNext(LocalPlayer player, Vec3 last) {
+		Vec3 best = null;
+		float bestAng = -1f;
+		for (Vec3 point : boxes()) {
+			if (last != null && point.closerThan(last, SAME)) {
+				continue;
+			}
+			float ang = angleTo(player, point);
+			if (ang > bestAng) {
+				bestAng = ang;
+				best = point;
+			}
+		}
+		return best;
+	}
+
+	private static boolean lockedStillHere() {
+		for (Vec3 point : boxes()) {
+			if (point.closerThan(look, 0.40)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean dueForOther() {
+		if (System.currentTimeMillis() - waitedAt <= MOVE_WAIT_MS) {
 			return false;
 		}
-		ChestEsp.Mark box = ChestEsp.get().nearestBox(chest);
-		look = box == null ? chest.box() : box.box();
-		return true;
+		for (Vec3 point : boxes()) {
+			if (!point.closerThan(look, SAME)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static float angleTo(LocalPlayer player, Vec3 target) {
+		SmoothRotate.Rotation now = new SmoothRotate.Rotation(
+			SmoothRotate.normalizeYaw(player.getYRot()),
+			SmoothRotate.normalizePitch(player.getXRot())
+		);
+		SmoothRotate.Rotation dest = SmoothRotate.to(player.getEyePosition(), target);
+		return Math.abs(SmoothRotate.normalizeYaw(dest.yaw() - now.yaw()))
+			+ Math.abs(dest.pitch() - now.pitch());
 	}
 
 	private static void beginTurn(LocalPlayer player, Vec3 target) {
@@ -127,6 +192,10 @@ public final class ChestAimer {
 			turning = false;
 			waiting = true;
 			waitedAt = System.currentTimeMillis();
+			tries++;
+			if (tries >= PASS && ChestEsp.get().chestAt(chest.pos) != null) {
+				tries = 0;
+			}
 			return;
 		}
 		float span = Math.max(
@@ -151,10 +220,6 @@ public final class ChestAimer {
 		float pitch = SmoothRotate.lerp(from.pitch(), to.pitch(), ease);
 		SmoothRotate.apply(player, yaw, pitch);
 		return progress >= 1.0;
-	}
-
-	private static boolean moved(Vec3 from, Vec3 to) {
-		return from.distanceToSqr(to) > 0.16;
 	}
 
 	private static void stop(Minecraft client, String reason) {

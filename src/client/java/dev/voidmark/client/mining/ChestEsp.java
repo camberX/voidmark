@@ -186,25 +186,17 @@ public final class ChestEsp {
 		return pos == null ? null : chests.get(pos.asLong());
 	}
 
-	public Mark nearestBox(Mark chest) {
-		if (chest != null && chest.hasBox) {
-			return chest;
-		}
-		Mark best = null;
-		double bestDist = Double.MAX_VALUE;
+	public List<Vec3> boxesNear(Mark chest) {
+		ArrayList<Vec3> out = new ArrayList<>();
 		synchronized (crits) {
 			for (Mark mark : crits) {
 				if (chest != null && !mark.near(chest.x, chest.y, chest.z, BOX_RANGE)) {
 					continue;
 				}
-				double dist = chest == null ? 0 : mark.distanceSq(chest.x, chest.y, chest.z);
-				if (dist < bestDist) {
-					bestDist = dist;
-					best = mark;
-				}
+				out.add(mark.box());
 			}
 		}
-		return best;
+		return out;
 	}
 
 	public Mark nearestChest(Vec3 from) {
@@ -230,9 +222,10 @@ public final class ChestEsp {
 		}
 		long now = System.currentTimeMillis();
 		Mark chest = nearestChest(new Vec3(x, y, z));
-		if (chest != null && chest.distanceSq(x, y, z) <= BOX_RANGE * BOX_RANGE) {
-			chest.placeBox(x, y, z, now);
-			dirty = true;
+		if (chest != null && chest.distanceSq(x, y, z) > BOX_RANGE * BOX_RANGE) {
+			return;
+		}
+		if (chest == null && chests.isEmpty()) {
 			return;
 		}
 		synchronized (crits) {
