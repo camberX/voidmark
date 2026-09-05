@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.0", new String[]{
+			"Voidmark 1.2.0 release."
+		}),
 		new Entry("1.1.223", new String[]{
 			"Chest ESP has a Speed slider for how fast Chest Aim turns."
 		}),
