@@ -87,7 +87,7 @@ public class WardrobeScreen extends Screen {
 		}
 		if (!(screen instanceof AbstractContainerScreen<?> chest)
 			|| !WardrobeMenus.enabled()
-			|| !WardrobeMenus.matches(chest.getTitle())) {
+			|| !WardrobeMenus.matches(chest.getMenu(), chest.getTitle())) {
 			return screen;
 		}
 		if (shouldDiscardIncoming()) {
@@ -128,7 +128,7 @@ public class WardrobeScreen extends Screen {
 		}
 		if (shouldDiscardIncoming()
 			&& client.screen instanceof AbstractContainerScreen<?> chest
-			&& WardrobeMenus.matches(chest.getTitle())) {
+			&& WardrobeMenus.matches(chest.getMenu(), chest.getTitle())) {
 			discardIncoming(chest);
 			client.setScreen(null);
 			return;
@@ -140,7 +140,8 @@ public class WardrobeScreen extends Screen {
 		if (client.screen instanceof LoadoutsScreen || !WardrobeMenus.enabled() || shouldDiscardIncoming()) {
 			return;
 		}
-		if (client.screen instanceof AbstractContainerScreen<?> chest && WardrobeMenus.matches(chest.getTitle())) {
+		if (client.screen instanceof AbstractContainerScreen<?> chest
+			&& WardrobeMenus.matches(chest.getMenu(), chest.getTitle())) {
 			client.setScreen(new WardrobeScreen(chest));
 		}
 	}
@@ -564,14 +565,18 @@ public class WardrobeScreen extends Screen {
 		closeIncoming(chest);
 		Screen current = Minecraft.getInstance().screen;
 		if (current instanceof WardrobeScreen
-			|| current instanceof AbstractContainerScreen<?> open && WardrobeMenus.matches(open.getTitle())) {
+			|| current instanceof AbstractContainerScreen<?> open
+				&& WardrobeMenus.matches(open.getMenu(), open.getTitle())) {
 			return null;
 		}
 		return current;
 	}
 
 	private void rememberCache() {
-		if (snapshot != null && snapshot.hasSets()) {
+		if (vanilla != null && !WardrobeMenus.matches(menu, vanilla.getTitle())) {
+			return;
+		}
+		if (snapshot != null && snapshot.hasSets() && WardrobeMenus.matches(snapshot.title())) {
 			cache = snapshot.copy();
 		}
 	}

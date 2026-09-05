@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.205", new String[]{
+			"Loadouts and wardrobe verify the menu title before saving a cache."
+		}),
 		new Entry("1.1.204", new String[]{
 			"Picking a local cape no longer freezes Minecraft while the folder dialog is open."
 		}),

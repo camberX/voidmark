@@ -89,7 +89,7 @@ public class LoadoutsScreen extends Screen {
 		}
 		if (!(screen instanceof AbstractContainerScreen<?> chest)
 			|| !LoadoutsMenus.enabled()
-			|| !LoadoutsMenus.matches(chest.getTitle())) {
+			|| !LoadoutsMenus.matches(chest.getMenu(), chest.getTitle())) {
 			return screen;
 		}
 		if (shouldDiscardIncoming()) {
@@ -134,7 +134,7 @@ public class LoadoutsScreen extends Screen {
 		}
 		if (shouldDiscardIncoming()
 			&& client.screen instanceof AbstractContainerScreen<?> chest
-			&& LoadoutsMenus.matches(chest.getTitle())) {
+			&& LoadoutsMenus.matches(chest.getMenu(), chest.getTitle())) {
 			discardIncoming(chest);
 			client.setScreen(null);
 			return;
@@ -146,7 +146,8 @@ public class LoadoutsScreen extends Screen {
 		if (!LoadoutsMenus.enabled() || shouldDiscardIncoming()) {
 			return;
 		}
-		if (client.screen instanceof AbstractContainerScreen<?> chest && LoadoutsMenus.matches(chest.getTitle())) {
+		if (client.screen instanceof AbstractContainerScreen<?> chest
+			&& LoadoutsMenus.matches(chest.getMenu(), chest.getTitle())) {
 			client.setScreen(new LoadoutsScreen(chest));
 		}
 	}
@@ -640,7 +641,8 @@ public class LoadoutsScreen extends Screen {
 		closeIncoming(chest);
 		Screen current = Minecraft.getInstance().screen;
 		if (current instanceof LoadoutsScreen
-			|| current instanceof AbstractContainerScreen<?> open && LoadoutsMenus.matches(open.getTitle())) {
+			|| current instanceof AbstractContainerScreen<?> open
+				&& LoadoutsMenus.matches(open.getMenu(), open.getTitle())) {
 			return null;
 		}
 		return current;
@@ -658,7 +660,10 @@ public class LoadoutsScreen extends Screen {
 	}
 
 	private void rememberCache() {
-		if (snapshot != null && snapshot.hasItems()) {
+		if (vanilla != null && !LoadoutsMenus.matches(menu, vanilla.getTitle())) {
+			return;
+		}
+		if (snapshot != null && snapshot.hasItems() && LoadoutsMenus.matches(snapshot.title())) {
 			cache = snapshot.copy();
 		}
 	}

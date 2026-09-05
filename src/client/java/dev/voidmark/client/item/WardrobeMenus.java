@@ -128,8 +128,12 @@ public final class WardrobeMenus {
 		return !plain.isEmpty() && TITLE.matcher(plain).find();
 	}
 
+	public static boolean matches(AbstractContainerMenu menu, Component title) {
+		return menu != null && matches(title);
+	}
+
 	public static Snapshot read(AbstractContainerMenu menu, Component title) {
-		if (menu == null) {
+		if (!matches(menu, title)) {
 			return Snapshot.empty();
 		}
 		String raw = title == null ? "" : title.getString();

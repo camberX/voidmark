@@ -149,6 +149,10 @@ public final class LoadoutsMenus {
 		return TITLE.matcher(plain).find();
 	}
 
+	public static boolean matches(AbstractContainerMenu menu, Component title) {
+		return menu != null && matches(title);
+	}
+
 	private static String plain(Component title) {
 		if (title == null) {
 			return "";
@@ -157,7 +161,7 @@ public final class LoadoutsMenus {
 	}
 
 	public static Snapshot read(AbstractContainerMenu menu, Component title) {
-		if (menu == null) {
+		if (!matches(menu, title)) {
 			return Snapshot.empty();
 		}
 		String raw = title == null ? "" : title.getString();
