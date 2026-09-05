@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.196", new String[]{
+			"Shop bump so auto-update can pull the latest build."
+		}),
 		new Entry("1.1.195", new String[]{
 			"Hitmarker size is a slider on Combat → Mix. The X stays white and only fades out."
 		}),
