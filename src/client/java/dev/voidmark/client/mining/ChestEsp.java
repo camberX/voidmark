@@ -229,7 +229,7 @@ public final class ChestEsp {
 		long now = System.currentTimeMillis();
 		synchronized (crits) {
 			for (Mark existing : crits) {
-				if (existing.nearCurrent(x, y, z, 0.12)) {
+				if (existing.nearCurrent(x, y, z, 0.18)) {
 					existing.placeBox(x, y, z, now);
 					dirty = true;
 					return;

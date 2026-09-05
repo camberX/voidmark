@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.5", new String[]{
+			"Chest Aim stays on the current crit cluster until those particles are gone, so lag no longer flicks between two boxes."
+		}),
 		new Entry("1.2.4", new String[]{
 			"Chest ESP keeps chests you already found after you walk out of the 5-block detect range. They drop only when the chest is gone."
 		}),

@@ -11,21 +11,19 @@ import java.util.List;
 
 /**
  * Smoothly looks at each distinct crit mark on a nearby treasure chest. After
- * a lock it dwells briefly, then turns to another mark instead of waiting for
- * the same cluster to teleport.
+ * a lock it stays on that cluster until those particles are gone, then turns
+ * to another mark.
  */
 public final class ChestAimer {
 	private static final float TOLERANCE = 1f;
-	private static final long DWELL_MS = 180L;
 	private static final int PASS = 5;
-	private static final double SAME = 0.12;
+	private static final double SAME = 0.18;
 
 	private static boolean running;
 	private static ChestEsp.Mark chest;
 	private static ChestEsp.Mark locked;
 	private static boolean waiting;
 	private static boolean turning;
-	private static long waitedAt;
 	private static long turnStart;
 	private static long turnMs;
 	private static SmoothRotate.Rotation from = new SmoothRotate.Rotation(0f, 0f);
@@ -91,18 +89,15 @@ public final class ChestAimer {
 			return;
 		}
 		if (waiting) {
-			boolean gone = !ChestEsp.get().stillHas(locked);
-			boolean moved = locked != null && locked.consumeMove();
-			boolean dwell = System.currentTimeMillis() - waitedAt >= DWELL_MS;
-			if (!gone && !moved && !dwell) {
+			if (ChestEsp.get().stillHas(locked)) {
+				if (locked != null && locked.consumeMove()) {
+					waiting = false;
+					beginTurn(player, locked);
+				}
 				return;
 			}
 			ChestEsp.Mark next = pickNext(player, locked);
 			if (next == null) {
-				if (moved && ChestEsp.get().stillHas(locked)) {
-					waiting = false;
-					beginTurn(player, locked);
-				}
 				return;
 			}
 			waiting = false;
@@ -198,7 +193,6 @@ public final class ChestAimer {
 	private static void arrive() {
 		turning = false;
 		waiting = true;
-		waitedAt = System.currentTimeMillis();
 		tries++;
 		if (tries >= PASS && chest != null && ChestEsp.get().chestAt(chest.pos) != null) {
 			tries = 0;
