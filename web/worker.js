@@ -112,6 +112,9 @@ async function route(request, env) {
 	if (request.method === "GET" && path === "/admin") {
 		return page(LOGIN_HTML);
 	}
+	if (request.method === "GET" && path === "/") {
+		return page(STORE_HTML);
+	}
 	if (request.method === "GET" && env.ASSETS) {
 		const asset = await env.ASSETS.fetch(request);
 		if (asset.status !== 404) {
@@ -122,9 +125,6 @@ async function route(request, env) {
 		return new Response(CAPE_CROP_JS, {
 			headers: { ...cors(), "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" }
 		});
-	}
-	if (request.method === "GET" && (path === "/" || path === "/index.html")) {
-		return page(STORE_HTML);
 	}
 	return json(404, { error: "Not found" });
 }
@@ -1246,113 +1246,81 @@ const STORE_HTML = `<!DOCTYPE html>
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>VOIDMARK Capes</title>
+	<title>Voidmark</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 	<style>
-		:root { --bg:#03050a; --pane:#0a0e18; --line:#1a2336; --text:#e8edf5; --muted:#8b95a8; --accent:#2fb5ff; }
-		* { box-sizing: border-box; }
-		html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: "Nunito Sans", sans-serif; }
-		#stars { position: fixed; inset: 0; z-index: 0; }
-		.glow { position: fixed; inset: 0; z-index: 1; pointer-events: none; background:
-			radial-gradient(720px 420px at 50% 18%, rgba(47,181,255,0.20), transparent 58%),
-			radial-gradient(900px 700px at 50% 110%, rgba(47,181,255,0.06), transparent 50%); }
-		.page { position: relative; z-index: 2; min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; width: min(720px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 28px; }
-		.top { display: flex; align-items: center; }
-		.mark { letter-spacing: 0.34em; font-weight: 800; font-size: 12px; }
-		.mark span { color: var(--accent); }
-		.hero { display: grid; justify-items: center; text-align: center; align-content: center; padding: 32px 0 40px; }
-		.cape { width: 52px; height: 82px; margin-bottom: 22px; background:
-			linear-gradient(180deg, #7ad4ff 0%, var(--accent) 38%, #14608a 100%);
-			clip-path: polygon(18% 0, 82% 0, 100% 8%, 92% 100%, 8% 100%, 0 8%);
-			box-shadow: 0 18px 40px rgba(47,181,255,0.28); }
-		.kicker { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
-		h1 { margin: 0; font-size: clamp(48px, 12vw, 84px); letter-spacing: 0.16em; line-height: 0.92; }
-		.rule { width: 28px; height: 3px; background: var(--accent); border-radius: 2px; margin: 16px auto 18px; box-shadow: 0 0 18px var(--accent); }
-		.lede { margin: 0; max-width: 460px; color: var(--muted); font-size: 16px; line-height: 1.65; }
-		.card { width: min(440px, 100%); margin-top: 28px; padding: 22px 22px 18px; border-radius: 20px; border: 1px solid var(--line); background: color-mix(in srgb, var(--pane) 88%, transparent); box-shadow: 0 28px 80px #0008, inset 0 1px 0 #ffffff12; backdrop-filter: blur(18px); }
-		.card .kicker { margin-bottom: 8px; }
-		.handle { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0 10px; padding: 12px 14px; border-radius: 12px; background: #070b12; border: 1px solid var(--line); }
-		.handle b { font-size: 20px; letter-spacing: 0.02em; }
-		.copy { border: 0; border-radius: 9px; background: var(--accent); color: #041018; font: inherit; font-weight: 800; padding: 8px 12px; cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
-		.copy:hover { filter: brightness(1.08); }
-		.download { display: block; margin: 14px 0 8px; text-align: center; text-decoration: none; border-radius: 10px; background: var(--accent); color: #041018; font-weight: 800; padding: 12px 14px; letter-spacing: 0.08em; text-transform: uppercase; }
-		.download:hover { filter: brightness(1.08); }
-		.download.dead { pointer-events: none; opacity: 0.5; }
-		.note { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-		.steps { display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; text-align: left; }
-		.steps li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
-		.num { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--accent); color: var(--accent); display: grid; place-items: center; font-size: 11px; font-weight: 800; }
-		.foot { color: var(--muted); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; text-align: center; }
-		@media (max-width: 520px) {
-			.handle { flex-direction: column; align-items: stretch; }
-			.handle b { font-size: 18px; }
+		:root {
+			--bg: #080a10;
+			--text: #e4e8f0;
+			--muted: #8d95a6;
+			--line: #222833;
+			--accent: #3aa6d8;
 		}
+		* { box-sizing: border-box; }
+		html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 15px/1.5 "Nunito Sans", system-ui, sans-serif; }
+		body {
+			background-image:
+				radial-gradient(circle at 1px 1px, #1a2230 1px, transparent 0);
+			background-size: 22px 22px;
+		}
+		.wrap { width: min(520px, calc(100% - 40px)); margin: 0 auto; padding: 64px 0 48px; }
+		h1 { margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -0.03em; color: var(--accent); }
+		.lede { margin: 0 0 36px; color: var(--muted); }
+		section { border-top: 1px solid var(--line); padding: 22px 0 4px; }
+		h2 { margin: 0 0 8px; font-size: 15px; font-weight: 800; }
+		p { margin: 0 0 12px; color: var(--muted); }
+		.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 14px 0 8px; }
+		.dl {
+			display: inline-block;
+			background: var(--accent);
+			color: #071018;
+			text-decoration: none;
+			font-weight: 800;
+			padding: 8px 13px;
+			border-radius: 3px;
+		}
+		.dl:hover { filter: brightness(1.06); }
+		.dl.dead { pointer-events: none; opacity: 0.45; }
+		.ver { color: #6f7788; font-size: 13px; }
+		.handle { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 15px; color: var(--text); }
+		.copy {
+			border: 1px solid #333b4a;
+			background: transparent;
+			color: var(--muted);
+			font: inherit;
+			font-size: 12px;
+			padding: 4px 8px;
+			border-radius: 3px;
+			cursor: pointer;
+		}
+		.copy:hover { border-color: var(--accent); color: var(--text); }
+		.foot { margin-top: 40px; color: #5c6370; font-size: 12px; }
 	</style>
 </head>
 <body>
-	<canvas id="stars"></canvas>
-	<div class="glow"></div>
-	<div class="page">
-		<div class="top">
-			<div class="mark">VOID<span>MARK</span></div>
-		</div>
-		<section class="hero">
-			<div class="cape" aria-hidden="true"></div>
-			<p class="kicker">Custom client capes</p>
-			<h1>VOIDMARK</h1>
-			<div class="rule"></div>
-			<p class="lede">A cape every Voidmark user can see in Skyblock. Not a Hypixel cosmetic — it only shows in the client.</p>
-			<article class="card">
-				<p class="kicker">The mod</p>
-				<p class="note">Fabric for Minecraft 26.1.2. Drop the jar in your mods folder. This button always serves the current build.</p>
-				<a class="download" id="mod-download" href="/download">Download Voidmark</a>
-				<p class="note" id="mod-ver">Checking latest build…</p>
-			</article>
-			<article class="card">
-				<p class="kicker">Want one</p>
-				<div class="handle">
-					<b>@evilkitten911</b>
-					<button type="button" class="copy" id="copy">Copy</button>
-				</div>
-				<p class="note">Message that Discord user with your Minecraft name. After you are on the list, open the Cape card in Voidmark and crop a photo or paste a PNG.</p>
-				<ol class="steps">
-					<li><span class="num">1</span><span>Message @evilkitten911 on Discord.</span></li>
-					<li><span class="num">2</span><span>You get added. Create cape from the Cape card in-game.</span></li>
-					<li><span class="num">3</span><span>Other Voidmark clients pick it up when they join a world.</span></li>
-				</ol>
-			</article>
+	<div class="wrap">
+		<h1>Voidmark</h1>
+		<p class="lede">A visuals oriented Hypixel Skyblock mod.</p>
+		<section>
+			<h2>Download</h2>
+			<p>Fabric for Minecraft 26.1.2. Drop the jar in your mods folder.</p>
+			<div class="row">
+				<a class="dl" id="mod-download" href="/download">Download</a>
+				<span class="ver" id="mod-ver">checking…</span>
+			</div>
+		</section>
+		<section>
+			<h2>Want a custom cape?</h2>
+			<div class="row">
+				<span class="handle">@evilkitten911</span>
+				<button type="button" class="copy" id="copy">Copy</button>
+			</div>
+			<p>Message that Discord with your Minecraft name. After you get added, open the Cape card in Voidmark and crop a photo or paste a PNG. Other Voidmark users see it when they join a world.</p>
 		</section>
 		<p class="foot">voidmark.cloud</p>
 	</div>
 	<script>
-		(function stars() {
-			var c = document.getElementById("stars");
-			var ctx = c.getContext("2d");
-			var list = [];
-			function resize() {
-				c.width = window.innerWidth;
-				c.height = window.innerHeight;
-				list = [];
-				var n = Math.floor(c.width * c.height / 8500);
-				for (var i = 0; i < n; i++) list.push({ x: Math.random() * c.width, y: Math.random() * c.height, z: Math.random() * 1.2 + 0.2, s: Math.random() * 1.5 + 0.2 });
-			}
-			function tick() {
-				ctx.fillStyle = "#03050a";
-				ctx.fillRect(0, 0, c.width, c.height);
-				for (var i = 0; i < list.length; i++) {
-					var st = list[i];
-					st.y += st.z * 0.16;
-					if (st.y > c.height) st.y = 0;
-					ctx.fillStyle = "rgba(232,237,245," + (0.22 + st.z * 0.5) + ")";
-					ctx.fillRect(st.x, st.y, st.s, st.s);
-				}
-				requestAnimationFrame(tick);
-			}
-			window.addEventListener("resize", resize);
-			resize();
-			tick();
-		})();
 		document.getElementById("copy").onclick = function () {
 			var btn = this;
 			navigator.clipboard.writeText("@evilkitten911").then(function () {
@@ -1378,14 +1346,14 @@ const STORE_HTML = `<!DOCTYPE html>
 				return "https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/" + file;
 			}
 			function apply(data) {
-				ver.textContent = "v" + data.version + " · Minecraft " + (data.minecraft || "26.1.2");
+				ver.textContent = "v" + data.version + " · " + (data.minecraft || "26.1.2");
 				link.classList.remove("dead");
 				link.setAttribute("download", data.file || ("voidmark-" + data.version + ".jar"));
 				link.href = fileUrl(data);
 			}
 			function next(i) {
 				if (i >= mirrors.length) {
-					ver.textContent = "Build not published yet.";
+					ver.textContent = "not up yet";
 					link.classList.add("dead");
 					return;
 				}
