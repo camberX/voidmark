@@ -2,6 +2,7 @@ package dev.voidmark.client.ui;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.voidmark.client.config.VoidmarkConfig;
+import dev.voidmark.client.VoidmarkClient;
 import dev.voidmark.client.item.LoadoutsMenus;
 import dev.voidmark.client.mixin.AbstractContainerScreenInvoker;
 import dev.voidmark.client.render.GuiDraw;
@@ -107,7 +108,7 @@ public class LoadoutsScreen extends Screen {
 	}
 
 	public static boolean hasCache() {
-		return cache.hasLoadouts();
+		return cache.hasItems();
 	}
 
 	public static LoadoutsScreen fromCache() {
@@ -183,8 +184,7 @@ public class LoadoutsScreen extends Screen {
 			vanilla.init(width, height);
 		}
 		if (menu != null) {
-			snapshot = LoadoutsMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
-			rememberCache();
+			adoptMenu();
 		}
 		if (attaching) {
 			attaching = false;
@@ -225,9 +225,7 @@ public class LoadoutsScreen extends Screen {
 		tickAnim();
 		hits.clear();
 		tooltip = ItemStack.EMPTY;
-		if (menu != null) {
-			snapshot = LoadoutsMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
-		}
+		adoptMenu();
 		Font font = minecraft.font;
 		layout();
 
@@ -649,8 +647,19 @@ public class LoadoutsScreen extends Screen {
 		return current;
 	}
 
+	private void adoptMenu() {
+		if (menu == null) {
+			return;
+		}
+		LoadoutsMenus.Snapshot next = LoadoutsMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
+		if (next.hasItems() || !snapshot.hasItems()) {
+			snapshot = next;
+		}
+		rememberCache();
+	}
+
 	private void rememberCache() {
-		if (snapshot != null && snapshot.hasLoadouts()) {
+		if (snapshot != null && snapshot.hasItems()) {
 			cache = snapshot.copy();
 		}
 	}
@@ -706,7 +715,7 @@ public class LoadoutsScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(KeyEvent event) {
-		if (minecraft != null && minecraft.options.keyInventory.matches(event)) {
+		if (minecraft != null && (minecraft.options.keyInventory.matches(event) || VoidmarkClient.loadoutsKey(event))) {
 			onClose();
 			return true;
 		}
@@ -729,9 +738,7 @@ public class LoadoutsScreen extends Screen {
 	}
 
 	private void equipAndClose(int index) {
-		if (menu != null) {
-			snapshot = LoadoutsMenus.read(menu, vanilla != null ? vanilla.getTitle() : getTitle());
-		}
+		adoptMenu();
 		List<LoadoutsMenus.Piece> loadouts = snapshot.loadouts();
 		if (index < 0 || index >= loadouts.size()) {
 			return;

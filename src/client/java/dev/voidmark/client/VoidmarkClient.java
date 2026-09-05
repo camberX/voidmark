@@ -58,6 +58,7 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
@@ -67,6 +68,10 @@ public final class VoidmarkClient implements ClientModInitializer {
 	private static KeyMapping openLoadouts;
 	private static KeyMapping openWardrobe;
 	private static boolean itemAppearancesLoaded;
+
+	public static boolean loadoutsKey(KeyEvent event) {
+		return openLoadouts != null && event != null && openLoadouts.matches(event);
+	}
 
 	@Override
 	public void onInitializeClient() {
@@ -179,14 +184,14 @@ public final class VoidmarkClient implements ClientModInitializer {
 			while (openLoadouts.consumeClick()) {
 				if (client.screen instanceof LoadoutsScreen screen) {
 					screen.onClose();
-				} else if (client.screen == null) {
+				} else {
 					LoadoutsCommands.open();
 				}
 			}
 			while (openWardrobe.consumeClick()) {
 				if (client.screen instanceof WardrobeScreen screen) {
 					screen.onClose();
-				} else if (client.screen == null) {
+				} else {
 					WardrobeCommands.open();
 				}
 			}

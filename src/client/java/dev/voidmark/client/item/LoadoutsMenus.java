@@ -107,6 +107,14 @@ public final class LoadoutsMenus {
 		public boolean hasLoadouts() {
 			return loadouts != null && !loadouts.isEmpty();
 		}
+
+		/** True when the snapshot has real items, not just empty loadout wells. */
+		public boolean hasItems() {
+			if (hasStack(helmet) || hasStack(chest) || hasStack(legs) || hasStack(boots) || hasStack(pet)) {
+				return true;
+			}
+			return hasFilled(loadouts) || hasFilled(contents);
+		}
 	}
 
 	private static final Pattern PAGE = Pattern.compile("\\((\\d+)\\s*/\\s*(\\d+)\\)");
@@ -516,5 +524,21 @@ public final class LoadoutsMenus {
 
 	private static ItemStack copyStack(ItemStack stack) {
 		return stack == null || stack.isEmpty() ? ItemStack.EMPTY : stack.copy();
+	}
+
+	private static boolean hasStack(ItemStack stack) {
+		return stack != null && !stack.isEmpty();
+	}
+
+	private static boolean hasFilled(List<Piece> pieces) {
+		if (pieces == null) {
+			return false;
+		}
+		for (Piece piece : pieces) {
+			if (piece != null && hasStack(piece.stack())) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

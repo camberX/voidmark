@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.201", new String[]{
+			"Closing loadouts with the hotkey keeps the last snapshot, so the next open still comes from cache instead of a blank wait."
+		}),
 		new Entry("1.1.200", new String[]{
 			"Switching click-GUI tabs only slides the sidebar pill. Icons and labels stay on their own rows."
 		}),
