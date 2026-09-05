@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.171", new String[]{
+			"Shop download version is 1.1.171 so voidmark.cloud can show the new jar name after a git push."
+		}),
 		new Entry("1.1.170", new String[]{
 			"Hitsound uses the agpa2 clip, and only plays when you land the hit. Nearby players punching the same mob no longer trigger it."
 		}),

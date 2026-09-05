@@ -1092,9 +1092,9 @@ function githubFileUrls(repo, branch, dir, fileName) {
 	const file = String(fileName || "voidmark.jar").replace(/^\/+/, "");
 	const path = dir + "/" + file;
 	return [
-		"https://cdn.jsdelivr.net/gh/" + repo + "@" + branch + "/" + path,
 		"https://api.github.com/repos/" + repo + "/contents/" + path + "?ref=" + encodeURIComponent(branch),
 		"https://raw.githubusercontent.com/" + repo + "/" + branch + "/" + path,
+		"https://cdn.jsdelivr.net/gh/" + repo + "@" + branch + "/" + path,
 		"https://cdn.statically.io/gh/" + repo + "/" + branch + "/" + path
 	];
 }
@@ -1367,8 +1367,8 @@ const STORE_HTML = `<!DOCTYPE html>
 			var link = document.getElementById("mod-download");
 			var mirrors = [
 				"/api/mod",
-				"https://cdn.jsdelivr.net/gh/camberX/voidmark@main/web/public/mod/latest.json",
-				"https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/latest.json"
+				"https://raw.githubusercontent.com/camberX/voidmark/main/web/public/mod/latest.json",
+				"https://cdn.jsdelivr.net/gh/camberX/voidmark@main/web/public/mod/latest.json"
 			];
 			function fileUrl(data) {
 				if (data.url && data.url.charAt(0) === "/") {
