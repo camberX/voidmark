@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.189", new String[]{
+			"Auto update writes the new jar and keeps this launch going. Fabric already loaded the current jar, so the new code is on the next start."
+		}),
 		new Entry("1.1.188", new String[]{
 			"Shop bump so auto-update can pull the relaunch fix."
 		}),

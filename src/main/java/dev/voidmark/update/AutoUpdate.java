@@ -9,29 +9,25 @@ import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint;
 
 import java.io.InputStream;
 import java.io.Reader;
-import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Optional launch gate. When {@code autoUpdate} is on, Minecraft waits here
- * for voidmark.cloud. A newer jar replaces the one in mods, then a detached
- * helper relaunches this same command after the process exits.
+ * for voidmark.cloud. A newer jar is written into mods and the old one is
+ * retired. This process keeps going; Fabric already loaded the current jar,
+ * so the new code is what the next launch picks up.
  */
 public final class AutoUpdate implements PreLaunchEntrypoint {
 	private static final String SHOP = "https://voidmark.cloud";
@@ -43,16 +39,22 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 
 	@Override
 	public void onPreLaunch() {
-		if (!enabled()) {
-			return;
-		}
 		Optional<ModContainer> container = FabricLoader.getInstance().getModContainer(Voidmark.MOD_ID);
 		if (container.isEmpty()) {
 			return;
 		}
 		Path current = jarPath(container.get());
 		if (current == null) {
-			log("Auto-update skipped (dev run, not a jar).");
+			if (enabled()) {
+				log("Auto-update skipped (dev run, not a jar).");
+			}
+			return;
+		}
+		Path mods = current.getParent();
+		if (mods != null) {
+			sweep(mods);
+		}
+		if (!enabled()) {
 			return;
 		}
 		String installed = container.get().getMetadata().getVersion().getFriendlyString();
@@ -67,22 +69,13 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 				log("Already up to date (" + installed + ").");
 				return;
 			}
-			log("Found " + remote.version + ". Downloading and relaunching into the new jar.");
-			Applied applied = apply(current, remote);
-			if (applied == null) {
+			log("Found " + remote.version + ". Downloading into mods, then continuing this launch.");
+			Path dest = apply(current, remote);
+			if (dest == null) {
 				log("Update failed. Continuing with " + installed + ".");
 				return;
 			}
-			if (relaunch(current, applied)) {
-				log("Updated to " + remote.version + " at " + applied.dest.getFileName() + ". Relaunching.");
-				try {
-					Thread.sleep(400);
-				} catch (InterruptedException ignored) {
-				}
-			} else {
-				log("Updated to " + remote.version + " at " + applied.dest.getFileName() + ". Relaunch Minecraft.");
-			}
-			System.exit(0);
+			log("Queued " + remote.version + " at " + dest.getFileName() + ". This launch stays on " + installed + ".");
 		} catch (Exception exception) {
 			log("Update check failed: " + exception.getMessage());
 			Voidmark.LOGGER.warn("Auto-update failed", exception);
@@ -167,14 +160,17 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 		}
 	}
 
-	private static Applied apply(Path current, Remote remote) throws Exception {
+	private static Path apply(Path current, Remote remote) throws Exception {
 		Path mods = current.getParent() == null ? null : current.getParent().toAbsolutePath().normalize();
 		if (mods == null) {
 			return null;
 		}
 		Path dest = mods.resolve(remote.file).toAbsolutePath().normalize();
-		if (!mods.equals(dest.getParent())) {
+		if (!mods.equals(dest.getParent()) || dest.equals(current)) {
 			dest = mods.resolve("voidmark-" + remote.version + ".jar");
+		}
+		if (dest.equals(current)) {
+			dest = mods.resolve("voidmark-" + remote.version + "-new.jar");
 		}
 		Path part = dest.resolveSibling(dest.getFileName() + ".part");
 		Files.deleteIfExists(part);
@@ -198,15 +194,10 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 		} catch (Exception ignored) {
 			Files.move(part, dest, StandardCopyOption.REPLACE_EXISTING);
 		}
-		List<Path> locked = new ArrayList<>();
 		for (Path old : staleJars(mods, dest)) {
-			try {
-				Files.deleteIfExists(old);
-			} catch (Exception ignored) {
-				locked.add(old);
-			}
+			retire(old);
 		}
-		return new Applied(dest, locked);
+		return dest;
 	}
 
 	private static boolean download(HttpClient http, String url, Path part) {
@@ -264,411 +255,35 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 		return stale;
 	}
 
-	private static boolean relaunch(Path current, Applied applied) {
-		List<String> argv = launchCommand(current, applied.dest, applied.locked);
-		if (argv == null || argv.size() < 2) {
-			scheduleDelete(applied.locked);
-			return false;
-		}
+	private static void retire(Path old) {
 		try {
-			return windows() ? spawnWindows(argv, applied.locked) : spawnUnix(argv, applied.locked);
-		} catch (Exception exception) {
-			Voidmark.LOGGER.warn("Could not relaunch after update", exception);
-			scheduleDelete(applied.locked);
-			return false;
-		}
-	}
-
-	private static List<String> launchCommand(Path current, Path dest, List<Path> locked) {
-		List<String> argv = List.of();
-		if (windows()) {
-			String raw = windowsCommandLine(ProcessHandle.current().pid());
-			if (raw != null && !raw.isBlank()) {
-				argv = splitWindowsCommandLine(raw);
-			}
-			if (argv.size() < 2) {
-				argv = processHandleCommand();
-			}
-		} else {
-			argv = linuxCmdline();
-			if (argv.size() < 2) {
-				argv = processHandleCommand();
-			}
-		}
-		if (argv.size() < 2) {
-			argv = reconstructCommand();
-		}
-		return argv.size() < 2 ? null : rewrite(argv, current, dest, locked);
-	}
-
-	private static List<String> linuxCmdline() {
-		Path cmdline = Path.of("/proc/self/cmdline");
-		if (!Files.isReadable(cmdline)) {
-			return List.of();
-		}
-		try {
-			byte[] raw = Files.readAllBytes(cmdline);
-			List<String> args = new ArrayList<>();
-			int start = 0;
-			for (int i = 0; i <= raw.length; i++) {
-				if (i == raw.length || raw[i] == 0) {
-					if (i > start) {
-						args.add(new String(raw, start, i - start, StandardCharsets.UTF_8));
-					}
-					start = i + 1;
-				}
-			}
-			return args;
-		} catch (Exception ignored) {
-			return List.of();
-		}
-	}
-
-	private static List<String> processHandleCommand() {
-		ProcessHandle.Info info = ProcessHandle.current().info();
-		Optional<String> command = info.command();
-		Optional<String[]> arguments = info.arguments();
-		if (command.isEmpty() || arguments.isEmpty()) {
-			return List.of();
-		}
-		List<String> argv = new ArrayList<>();
-		argv.add(command.get());
-		argv.addAll(List.of(arguments.get()));
-		return argv;
-	}
-
-	private static List<String> reconstructCommand() {
-		String exe = javaBinary();
-		String main = System.getProperty("sun.java.command");
-		if (exe == null || main == null || main.isBlank()) {
-			return List.of();
-		}
-		List<String> argv = new ArrayList<>();
-		argv.add(exe);
-		argv.addAll(ManagementFactory.getRuntimeMXBean().getInputArguments());
-		String cp = System.getProperty("java.class.path");
-		if (cp != null && !cp.isBlank()) {
-			argv.add("-cp");
-			argv.add(cp);
-		}
-		for (String part : main.split(" ")) {
-			if (!part.isBlank()) {
-				argv.add(part);
-			}
-		}
-		return argv.size() >= 2 ? argv : List.of();
-	}
-
-	private static String javaBinary() {
-		boolean win = windows();
-		Path home = Path.of(System.getProperty("java.home", ""), "bin");
-		Path preferred = home.resolve(win ? "javaw.exe" : "java");
-		if (Files.isRegularFile(preferred)) {
-			return preferred.toAbsolutePath().normalize().toString();
-		}
-		Path fallback = home.resolve(win ? "java.exe" : "java");
-		if (Files.isRegularFile(fallback)) {
-			return fallback.toAbsolutePath().normalize().toString();
-		}
-		return ProcessHandle.current().info().command().orElse(null);
-	}
-
-	private static String windowsCommandLine(long pid) {
-		try {
-			Process process = new ProcessBuilder(
-				"powershell",
-				"-NoProfile",
-				"-Command",
-				"(Get-CimInstance Win32_Process -Filter \"ProcessId=" + pid + "\").CommandLine"
-			).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-			String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
-			if (!process.waitFor(4, TimeUnit.SECONDS)) {
-				process.destroyForcibly();
-				return null;
-			}
-			return out.isEmpty() ? null : out;
-		} catch (Exception ignored) {
-			return null;
-		}
-	}
-
-	private static List<String> rewrite(List<String> argv, Path current, Path dest, List<Path> locked) {
-		List<String> out = new ArrayList<>(argv.size());
-		for (String arg : argv) {
-			out.add(rewrite(arg, current, dest, locked));
-		}
-		return out;
-	}
-
-	private static String rewrite(String text, Path current, Path dest, List<Path> locked) {
-		List<Path> olds = new ArrayList<>();
-		olds.add(current);
-		olds.addAll(locked);
-		olds.sort(Comparator.comparingInt((Path path) -> path.toString().length()).reversed());
-		String destAbs = dest.toAbsolutePath().normalize().toString();
-		String destName = dest.getFileName().toString();
-		String rewritten = text;
-		for (Path old : olds) {
-			if (old == null) {
-				continue;
-			}
-			String abs = old.toAbsolutePath().normalize().toString();
-			String name = old.getFileName().toString();
-			if (!abs.isEmpty() && rewritten.contains(abs)) {
-				rewritten = rewritten.replace(abs, destAbs);
-			} else if (!name.isEmpty() && rewritten.contains(name)) {
-				rewritten = rewritten.replace(name, destName);
-			}
-		}
-		return rewritten;
-	}
-
-	private static boolean spawnWindows(List<String> argv, List<Path> locked) throws Exception {
-		Path script = Path.of(cwd(), "voidmark-relaunch.ps1").toAbsolutePath().normalize();
-		writeWindowsHelper(script, argv, locked);
-		String child = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "
-			+ cmdQuote(script.toString());
-		if (wmiCreate(child, cwd())) {
-			log("Relaunch helper detached.");
-			return true;
-		}
-		if (wmicCreate(child, cwd())) {
-			log("Relaunch helper detached.");
-			return true;
-		}
-		new ProcessBuilder(
-			"cmd.exe",
-			"/c",
-			"start \"VoidmarkUpdate\" /MIN " + child
-		).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-		log("Relaunch helper started.");
-		return true;
-	}
-
-	private static boolean spawnUnix(List<String> argv, List<Path> locked) throws Exception {
-		Path script = Path.of(cwd(), "voidmark-relaunch.sh").toAbsolutePath().normalize();
-		writeUnixHelper(script, argv, locked);
-		script.toFile().setExecutable(true, false);
-		if (start(List.of("setsid", "-f", "sh", script.toString()))) {
-			log("Relaunch helper detached.");
-			return true;
-		}
-		new ProcessBuilder("sh", "-c", "nohup sh " + shQuote(script.toString()) + " >/dev/null 2>&1 </dev/null &")
-			.redirectOutput(ProcessBuilder.Redirect.DISCARD)
-			.redirectError(ProcessBuilder.Redirect.DISCARD)
-			.start();
-		log("Relaunch helper started.");
-		return true;
-	}
-
-	private static void writeWindowsHelper(Path script, List<String> argv, List<Path> locked) throws Exception {
-		String cwd = cwd();
-		StringBuilder body = new StringBuilder();
-		body.append("$ErrorActionPreference = 'Continue'\r\n");
-		for (Map.Entry<String, String> env : System.getenv().entrySet()) {
-			if (env.getKey() == null || env.getKey().startsWith("=")) {
-				continue;
-			}
-			body.append("[Environment]::SetEnvironmentVariable(")
-				.append(psSingle(env.getKey())).append(", ")
-				.append(psSingle(env.getValue() == null ? "" : env.getValue()))
-				.append(", 'Process')\r\n");
-		}
-		body.append("Start-Sleep -Seconds 2\r\n");
-		body.append("Set-Location -LiteralPath ").append(psSingle(cwd)).append("\r\n");
-		for (Path path : locked) {
-			body.append("Remove-Item -LiteralPath ").append(psSingle(path.toString()))
-				.append(" -Force -ErrorAction SilentlyContinue\r\n");
-		}
-		body.append("$exe = ").append(psSingle(argv.getFirst())).append("\r\n");
-		body.append("$mcArgs = @(\r\n");
-		for (int i = 1; i < argv.size(); i++) {
-			body.append("  ").append(psSingle(argv.get(i)));
-			if (i + 1 < argv.size()) {
-				body.append(',');
-			}
-			body.append("\r\n");
-		}
-		body.append(")\r\n");
-		body.append("$logDir = ").append(psSingle(Path.of(cwd, "logs").toString())).append("\r\n");
-		body.append("New-Item -ItemType Directory -Force -Path $logDir | Out-Null\r\n");
-		body.append("Add-Content -LiteralPath (Join-Path $logDir 'voidmark-update.log') -Value ('relaunch ' + $exe)\r\n");
-		body.append("if ($mcArgs.Count -gt 0) { & $exe @mcArgs } else { & $exe }\r\n");
-		body.append("Remove-Item -LiteralPath ").append(psSingle(script.toString()))
-			.append(" -Force -ErrorAction SilentlyContinue\r\n");
-		byte[] bom = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
-		byte[] text = body.toString().getBytes(StandardCharsets.UTF_8);
-		byte[] out = new byte[bom.length + text.length];
-		System.arraycopy(bom, 0, out, 0, bom.length);
-		System.arraycopy(text, 0, out, bom.length, text.length);
-		Files.write(script, out);
-	}
-
-	private static void writeUnixHelper(Path script, List<String> argv, List<Path> locked) throws Exception {
-		StringBuilder body = new StringBuilder();
-		body.append("#!/bin/sh\n");
-		body.append("trap '' HUP\n");
-		body.append("sleep 1\n");
-		if (!locked.isEmpty()) {
-			body.append("rm -f");
-			for (Path path : locked) {
-				body.append(' ').append(shQuote(path.toString()));
-			}
-			body.append('\n');
-		}
-		body.append("cd ").append(shQuote(cwd())).append('\n');
-		body.append("rm -f ").append(shQuote(script.toString())).append('\n');
-		body.append("exec");
-		for (String arg : argv) {
-			body.append(' ').append(shQuote(arg));
-		}
-		body.append('\n');
-		Files.writeString(script, body.toString(), StandardCharsets.UTF_8);
-	}
-
-	private static boolean wmiCreate(String commandLine, String directory) {
-		String ps = "$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine="
-			+ psSingle(commandLine) + "; CurrentDirectory=" + psSingle(directory)
-			+ "}; if ($null -eq $r -or $r.ReturnValue -ne 0) { exit 1 }";
-		try {
-			Process process = new ProcessBuilder("powershell.exe", "-NoProfile", "-Command", ps)
-				.redirectOutput(ProcessBuilder.Redirect.DISCARD)
-				.redirectError(ProcessBuilder.Redirect.DISCARD)
-				.start();
-			if (!process.waitFor(8, TimeUnit.SECONDS)) {
-				process.destroyForcibly();
-				return false;
-			}
-			return process.exitValue() == 0;
-		} catch (Exception ignored) {
-			return false;
-		}
-	}
-
-	private static boolean wmicCreate(String commandLine, String directory) {
-		try {
-			Process process = new ProcessBuilder(
-				"wmic",
-				"process",
-				"call",
-				"create",
-				commandLine + "," + directory
-			).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-			if (!process.waitFor(8, TimeUnit.SECONDS)) {
-				process.destroyForcibly();
-				return false;
-			}
-			return process.exitValue() == 0;
-		} catch (Exception ignored) {
-			return false;
-		}
-	}
-
-	private static boolean start(List<String> command) {
-		try {
-			Process process = new ProcessBuilder(command)
-				.redirectOutput(ProcessBuilder.Redirect.DISCARD)
-				.redirectError(ProcessBuilder.Redirect.DISCARD)
-				.start();
-			if (process.waitFor(400, TimeUnit.MILLISECONDS)) {
-				return process.exitValue() == 0;
-			}
-			return true;
-		} catch (Exception ignored) {
-			return false;
-		}
-	}
-
-	private static List<String> splitWindowsCommandLine(String command) {
-		List<String> args = new ArrayList<>();
-		StringBuilder cur = new StringBuilder();
-		boolean inQuotes = false;
-		int slashes = 0;
-		for (int i = 0; i < command.length(); i++) {
-			char c = command.charAt(i);
-			if (c == '\\') {
-				slashes++;
-				continue;
-			}
-			if (c == '"') {
-				cur.append("\\".repeat(slashes / 2));
-				if (slashes % 2 == 0) {
-					inQuotes = !inQuotes;
-				} else {
-					cur.append('"');
-				}
-				slashes = 0;
-				continue;
-			}
-			if (slashes > 0) {
-				cur.append("\\".repeat(slashes));
-				slashes = 0;
-			}
-			if (!inQuotes && (c == ' ' || c == '\t')) {
-				if (cur.length() > 0) {
-					args.add(cur.toString());
-					cur.setLength(0);
-				}
-			} else {
-				cur.append(c);
-			}
-		}
-		if (slashes > 0) {
-			cur.append("\\".repeat(slashes));
-		}
-		if (cur.length() > 0) {
-			args.add(cur.toString());
-		}
-		return args;
-	}
-
-	private static void scheduleDelete(List<Path> paths) {
-		if (paths == null || paths.isEmpty()) {
+			Files.deleteIfExists(old);
 			return;
+		} catch (Exception ignored) {
 		}
-		long pid = ProcessHandle.current().pid();
+		Path retired = old.resolveSibling(old.getFileName().toString() + ".old");
 		try {
-			ProcessBuilder builder;
-			if (windows()) {
-				StringBuilder cmd = new StringBuilder("ping 127.0.0.1 -n 4 >nul");
-				for (Path path : paths) {
-					cmd.append(" & del /f /q ").append(cmdQuote(path.toString()));
-				}
-				builder = new ProcessBuilder("cmd", "/c", cmd.toString());
-			} else {
-				StringBuilder cmd = new StringBuilder("while kill -0 ");
-				cmd.append(pid).append(" 2>/dev/null; do sleep 0.2; done; rm -f");
-				for (Path path : paths) {
-					cmd.append(' ').append(shQuote(path.toString()));
-				}
-				builder = new ProcessBuilder("sh", "-c", cmd.toString());
-			}
-			builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
-			builder.redirectError(ProcessBuilder.Redirect.DISCARD);
-			builder.start();
-		} catch (Exception exception) {
-			Voidmark.LOGGER.warn("Could not schedule old jar cleanup", exception);
+			Files.move(old, retired, StandardCopyOption.REPLACE_EXISTING);
+			retired.toFile().deleteOnExit();
+			return;
+		} catch (Exception ignored) {
 		}
+		old.toFile().deleteOnExit();
 	}
 
-	private static String cwd() {
-		return Path.of(System.getProperty("user.dir", ".")).toAbsolutePath().normalize().toString();
-	}
-
-	private static boolean windows() {
-		return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
-	}
-
-	private static String cmdQuote(String value) {
-		return '"' + value.replace("\"", "\"\"") + '"';
-	}
-
-	private static String shQuote(String value) {
-		return "'" + value.replace("'", "'\\''") + "'";
-	}
-
-	private static String psSingle(String value) {
-		return "'" + value.replace("'", "''") + "'";
+	private static void sweep(Path mods) {
+		try (DirectoryStream<Path> stream = Files.newDirectoryStream(mods, "voidmark*")) {
+			for (Path path : stream) {
+				String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+				if (name.endsWith(".old") || name.endsWith(".part") || name.endsWith(".jar.old")) {
+					try {
+						Files.deleteIfExists(path);
+					} catch (Exception ignored) {
+					}
+				}
+			}
+		} catch (Exception ignored) {
+		}
 	}
 
 	private static int compare(String left, String right) {
@@ -713,8 +328,5 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 	}
 
 	private record Remote(String version, String file, List<String> urls) {
-	}
-
-	private record Applied(Path dest, List<Path> locked) {
 	}
 }
