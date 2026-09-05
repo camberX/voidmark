@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.197", new String[]{
+			"Shop bump so auto-update can pull the latest build."
+		}),
 		new Entry("1.1.196", new String[]{
 			"The hitmarker is white with a black outline again, like CoD. It still fades out without shifting color."
 		}),
