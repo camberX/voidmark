@@ -86,6 +86,11 @@ public final class LoadoutsMenus {
 	}
 
 	private static final Pattern PAGE = Pattern.compile("\\((\\d+)\\s*/\\s*(\\d+)\\)");
+	/** Hypixel chest title: {@code (1/3) Loadouts}. The page numbers change. */
+	private static final Pattern TITLE = Pattern.compile(
+		"[(\\uFF08]\\s*\\d+\\s*[/\\u2044\\u2215]\\s*\\d+\\s*[)\\uFF09]\\s*Loadouts",
+		Pattern.CASE_INSENSITIVE
+	);
 	private static final Pattern PET_NAME = Pattern.compile("\\[\\s*lvl\\s*\\d+\\s*]\\s*(.+)", Pattern.CASE_INSENSITIVE);
 	private static final int COLS = 9;
 	private static final int LOADOUT_COL0 = 6;
@@ -101,7 +106,7 @@ public final class LoadoutsMenus {
 	}
 
 	public static boolean matches(Component title) {
-		return matches(title == null ? "" : title.getString());
+		return matches(plain(title));
 	}
 
 	public static boolean matches(String title) {
@@ -109,7 +114,14 @@ public final class LoadoutsMenus {
 		if (plain.isEmpty()) {
 			return false;
 		}
-		return plain.contains("loadout");
+		return TITLE.matcher(plain).find();
+	}
+
+	private static String plain(Component title) {
+		if (title == null) {
+			return "";
+		}
+		return strip(title.getString());
 	}
 
 	public static Snapshot read(AbstractContainerMenu menu, Component title) {

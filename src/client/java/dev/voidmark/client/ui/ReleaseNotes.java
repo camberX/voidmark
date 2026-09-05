@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.175", new String[]{
+			"The custom loadouts menu actually opens. It looks for Hypixel's (1/3) Loadouts title (any page numbers), which the last build missed because it looked for lowercase loadout."
+		}),
 		new Entry("1.1.174", new String[]{
 			"Hypixel /loadouts opens a Voidmark menu: 3D armor and pet for the selected loadout, and the eight slots on the right. Clicks go through the real chest so the server sees a normal GUI click."
 		}),
