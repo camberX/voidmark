@@ -33,7 +33,7 @@ public final class ChestEsp {
 	private static final ChestEsp INSTANCE = new ChestEsp();
 	private static final double RANGE = 5.0;
 	private static final double RANGE_SQ = RANGE * RANGE;
-	private static final long CRIT_MS = 1_200L;
+	private static final long CRIT_MS = 400L;
 	private static final double CRIT_CHEST = 0.3;
 	private static final int MAX_CHESTS = 64;
 	private static final int MAX_CRITS = 32;
@@ -194,6 +194,28 @@ public final class ChestEsp {
 		return out;
 	}
 
+	public void drop(Mark mark) {
+		if (mark == null) {
+			return;
+		}
+		synchronized (crits) {
+			if (crits.remove(mark)) {
+				dirty = true;
+			}
+		}
+	}
+
+	public void dropNear(Vec3 at, double radius) {
+		if (at == null) {
+			return;
+		}
+		synchronized (crits) {
+			if (crits.removeIf(mark -> mark.box().closerThan(at, radius))) {
+				dirty = true;
+			}
+		}
+	}
+
 	public boolean stillHas(Mark mark) {
 		if (mark == null) {
 			return false;
@@ -230,7 +252,7 @@ public final class ChestEsp {
 		long now = System.currentTimeMillis();
 		synchronized (crits) {
 			for (Mark existing : crits) {
-				if (existing.nearCurrent(x, y, z, 0.18)) {
+				if (existing.nearCurrent(x, y, z, 0.10)) {
 					existing.placeBox(x, y, z, now);
 					dirty = true;
 					return;

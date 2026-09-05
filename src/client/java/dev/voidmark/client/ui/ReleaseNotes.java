@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.11", new String[]{
+			"Chest Aim still turns when lock boxes are close together, and finished boxes disappear instead of lingering."
+		}),
 		new Entry("1.2.10", new String[]{
 			"Chest Aim starts when your crosshair is near the first lock box. No keybind."
 		}),

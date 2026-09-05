@@ -22,9 +22,9 @@ import java.util.List;
  * mark until Experience Gained.
  */
 public final class ChestAimer {
-	private static final float TOLERANCE = 1f;
+	private static final float TOLERANCE = 0.15f;
 	private static final int PASS = 5;
-	private static final double SAME = 0.28;
+	private static final double SAME = 0.10;
 	private static final double AIM_NEAR = 0.40;
 
 	private static boolean running;
@@ -32,6 +32,7 @@ public final class ChestAimer {
 	private static ChestEsp.Mark chest;
 	private static ChestEsp.Mark locked;
 	private static final List<Vec3> done = new ArrayList<>();
+	private static final List<ChestEsp.Mark> doneMarks = new ArrayList<>();
 	private static boolean waiting;
 	private static boolean turning;
 	private static boolean armed;
@@ -97,6 +98,7 @@ public final class ChestAimer {
 			ding = false;
 			locked = null;
 			done.clear();
+			doneMarks.clear();
 			tries = 0;
 			beginTurn(player, aim);
 			return;
@@ -117,7 +119,9 @@ public final class ChestAimer {
 			armed = false;
 			waiting = false;
 			if (locked != null) {
-				remember(locked.box());
+				remember(locked);
+				ChestEsp.get().drop(locked);
+				ChestEsp.get().dropNear(locked.box(), SAME);
 			}
 			locked = null;
 			tries++;
@@ -171,6 +175,7 @@ public final class ChestAimer {
 		ChestEsp.Mark next = nearMarks != null ? nearMarks : ChestEsp.get().nearestChest(player.position());
 		if (next != null && chest != null && !next.pos.equals(chest.pos)) {
 			done.clear();
+			doneMarks.clear();
 			locked = null;
 			waiting = false;
 			turning = false;
@@ -215,7 +220,7 @@ public final class ChestAimer {
 		ChestEsp.Mark best = null;
 		float bestAng = Float.MAX_VALUE;
 		for (ChestEsp.Mark mark : marks()) {
-			if (seen(mark.box())) {
+			if (seen(mark)) {
 				continue;
 			}
 			float ang = angleTo(player, mark.box());
@@ -230,7 +235,7 @@ public final class ChestAimer {
 	private static ChestEsp.Mark pickNewest() {
 		ChestEsp.Mark best = null;
 		for (ChestEsp.Mark mark : marks()) {
-			if (seen(mark.box())) {
+			if (seen(mark)) {
 				continue;
 			}
 			if (best == null || mark.boxAt > best.boxAt) {
@@ -240,7 +245,14 @@ public final class ChestAimer {
 		return best;
 	}
 
-	private static boolean seen(Vec3 at) {
+	private static boolean seen(ChestEsp.Mark mark) {
+		if (mark == null) {
+			return false;
+		}
+		if (doneMarks.contains(mark)) {
+			return true;
+		}
+		Vec3 at = mark.box();
 		for (Vec3 old : done) {
 			if (at.closerThan(old, SAME)) {
 				return true;
@@ -249,11 +261,12 @@ public final class ChestAimer {
 		return false;
 	}
 
-	private static void remember(Vec3 at) {
-		if (at == null || seen(at)) {
+	private static void remember(ChestEsp.Mark mark) {
+		if (mark == null || seen(mark)) {
 			return;
 		}
-		done.add(at);
+		doneMarks.add(mark);
+		done.add(mark.box());
 	}
 
 	private static float angleTo(LocalPlayer player, Vec3 target) {
@@ -270,7 +283,7 @@ public final class ChestAimer {
 		boolean follow = target == locked;
 		locked = target;
 		if (!follow) {
-			remember(target.box());
+			remember(target);
 		}
 		armed = true;
 		Vec3 at = target.box();
@@ -279,7 +292,7 @@ public final class ChestAimer {
 			SmoothRotate.normalizePitch(player.getXRot())
 		);
 		to = SmoothRotate.to(player.getEyePosition(), at);
-		if (SmoothRotate.close(from, to, TOLERANCE)) {
+		if (follow && SmoothRotate.close(from, to, TOLERANCE)) {
 			arrive();
 			return;
 		}
@@ -289,7 +302,7 @@ public final class ChestAimer {
 		);
 		float speed = VoidmarkConfig.clamp(VoidmarkConfig.get().chestAimSpeed, 0.25f, 2.00f);
 		long base = 160L + Math.round(span * 2.4f);
-		turnMs = Math.max(80L, Math.min(800L, Math.round(base / speed)));
+		turnMs = Math.max(120L, Math.min(800L, Math.round(base / speed)));
 		turnStart = System.currentTimeMillis();
 		turning = true;
 		waiting = false;
@@ -340,6 +353,7 @@ public final class ChestAimer {
 		chest = null;
 		locked = null;
 		done.clear();
+		doneMarks.clear();
 		waiting = false;
 		turning = false;
 		armed = false;
