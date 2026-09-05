@@ -6,7 +6,6 @@ import dev.voidmark.client.config.UnloadState;
 import dev.voidmark.client.farming.FarmingHud;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
-import dev.voidmark.client.media.SpotifyNowPlaying;
 import dev.voidmark.client.mining.MiningAreas;
 import dev.voidmark.client.mining.MiningTracker;
 import dev.voidmark.client.mining.TitaniumTracker;
@@ -1637,7 +1636,7 @@ public class VoidmarkScreen extends Screen {
 			}
 			case MUSIC -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
-				cycle(graphics, font, ix, y, iw, mouseX, mouseY, "Spotify API", SpotifyNowPlaying.status(), SpotifyNowPlaying::toggleLogin);
+				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Spotify", config.spotifyEnabled, v -> config.spotifyEnabled = v);
 			}
 			case RAWMATS -> cycle(graphics, font, ix, y, iw, mouseX, mouseY, "Materials", config.rawmatsModeLabel(), config::cycleRawmatsMode);
 			case MINING -> toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ability alert", config.miningAbilityAlert, v -> config.miningAbilityAlert = v);
@@ -1881,7 +1880,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.211");
+			.orElse("1.1.212");
 	}
 
 	@Override

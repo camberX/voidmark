@@ -60,6 +60,7 @@ public final class VoidmarkConfig {
 	public boolean watermarkName = false;
 	public boolean musicHudEnabled = false;
 	public boolean musicHideIdle = false;
+	public boolean spotifyEnabled = true;
 	public int musicApiPort = 0;
 	public String musicApiToken = "";
 	public String spotifyClientId = "";
@@ -403,6 +404,9 @@ public final class VoidmarkConfig {
 				}
 				if (loaded.musicApiToken == null) {
 					loaded.musicApiToken = "";
+				}
+				if (!json.has("spotifyEnabled")) {
+					loaded.spotifyEnabled = true;
 				}
 				if (loaded.spotifyClientId == null) {
 					loaded.spotifyClientId = "";

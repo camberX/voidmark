@@ -20,6 +20,7 @@ import dev.voidmark.client.item.SkyblockProfileApi;
 import dev.voidmark.client.item.SkyblockRecipes;
 import dev.voidmark.client.media.MediaChat;
 import dev.voidmark.client.media.MediaSession;
+import dev.voidmark.client.media.SpotifySmtc;
 import dev.voidmark.client.mining.MiningTracker;
 import dev.voidmark.client.mining.TitaniumTracker;
 import dev.voidmark.client.render.InventoryHudRenderer;
@@ -196,6 +197,8 @@ public final class VoidmarkClient implements ClientModInitializer {
 				}
 			}
 
+			VoidmarkConfig running = VoidmarkConfig.get();
+			SpotifySmtc.tick(running.musicHudEnabled && running.spotifyEnabled);
 			SkyblockLocation.tick(client);
 			LoadoutsScreen.tickSwap(client);
 			WardrobeScreen.tickSwap(client);

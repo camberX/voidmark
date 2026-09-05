@@ -17,7 +17,6 @@ public final class MediaSession {
 	}
 
 	public static void init() {
-		SpotifyNowPlaying.prefetch();
 		Thread thread = new Thread(MediaSession::loop, "voidmark-media");
 		thread.setDaemon(true);
 		thread.start();
@@ -46,11 +45,6 @@ public final class MediaSession {
 
 	private static boolean control(String action) {
 		String active = route;
-		if ("spotify".equals(active)) {
-			if (SpotifyNowPlaying.control(action)) {
-				return true;
-			}
-		}
 		if ("ytm".equals(active) || "ytmd".equals(active) || "cider".equals(active)) {
 			if (COMPANION.control(action)) {
 				return true;
@@ -88,7 +82,7 @@ public final class MediaSession {
 	}
 
 	private static NowPlaying pick() {
-		NowPlaying spotify = SpotifyNowPlaying.connected() ? SpotifyNowPlaying.snapshot() : NowPlaying.none();
+		NowPlaying spotify = SpotifySmtc.current();
 		if (spotify.present() && spotify.playing()) {
 			NowPlaying out = spotify.cleaned().carryTime(current);
 			route = "spotify";
@@ -114,19 +108,10 @@ public final class MediaSession {
 			if (!out.youtubeMusic()) {
 				out = TrackLookup.enrich(out);
 			}
-			NowPlaying api = SpotifyNowPlaying.last();
-			if (api.present() && NowPlaying.related(out, api)) {
-				out = api.cleaned();
-				route = "spotify";
-				hint = "SPOTIFY";
-			} else {
-				route = "window";
-				String block = SpotifyNowPlaying.apiHint();
-				hint = !block.isBlank()
-					? "Spotify: add his account on the developer app"
-					: out.youtubeMusic() ? "YouTube Music API not connected" : out.sourceLabel();
-			}
-			return out.carryTime(current);
+			out = out.carryTime(current);
+			route = "window";
+			hint = out.youtubeMusic() ? "YouTube Music API not connected" : out.sourceLabel();
+			return out;
 		}
 		NowPlaying linux = LINUX.snapshot();
 		if (linux.present()) {

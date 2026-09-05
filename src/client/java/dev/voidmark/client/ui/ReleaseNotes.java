@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.212", new String[]{
+			"Spotify on the Music HUD reads the Windows media session. No Spotify login. YouTube Music is unchanged."
+		}),
 		new Entry("1.1.211", new String[]{
 			"If Spotify login works but the bar does not move, the developer app is still in development mode. Add that account under User Management."
 		}),
