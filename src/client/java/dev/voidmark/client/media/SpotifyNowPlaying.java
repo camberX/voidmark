@@ -53,6 +53,7 @@ public final class SpotifyNowPlaying {
 	private static final AtomicBoolean connecting = new AtomicBoolean(false);
 	private static volatile String shopClientId = "";
 	private static volatile String lastError = "";
+	private static volatile String apiBlock = "";
 	private static volatile NowPlaying cached = NowPlaying.none();
 	private static volatile long lastPollMs;
 	private static volatile long lastGoodMs;
@@ -77,6 +78,9 @@ public final class SpotifyNowPlaying {
 			return "Waiting…";
 		}
 		if (connected()) {
+			if (apiBlock != null && !apiBlock.isBlank()) {
+				return apiBlock;
+			}
 			return "Connected";
 		}
 		if (lastError != null && !lastError.isBlank()) {
@@ -108,6 +112,7 @@ public final class SpotifyNowPlaying {
 		config.save();
 		cached = NowPlaying.none();
 		lastError = "";
+		apiBlock = "";
 	}
 
 	public static void connect() {
@@ -126,6 +131,10 @@ public final class SpotifyNowPlaying {
 		}, "voidmark-spotify-login");
 		thread.setDaemon(true);
 		thread.start();
+	}
+
+	static String apiHint() {
+		return apiBlock == null ? "" : apiBlock;
 	}
 
 	static NowPlaying last() {
@@ -370,9 +379,14 @@ public final class SpotifyNowPlaying {
 				String next = accessToken();
 				return next.isBlank() ? NowPlaying.none() : fetchPlayer(next, url);
 			}
+			if (code == 403) {
+				apiBlock = "Add account";
+				return NowPlaying.none();
+			}
 			if (code < 200 || code >= 300) {
 				return NowPlaying.none();
 			}
+			apiBlock = "";
 			return parseCurrent(response.body());
 		} catch (Exception ignored) {
 			return NowPlaying.none();

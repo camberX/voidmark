@@ -121,7 +121,10 @@ public final class MediaSession {
 				hint = "SPOTIFY";
 			} else {
 				route = "window";
-				hint = out.youtubeMusic() ? "YouTube Music API not connected" : out.sourceLabel();
+				String block = SpotifyNowPlaying.apiHint();
+				hint = !block.isBlank()
+					? "Spotify: add his account on the developer app"
+					: out.youtubeMusic() ? "YouTube Music API not connected" : out.sourceLabel();
 			}
 			return out.carryTime(current);
 		}

@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.211", new String[]{
+			"If Spotify login works but the bar does not move, the developer app is still in development mode. Add that account under User Management."
+		}),
 		new Entry("1.1.210", new String[]{
 			"Spotify Connected still shows the HUD from the desktop window when the API has no active player, instead of hiding as idle."
 		}),
