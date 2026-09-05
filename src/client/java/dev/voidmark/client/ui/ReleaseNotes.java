@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.186", new String[]{
+			"Theme has a Menu stars toggle. Turn it off to hide the drifting stars in the click GUI, loadouts, and wardrobe."
+		}),
 		new Entry("1.1.185", new String[]{
 			"Auto update replaces the jar and relaunches Minecraft on its own, so you do not have to open the launcher again."
 		}),

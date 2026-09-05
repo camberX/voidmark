@@ -145,6 +145,7 @@ public final class VoidmarkConfig {
 	public float nametagScale = 1.0f;
 	public float nametagOpacity = 1.0f;
 	public float menuScale = 1.0f;
+	public boolean menuStarfield = true;
 	public boolean hudStarfield = false;
 	public String uiFont = "";
 	public boolean mobGlowEnabled = false;

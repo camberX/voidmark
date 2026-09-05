@@ -1,5 +1,6 @@
 package dev.voidmark.client.render;
 
+import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.ui.Theme;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -37,6 +38,9 @@ public final class Starfield {
 		float radius,
 		float appear
 	) {
+		if (!VoidmarkConfig.get().menuStarfield) {
+			return;
+		}
 		try {
 			paint(graphics, PANE, x, y, w, h, radius, appear, 0.72f, 18f, true, false, false);
 		} catch (Throwable ignored) {

@@ -56,7 +56,7 @@ public class VoidmarkScreen extends Screen {
 	private static final float PICKER_H = 122;
 	private static final float PANEL_W = 168;
 	private static final float FEATURE_W = 176;
-	private static final float SETTINGS_H = 308;
+	private static final float SETTINGS_H = 324;
 	private static final float FONT_SEARCH_H = 14;
 	private static final float FONT_ROW = 16;
 	private static final int FONT_VISIBLE = 6;
@@ -160,6 +160,7 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Nametag opacity", Tab.ESP, "ESP"),
 		new SearchEntry("Menu scale", Tab.OVERLAY, "Theme"),
 		new SearchEntry("HUD opacity", Tab.OVERLAY, "Theme"),
+		new SearchEntry("Menu stars", Tab.OVERLAY, "Theme"),
 		new SearchEntry("HUD stars", Tab.OVERLAY, "Theme"),
 		new SearchEntry("Auto update", Tab.OVERLAY, "Theme"),
 		new SearchEntry("Auto-update", Tab.OVERLAY, "Theme"),
@@ -1044,6 +1045,7 @@ public class VoidmarkScreen extends Screen {
 			VoidmarkConfig.get().hudOpacity = VoidmarkConfig.clamp(0.20f + v * 0.80f, 0.20f, 1f);
 			Theme.refresh();
 		});
+		y = toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Menu stars", VoidmarkConfig.get().menuStarfield, v -> VoidmarkConfig.get().menuStarfield = v);
 		y = toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "HUD stars", VoidmarkConfig.get().hudStarfield, v -> VoidmarkConfig.get().hudStarfield = v);
 		y = toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Animations", VoidmarkConfig.get().uiAnimations, v -> VoidmarkConfig.get().uiAnimations = v);
 		y = toggle(graphics, font, settingsX + 8, y, PANEL_W - 16, mouseX, mouseY, "Auto update", VoidmarkConfig.get().autoUpdate, v -> VoidmarkConfig.get().autoUpdate = v);
@@ -1837,7 +1839,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.185");
+			.orElse("1.1.186");
 	}
 
 	@Override
