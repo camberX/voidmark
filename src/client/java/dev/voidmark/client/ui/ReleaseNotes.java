@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.206", new String[]{
+			"Music HUD can read Spotify through the official API. Overlay → Music → Spotify API connects once, then title, artist, album art, and skip controls come from Spotify."
+		}),
 		new Entry("1.1.205", new String[]{
 			"Loadouts and wardrobe verify the menu title before saving a cache."
 		}),

@@ -85,6 +85,10 @@ async function route(req, res) {
 		json(res, 200, shopConfig());
 		return;
 	}
+	if (req.method === "GET" && path === "/api/spotify") {
+		json(res, 200, { clientId: String(process.env.SPOTIFY_CLIENT_ID || "") });
+		return;
+	}
 	if (req.method === "GET" && path === "/api/mod") {
 		const meta = loadModMeta();
 		if (!meta || !meta.version) {

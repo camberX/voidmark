@@ -45,6 +45,11 @@ public final class MediaSession {
 
 	private static boolean control(String action) {
 		String active = route;
+		if ("spotify".equals(active)) {
+			if (SpotifyNowPlaying.control(action)) {
+				return true;
+			}
+		}
 		if ("ytm".equals(active) || "ytmd".equals(active) || "cider".equals(active)) {
 			if (COMPANION.control(action)) {
 				return true;
@@ -82,11 +87,24 @@ public final class MediaSession {
 	}
 
 	private static NowPlaying pick() {
+		NowPlaying spotify = SpotifyNowPlaying.connected() ? SpotifyNowPlaying.snapshot() : NowPlaying.none();
+		if (spotify.present() && spotify.playing()) {
+			NowPlaying out = spotify.cleaned().carryTime(current);
+			route = "spotify";
+			hint = "SPOTIFY";
+			return out;
+		}
 		NowPlaying companion = COMPANION.snapshot();
 		if (companion.present()) {
 			NowPlaying out = companion.cleaned().carryTime(current);
 			route = companion.source();
 			hint = out.sourceLabel();
+			return out;
+		}
+		if (spotify.present()) {
+			NowPlaying out = spotify.cleaned().carryTime(current);
+			route = "spotify";
+			hint = "SPOTIFY";
 			return out;
 		}
 		if (COMPANION.reachable() || COMPANION.awaitingAuth()) {

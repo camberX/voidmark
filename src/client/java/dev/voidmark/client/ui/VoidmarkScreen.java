@@ -6,6 +6,7 @@ import dev.voidmark.client.config.UnloadState;
 import dev.voidmark.client.farming.FarmingHud;
 import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.location.SkyblockLocation;
+import dev.voidmark.client.media.SpotifyNowPlaying;
 import dev.voidmark.client.mining.MiningAreas;
 import dev.voidmark.client.mining.MiningTracker;
 import dev.voidmark.client.mining.TitaniumTracker;
@@ -108,7 +109,7 @@ public class VoidmarkScreen extends Screen {
 		BLOCK("Block outline", 2),
 		NODE_ESP("Node ESP", 5),
 		WATERMARK("Watermark", 4),
-		MUSIC("Music", 1),
+		MUSIC("Music", 2),
 		RAWMATS("Raw mats", 1),
 		MINING("Mining HUD", 1),
 		TITANIUM("Titanium ESP", 3),
@@ -1634,7 +1635,10 @@ public class VoidmarkScreen extends Screen {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Clock", config.watermarkTime, v -> config.watermarkTime = v);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Name", config.watermarkName, v -> config.watermarkName = v);
 			}
-			case MUSIC -> toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
+			case MUSIC -> {
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Hide when idle", config.musicHideIdle, v -> config.musicHideIdle = v);
+				cycle(graphics, font, ix, y, iw, mouseX, mouseY, "Spotify API", SpotifyNowPlaying.status(), SpotifyNowPlaying::toggleLogin);
+			}
 			case RAWMATS -> cycle(graphics, font, ix, y, iw, mouseX, mouseY, "Materials", config.rawmatsModeLabel(), config::cycleRawmatsMode);
 			case MINING -> toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Ability alert", config.miningAbilityAlert, v -> config.miningAbilityAlert = v);
 			case FARMING -> slider(graphics, font, ix, y, iw, "Scale", Math.round(config.farmingYawPitchScale * 100) + "%", (config.farmingYawPitchScale - 0.50f) / 1.50f, v -> config.farmingYawPitchScale = VoidmarkConfig.clampHudScale(0.50f + v * 1.50f));
@@ -1877,7 +1881,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.205");
+			.orElse("1.1.206");
 	}
 
 	@Override

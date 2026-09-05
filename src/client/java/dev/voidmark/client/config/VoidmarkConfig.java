@@ -62,6 +62,10 @@ public final class VoidmarkConfig {
 	public boolean musicHideIdle = false;
 	public int musicApiPort = 0;
 	public String musicApiToken = "";
+	public String spotifyClientId = "";
+	public String spotifyRefreshToken = "";
+	public String spotifyAccessToken = "";
+	public long spotifyAccessExpiresAt = 0L;
 	public boolean rawmatsHudEnabled = false;
 	public boolean miningHudEnabled = false;
 	public boolean miningAbilityAlert = false;
@@ -399,6 +403,15 @@ public final class VoidmarkConfig {
 				}
 				if (loaded.musicApiToken == null) {
 					loaded.musicApiToken = "";
+				}
+				if (loaded.spotifyClientId == null) {
+					loaded.spotifyClientId = "";
+				}
+				if (loaded.spotifyRefreshToken == null) {
+					loaded.spotifyRefreshToken = "";
+				}
+				if (loaded.spotifyAccessToken == null) {
+					loaded.spotifyAccessToken = "";
 				}
 				if (loaded.uiFont == null) {
 					loaded.uiFont = "";
