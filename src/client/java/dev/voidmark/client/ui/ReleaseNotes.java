@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.2", new String[]{
+			"Chest ESP only marks crit particles within 0.3 blocks of a chest, so stray hits are ignored."
+		}),
 		new Entry("1.2.1", new String[]{
 			"Chest Aim tracks each distinct crit box and only turns after that box jumps or vanishes, instead of locking onto the chest block."
 		}),

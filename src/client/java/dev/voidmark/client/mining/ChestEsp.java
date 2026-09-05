@@ -15,6 +15,7 @@ import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -34,7 +35,7 @@ public final class ChestEsp {
 	private static final double RANGE_SQ = RANGE * RANGE;
 	private static final long CHEST_MS = 25_000L;
 	private static final long CRIT_MS = 1_200L;
-	private static final double BOX_RANGE = 2.5;
+	private static final double CRIT_CHEST = 0.3;
 	private static final int MAX_CHESTS = 16;
 	private static final int MAX_CRITS = 32;
 
@@ -190,10 +191,11 @@ public final class ChestEsp {
 		ArrayList<Vec3> out = new ArrayList<>();
 		synchronized (crits) {
 			for (Mark mark : crits) {
-				if (chest != null && !mark.near(chest.x, chest.y, chest.z, BOX_RANGE)) {
+				Vec3 at = mark.box();
+				if (chest != null && !nearChest(chest, at.x, at.y, at.z)) {
 					continue;
 				}
-				out.add(mark.box());
+				out.add(at);
 			}
 		}
 		return out;
@@ -220,14 +222,10 @@ public final class ChestEsp {
 		if (player == null || player.distanceToSqr(x, y, z) > RANGE_SQ) {
 			return;
 		}
+		if (!nearAnyChest(x, y, z)) {
+			return;
+		}
 		long now = System.currentTimeMillis();
-		Mark chest = nearestChest(new Vec3(x, y, z));
-		if (chest != null && chest.distanceSq(x, y, z) > BOX_RANGE * BOX_RANGE) {
-			return;
-		}
-		if (chest == null && chests.isEmpty()) {
-			return;
-		}
 		synchronized (crits) {
 			for (Mark existing : crits) {
 				if (existing.near(x, y, z, 0.35)) {
@@ -302,6 +300,19 @@ public final class ChestEsp {
 			critView = List.copyOf(crits);
 		}
 		dirty = false;
+	}
+
+	private boolean nearAnyChest(double x, double y, double z) {
+		for (Mark chest : chests.values()) {
+			if (nearChest(chest, x, y, z)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean nearChest(Mark chest, double x, double y, double z) {
+		return chest != null && new AABB(chest.pos).inflate(CRIT_CHEST).contains(x, y, z);
 	}
 
 	private static boolean isChest(BlockState state) {
