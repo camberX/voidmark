@@ -14,6 +14,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -23,13 +24,13 @@ import java.util.List;
 public final class ChestAimer {
 	private static final float TOLERANCE = 1f;
 	private static final int PASS = 5;
-	private static final double SAME = 0.18;
+	private static final double SAME = 0.28;
 
 	private static boolean running;
 	private static boolean listening;
 	private static ChestEsp.Mark chest;
 	private static ChestEsp.Mark locked;
-	private static Vec3 lastAt;
+	private static final List<Vec3> done = new ArrayList<>();
 	private static boolean waiting;
 	private static boolean turning;
 	private static boolean armed;
@@ -87,7 +88,7 @@ public final class ChestAimer {
 		armed = false;
 		ding = false;
 		locked = null;
-		lastAt = null;
+		done.clear();
 		tries = 0;
 		tell(client, "Chest aim started · press again to stop");
 	}
@@ -121,13 +122,15 @@ public final class ChestAimer {
 			ding = false;
 			armed = false;
 			waiting = false;
-			lastAt = locked == null ? lastAt : locked.box();
+			if (locked != null) {
+				remember(locked.box());
+			}
 			locked = null;
 			tries++;
 			if (tries >= PASS && ChestEsp.get().chestAt(chest.pos) != null) {
 				tries = 0;
 			}
-			ChestEsp.Mark next = pickNewest(lastAt);
+			ChestEsp.Mark next = pickNewest();
 			if (next != null) {
 				beginTurn(player, next);
 			}
@@ -139,7 +142,7 @@ public final class ChestAimer {
 			}
 			return;
 		}
-		ChestEsp.Mark first = pickClosest(player, lastAt);
+		ChestEsp.Mark first = pickClosest(player);
 		if (first != null) {
 			beginTurn(player, first);
 		}
@@ -171,7 +174,16 @@ public final class ChestAimer {
 				nearMarks = mark;
 			}
 		}
-		chest = nearMarks != null ? nearMarks : ChestEsp.get().nearestChest(player.position());
+		ChestEsp.Mark next = nearMarks != null ? nearMarks : ChestEsp.get().nearestChest(player.position());
+		if (next != null && chest != null && !next.pos.equals(chest.pos)) {
+			done.clear();
+			locked = null;
+			waiting = false;
+			turning = false;
+			armed = false;
+			ding = false;
+		}
+		chest = next;
 		return chest != null;
 	}
 
@@ -179,23 +191,13 @@ public final class ChestAimer {
 		return ChestEsp.get().marksNear(chest);
 	}
 
-	private static ChestEsp.Mark pickClosest(LocalPlayer player, Vec3 avoid) {
+	private static ChestEsp.Mark pickClosest(LocalPlayer player) {
 		ChestEsp.Mark best = null;
 		float bestAng = Float.MAX_VALUE;
 		for (ChestEsp.Mark mark : marks()) {
-			if (avoid != null && mark.box().closerThan(avoid, SAME)) {
+			if (seen(mark.box())) {
 				continue;
 			}
-			float ang = angleTo(player, mark.box());
-			if (ang < bestAng) {
-				bestAng = ang;
-				best = mark;
-			}
-		}
-		if (best != null) {
-			return best;
-		}
-		for (ChestEsp.Mark mark : marks()) {
 			float ang = angleTo(player, mark.box());
 			if (ang < bestAng) {
 				bestAng = ang;
@@ -205,10 +207,10 @@ public final class ChestAimer {
 		return best;
 	}
 
-	private static ChestEsp.Mark pickNewest(Vec3 avoid) {
+	private static ChestEsp.Mark pickNewest() {
 		ChestEsp.Mark best = null;
 		for (ChestEsp.Mark mark : marks()) {
-			if (avoid != null && mark.box().closerThan(avoid, SAME)) {
+			if (seen(mark.box())) {
 				continue;
 			}
 			if (best == null || mark.boxAt > best.boxAt) {
@@ -216,6 +218,22 @@ public final class ChestAimer {
 			}
 		}
 		return best;
+	}
+
+	private static boolean seen(Vec3 at) {
+		for (Vec3 old : done) {
+			if (at.closerThan(old, SAME)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static void remember(Vec3 at) {
+		if (at == null || seen(at)) {
+			return;
+		}
+		done.add(at);
 	}
 
 	private static float angleTo(LocalPlayer player, Vec3 target) {
@@ -229,8 +247,11 @@ public final class ChestAimer {
 	}
 
 	private static void beginTurn(LocalPlayer player, ChestEsp.Mark target) {
+		boolean follow = target == locked;
 		locked = target;
-		lastAt = target.box();
+		if (!follow) {
+			remember(target.box());
+		}
 		armed = true;
 		Vec3 at = target.box();
 		from = new SmoothRotate.Rotation(
@@ -298,7 +319,7 @@ public final class ChestAimer {
 		running = false;
 		chest = null;
 		locked = null;
-		lastAt = null;
+		done.clear();
 		waiting = false;
 		turning = false;
 		armed = false;
