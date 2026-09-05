@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.222", new String[]{
+			"Chest Aim uses a timed ease-in-out look: shortest-path yaw, lerp pitch, then a mouse-step snap."
+		}),
 		new Entry("1.1.221", new String[]{
 			"Chest Aim (Controls) smoothly looks at each crit box on a nearby chest, waits for it to move, then goes to the next. Five locks is one pass; if the chest is still there it keeps going."
 		}),

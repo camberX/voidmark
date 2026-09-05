@@ -4,7 +4,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
-import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -12,8 +11,7 @@ import net.minecraft.world.phys.Vec3;
  * locked-on boxes is one pass; if the chest is still there it keeps going.
  */
 public final class ChestAimer {
-	private static final float ARRIVE = 0.85f;
-	private static final float MAX_STEP = 16f;
+	private static final float TOLERANCE = 1f;
 	private static final long MOVE_WAIT_MS = 3_000L;
 	private static final int PASS = 5;
 
@@ -21,7 +19,12 @@ public final class ChestAimer {
 	private static ChestEsp.Mark chest;
 	private static Vec3 look = Vec3.ZERO;
 	private static boolean waiting;
+	private static boolean turning;
 	private static long waitedAt;
+	private static long turnStart;
+	private static long turnMs;
+	private static SmoothRotate.Rotation from = new SmoothRotate.Rotation(0f, 0f);
+	private static SmoothRotate.Rotation to = new SmoothRotate.Rotation(0f, 0f);
 	private static int tries;
 
 	private ChestAimer() {
@@ -47,6 +50,7 @@ public final class ChestAimer {
 		}
 		running = true;
 		waiting = false;
+		turning = false;
 		tries = 0;
 		tell(client, "Chest aim started · press again to stop");
 	}
@@ -67,6 +71,7 @@ public final class ChestAimer {
 		if (chest == null || ChestEsp.get().chestAt(chest.pos) == null) {
 			tries = 0;
 			waiting = false;
+			turning = false;
 			if (!retarget(player)) {
 				stop(client, "Chest aim done");
 				return;
@@ -78,9 +83,12 @@ public final class ChestAimer {
 		}
 		Vec3 next = box.box();
 		if (!waiting) {
-			look = next;
-			if (rotate(player, look)) {
+			if (!turning) {
+				beginTurn(player, next);
+			}
+			if (advance(player)) {
 				waiting = true;
+				turning = false;
 				waitedAt = System.currentTimeMillis();
 				box.moved = false;
 			}
@@ -89,6 +97,7 @@ public final class ChestAimer {
 		if (box.consumeMove() || moved(look, next) || System.currentTimeMillis() - waitedAt > MOVE_WAIT_MS) {
 			look = next;
 			waiting = false;
+			turning = false;
 			tries++;
 			if (tries >= PASS && ChestEsp.get().chestAt(chest.pos) != null) {
 				tries = 0;
@@ -106,38 +115,39 @@ public final class ChestAimer {
 		return true;
 	}
 
-	private static boolean rotate(LocalPlayer player, Vec3 target) {
-		float[] want = angles(player.getEyePosition(), target);
-		float yaw = step(player.getYRot(), want[0]);
-		float pitch = step(player.getXRot(), want[1]);
-		player.setYRot(yaw);
-		player.setYHeadRot(yaw);
-		player.setXRot(pitch);
-		return Math.abs(wrap(want[0] - yaw)) <= ARRIVE && Math.abs(want[1] - pitch) <= ARRIVE;
-	}
-
-	private static float step(float current, float target) {
-		float delta = wrap(target - current);
-		float t = 0.28f;
-		float move = Mth.clamp(delta * t, -MAX_STEP, MAX_STEP);
-		if (Math.abs(delta) <= ARRIVE) {
-			return current + delta;
+	private static void beginTurn(LocalPlayer player, Vec3 target) {
+		look = target;
+		from = new SmoothRotate.Rotation(
+			SmoothRotate.normalizeYaw(player.getYRot()),
+			SmoothRotate.normalizePitch(player.getXRot())
+		);
+		to = SmoothRotate.to(player.getEyePosition(), target);
+		if (SmoothRotate.close(from, to, TOLERANCE)) {
+			turning = false;
+			waiting = true;
+			waitedAt = System.currentTimeMillis();
+			return;
 		}
-		return current + move;
+		float span = Math.max(
+			Math.abs(SmoothRotate.normalizeYaw(to.yaw() - from.yaw())),
+			Math.abs(to.pitch() - from.pitch())
+		);
+		turnMs = Math.max(180L, Math.min(450L, 160L + Math.round(span * 2.4f)));
+		turnStart = System.currentTimeMillis();
+		turning = true;
 	}
 
-	private static float[] angles(Vec3 from, Vec3 to) {
-		double dx = to.x - from.x;
-		double dy = to.y - from.y;
-		double dz = to.z - from.z;
-		double horiz = Math.sqrt(dx * dx + dz * dz);
-		float yaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90f;
-		float pitch = (float) (-(Mth.atan2(dy, horiz) * Mth.RAD_TO_DEG));
-		return new float[]{yaw, Mth.clamp(pitch, -90f, 90f)};
-	}
-
-	private static float wrap(float degrees) {
-		return Mth.wrapDegrees(degrees);
+	private static boolean advance(LocalPlayer player) {
+		if (!turning) {
+			return waiting;
+		}
+		long elapsed = System.currentTimeMillis() - turnStart;
+		double progress = turnMs <= 0L ? 1.0 : Math.min(elapsed / (double) turnMs, 1.0);
+		float ease = SmoothRotate.easeInOutCubic(progress);
+		float yaw = SmoothRotate.interpolateYaw(from.yaw(), to.yaw(), ease);
+		float pitch = SmoothRotate.lerp(from.pitch(), to.pitch(), ease);
+		SmoothRotate.apply(player, yaw, pitch);
+		return progress >= 1.0;
 	}
 
 	private static boolean moved(Vec3 from, Vec3 to) {
@@ -148,6 +158,7 @@ public final class ChestAimer {
 		running = false;
 		chest = null;
 		waiting = false;
+		turning = false;
 		tries = 0;
 		if (reason != null) {
 			tell(client, reason);
