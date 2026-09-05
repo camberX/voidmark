@@ -102,6 +102,7 @@ public final class ChestEsp {
 		if (!VoidmarkConfig.get().chestEspEnabled) {
 			return;
 		}
+		ChestAimer.onPacket(packet);
 		if (packet instanceof ClientboundLevelParticlesPacket particles) {
 			if (!isCrit(particles.getParticle().getType())) {
 				return;

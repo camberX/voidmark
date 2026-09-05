@@ -3,27 +3,34 @@ package dev.voidmark.client.mining;
 import dev.voidmark.client.config.VoidmarkConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
 /**
- * Smoothly looks at each distinct crit mark on a nearby treasure chest. After
- * a lock it stays on that cluster until those particles are gone, then turns
- * to another mark.
+ * Smoothly looks at a crit mark on a nearby treasure chest and holds until
+ * Hypixel's lock-pick ding plays, then turns to the next mark.
  */
 public final class ChestAimer {
 	private static final float TOLERANCE = 1f;
 	private static final int PASS = 5;
 	private static final double SAME = 0.18;
+	private static final double DING_RANGE_SQ = 8.0 * 8.0;
 
 	private static boolean running;
 	private static ChestEsp.Mark chest;
 	private static ChestEsp.Mark locked;
 	private static boolean waiting;
 	private static boolean turning;
+	private static boolean ding;
 	private static long turnStart;
 	private static long turnMs;
 	private static SmoothRotate.Rotation from = new SmoothRotate.Rotation(0f, 0f);
@@ -35,6 +42,42 @@ public final class ChestAimer {
 
 	public static boolean running() {
 		return running;
+	}
+
+	public static void onPacket(Packet<?> packet) {
+		if (!running) {
+			return;
+		}
+		if (packet instanceof ClientboundSoundPacket sound) {
+			if (!isDing(sound.getSound())) {
+				return;
+			}
+			double x = sound.getX();
+			double y = sound.getY();
+			double z = sound.getZ();
+			Minecraft.getInstance().execute(() -> hear(x, y, z));
+			return;
+		}
+		if (packet instanceof ClientboundSoundEntityPacket sound) {
+			if (!isDing(sound.getSound())) {
+				return;
+			}
+			int id = sound.getId();
+			Minecraft.getInstance().execute(() -> {
+				Minecraft client = Minecraft.getInstance();
+				if (client.level == null) {
+					return;
+				}
+				Entity entity = client.level.getEntity(id);
+				if (entity == null) {
+					if (client.player != null) {
+						hear(client.player.getX(), client.player.getY(), client.player.getZ());
+					}
+					return;
+				}
+				hear(entity.getX(), entity.getY(), entity.getZ());
+			});
+		}
 	}
 
 	public static void toggle() {
@@ -54,6 +97,7 @@ public final class ChestAimer {
 		running = true;
 		waiting = false;
 		turning = false;
+		ding = false;
 		locked = null;
 		tries = 0;
 		tell(client, "Chest aim started · press again to stop");
@@ -76,6 +120,7 @@ public final class ChestAimer {
 			tries = 0;
 			waiting = false;
 			turning = false;
+			ding = false;
 			locked = null;
 			if (!bindChest(player)) {
 				stop(client, "Chest aim done");
@@ -89,14 +134,21 @@ public final class ChestAimer {
 			return;
 		}
 		if (waiting) {
-			if (ChestEsp.get().stillHas(locked)) {
-				if (locked != null && locked.consumeMove()) {
-					waiting = false;
-					beginTurn(player, locked);
-				}
+			if (!ding) {
 				return;
 			}
+			ding = false;
+			tries++;
+			if (tries >= PASS && chest != null && ChestEsp.get().chestAt(chest.pos) != null) {
+				tries = 0;
+			}
 			ChestEsp.Mark next = pickNext(player, locked);
+			if (next == null) {
+				next = pickFirst(player);
+				if (next != null && locked != null && same(locked, locked.box(), next)) {
+					next = null;
+				}
+			}
 			if (next == null) {
 				return;
 			}
@@ -168,6 +220,7 @@ public final class ChestAimer {
 
 	private static void beginTurn(LocalPlayer player, ChestEsp.Mark target) {
 		locked = target;
+		ding = false;
 		Vec3 at = target.box();
 		from = new SmoothRotate.Rotation(
 			SmoothRotate.normalizeYaw(player.getYRot()),
@@ -193,10 +246,7 @@ public final class ChestAimer {
 	private static void arrive() {
 		turning = false;
 		waiting = true;
-		tries++;
-		if (tries >= PASS && chest != null && ChestEsp.get().chestAt(chest.pos) != null) {
-			tries = 0;
-		}
+		ding = false;
 	}
 
 	private static boolean advance(LocalPlayer player) {
@@ -212,12 +262,39 @@ public final class ChestAimer {
 		return progress >= 1.0;
 	}
 
+	private static void hear(double x, double y, double z) {
+		if (!running || !waiting) {
+			return;
+		}
+		Vec3 at = new Vec3(x, y, z);
+		if (chest != null && at.distanceToSqr(chest.x, chest.y, chest.z) <= DING_RANGE_SQ) {
+			ding = true;
+			return;
+		}
+		if (locked != null && at.closerThan(locked.box(), 4.0)) {
+			ding = true;
+		}
+	}
+
+	private static boolean isDing(Holder<SoundEvent> holder) {
+		if (holder == null) {
+			return false;
+		}
+		SoundEvent event = holder.value();
+		if (event == null) {
+			return false;
+		}
+		String path = event.location().getPath();
+		return path.equals("entity.experience_orb.pickup") || path.equals("block.note_block.pling");
+	}
+
 	private static void stop(Minecraft client, String reason) {
 		running = false;
 		chest = null;
 		locked = null;
 		waiting = false;
 		turning = false;
+		ding = false;
 		tries = 0;
 		if (reason != null) {
 			tell(client, reason);
