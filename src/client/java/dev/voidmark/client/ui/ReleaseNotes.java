@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.200", new String[]{
+			"Switching click-GUI tabs only slides the sidebar pill. Icons and labels stay on their own rows."
+		}),
 		new Entry("1.1.199", new String[]{
 			"Farming tab: Yaw / Pitch sits next to the crosshair while you hold an item whose lore includes FARMING TOOL."
 		}),
