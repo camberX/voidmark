@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.188", new String[]{
+			"Shop bump so auto-update can pull the relaunch fix."
+		}),
 		new Entry("1.1.187", new String[]{
 			"Auto update actually relaunches Minecraft after it swaps the jar. The last build exited cleanly and never started the new process."
 		}),
