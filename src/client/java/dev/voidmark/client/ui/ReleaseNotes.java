@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.177", new String[]{
+			"Loadout slots follow Hypixel's 3-wide grid, so slot 1 and 4 match the vanilla chest. The pet is a floating skull with the item's real name colors."
+		}),
 		new Entry("1.1.176", new String[]{
 			"Loadout slots stay inside the slots pane. Press 1-9 to equip that slot and close. Bind Open Loadouts in Controls to open the menu without typing /loadouts."
 		}),

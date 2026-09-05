@@ -21,8 +21,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Hypixel {@code /loadouts} is a 6-row chest: contents on the left,
- * eight loadout buttons in columns 7–8, paging and close on the rim.
+ * Hypixel {@code /loadouts} is a 6-row chest: gear preview on the left,
+ * a 3×4 loadout grid in columns 6–8 (ice / pet icons live there), paging
+ * on the rim.
  */
 public final class LoadoutsMenus {
 	public enum Kind {
@@ -62,8 +63,7 @@ public final class LoadoutsMenus {
 		ItemStack legs,
 		ItemStack boots,
 		ItemStack pet,
-		String petType,
-		String petLabel
+		Component petName
 	) {
 		public static Snapshot empty() {
 			return new Snapshot(
@@ -79,8 +79,7 @@ public final class LoadoutsMenus {
 				ItemStack.EMPTY,
 				ItemStack.EMPTY,
 				ItemStack.EMPTY,
-				"",
-				""
+				Component.empty()
 			);
 		}
 	}
@@ -93,10 +92,10 @@ public final class LoadoutsMenus {
 	);
 	private static final Pattern PET_NAME = Pattern.compile("\\[\\s*lvl\\s*\\d+\\s*]\\s*(.+)", Pattern.CASE_INSENSITIVE);
 	private static final int COLS = 9;
-	private static final int LOADOUT_COL0 = 6;
-	private static final int LOADOUT_COL1 = 7;
+	private static final int LOADOUT_COL0 = 5;
+	private static final int LOADOUT_COLS = 3;
 	private static final int LOADOUT_ROW0 = 1;
-	private static final int LOADOUT_ROW1 = 4;
+	private static final int LOADOUT_ROWS = 4;
 
 	private LoadoutsMenus() {
 	}
@@ -146,7 +145,7 @@ public final class LoadoutsMenus {
 			ItemStack stack = slot.getItem();
 			if (stack == null || stack.isEmpty()) {
 				if (loadoutIndex(i, chest)) {
-					loadouts.add(new Piece(i, ItemStack.EMPTY, Kind.LOADOUT, emptyName(loadouts.size()), false));
+					loadouts.add(new Piece(i, ItemStack.EMPTY, Kind.LOADOUT, emptyName(loadouts.size() + 1), false));
 				}
 				continue;
 			}
@@ -183,6 +182,22 @@ public final class LoadoutsMenus {
 				}
 			}
 		}
+		if (pet.isEmpty()) {
+			for (Piece piece : loadouts) {
+				if (piece.selected() && looksLikePet(piece.name(), piece.stack())) {
+					pet = piece.stack();
+					break;
+				}
+			}
+		}
+		if (pet.isEmpty()) {
+			for (Piece piece : loadouts) {
+				if (looksLikePet(piece.name(), piece.stack())) {
+					pet = piece.stack();
+					break;
+				}
+			}
+		}
 		return new Snapshot(
 			raw.isBlank() ? "Loadouts" : strip(raw),
 			page,
@@ -196,8 +211,7 @@ public final class LoadoutsMenus {
 			legs,
 			boots,
 			pet,
-			petType(pet),
-			petLabel(pet)
+			petName(pet)
 		);
 	}
 
@@ -212,7 +226,7 @@ public final class LoadoutsMenus {
 		if (isPrev(stack, blob)) {
 			return Kind.PREV;
 		}
-		if (loadoutIndex(slot, chest) || isLoadoutButton(blob)) {
+		if (loadoutIndex(slot, chest)) {
 			return Kind.LOADOUT;
 		}
 		if (looksLikePet(blob, stack)) {
@@ -281,14 +295,10 @@ public final class LoadoutsMenus {
 		}
 		int col = slot % COLS;
 		int row = slot / COLS;
-		return (col == LOADOUT_COL0 || col == LOADOUT_COL1)
+		return col >= LOADOUT_COL0
+			&& col < LOADOUT_COL0 + LOADOUT_COLS
 			&& row >= LOADOUT_ROW0
-			&& row <= LOADOUT_ROW1;
-	}
-
-	private static boolean isLoadoutButton(String blob) {
-		return contains(blob, "right-click to edit", "right click to edit", "left-click to equip", "click to equip")
-			|| (contains(blob, "loadout") && !contains(blob, "loadouts"));
+			&& row < LOADOUT_ROW0 + LOADOUT_ROWS;
 	}
 
 	private static boolean isClose(ItemStack stack, String blob) {
@@ -353,16 +363,20 @@ public final class LoadoutsMenus {
 		return "";
 	}
 
-	public static String petLabel(ItemStack stack) {
+	public static Component petName(ItemStack stack) {
 		if (stack == null || stack.isEmpty()) {
-			return "";
+			return Component.empty();
 		}
-		String name = nameOf(stack);
-		Matcher match = PET_NAME.matcher(name);
-		if (match.find()) {
-			return match.group(0).trim();
+		boolean prior = ItemAppearance.suppress();
+		try {
+			Component custom = stack.get(DataComponents.CUSTOM_NAME);
+			if (custom != null && !custom.getString().isBlank()) {
+				return custom;
+			}
+			return stack.getHoverName();
+		} finally {
+			ItemAppearance.resume(prior);
 		}
-		return name;
 	}
 
 	private static String extraString(ItemStack stack, String key) {

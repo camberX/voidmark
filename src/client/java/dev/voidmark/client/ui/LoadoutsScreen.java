@@ -257,7 +257,7 @@ public class LoadoutsScreen extends Screen {
 		}
 		PlayerPreview.View view = new PlayerPreview.View(viewScale, viewCx, viewCy, viewLift);
 		boolean hasPet = !snapshot.pet().isEmpty();
-		float playerW = hasPet ? stageW * 0.56f : stageW;
+		float playerW = hasPet ? stageW * 0.58f : stageW;
 		PlayerPreview.Drawn player = LoadoutPreview.player(
 			graphics,
 			left + 4,
@@ -276,34 +276,7 @@ public class LoadoutsScreen extends Screen {
 			NametagRenderer.drawVanilla(graphics, font, player.nameX(), player.nameY(), Component.literal(playerName()));
 		}
 		if (hasPet) {
-			PlayerPreview.Drawn pet = LoadoutPreview.pet(
-				graphics,
-				left + playerW,
-				top + 10,
-				stageW - playerW - 6,
-				stageH - 28,
-				previewYaw,
-				previewPitch,
-				view,
-				snapshot.petType()
-			);
-			String label = snapshot.petLabel().isBlank() ? "Pet" : snapshot.petLabel();
-			if (pet != null) {
-				NametagRenderer.drawVanilla(graphics, font, pet.nameX(), pet.nameY(), Component.literal(label));
-			} else {
-				float ix = left + playerW + (stageW - playerW - 48) * 0.5f;
-				float iy = top + (stageH - 48) * 0.5f;
-				GuiDraw.panel(graphics, ix, iy, 48, 48, 8, Theme.TRACK, Theme.LINE);
-				drawItem(graphics, snapshot.pet(), ix + 8, iy + 8, 2f);
-				GuiDraw.small(
-					graphics,
-					font,
-					GuiDraw.ellipsize(font, label, stageW - playerW - 12, true),
-					left + playerW + 6,
-					top + stageH - 16,
-					Theme.MUTED
-				);
-			}
+			drawFloatingPet(graphics, font, left + playerW, top, stageW - playerW, stageH);
 		} else {
 			GuiDraw.small(graphics, font, "No pet in this loadout", left + 10, top + stageH - 16, Theme.OFF);
 		}
@@ -313,6 +286,22 @@ public class LoadoutsScreen extends Screen {
 		hits.add(new Hit(left, top, stageW, stageH, -1, true, false));
 	}
 
+	private void drawFloatingPet(GuiGraphicsExtractor graphics, Font font, float x, float y, float w, float h) {
+		ItemStack pet = snapshot.pet();
+		if (pet == null || pet.isEmpty()) {
+			return;
+		}
+		float size = Math.min(52f, Math.min(w - 12f, h - 36f));
+		float bob = (float) Math.sin(System.currentTimeMillis() / 420.0) * 3f;
+		float ix = x + (w - size) * 0.5f;
+		float iy = y + (h - size) * 0.48f + bob;
+		drawItem(graphics, pet, ix, iy, size / 16f);
+		Component name = snapshot.petName();
+		if (name != null && !name.getString().isBlank()) {
+			NametagRenderer.drawVanilla(graphics, font, x + w * 0.5f, iy - 14, name);
+		}
+	}
+
 	private void drawLoadouts(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
 		float x = windowX + windowW - SLOTS_W - 10;
 		float y = windowY + 28;
@@ -320,20 +309,20 @@ public class LoadoutsScreen extends Screen {
 		GuiDraw.small(graphics, font, "SLOTS", x + 8, y + 6, Theme.ACCENT);
 		boolean clip = GuiDraw.scissor(graphics, x + 1, y + 1, SLOTS_W - 2, SLOTS_H - 2);
 		List<LoadoutsMenus.Piece> loadouts = snapshot.loadouts();
-		int cols = 2;
+		int cols = 3;
 		int rows = 4;
 		float pad = 8f;
 		float head = 18f;
-		float gap = 4f;
+		float gap = 3f;
 		float innerW = SLOTS_W - pad * 2f;
 		float innerH = SLOTS_H - head - pad;
-		float cell = Math.min((innerW - gap) / cols, (innerH - gap * (rows - 1)) / rows);
-		cell = Math.max(18f, Math.min(28f, cell));
-		float gridW = cols * cell + gap;
+		float cell = Math.min((innerW - gap * (cols - 1)) / cols, (innerH - gap * (rows - 1)) / rows);
+		cell = Math.max(16f, Math.min(24f, cell));
+		float gridW = cols * cell + (cols - 1) * gap;
 		float gridH = rows * cell + (rows - 1) * gap;
 		float gridX = x + pad + Math.max(0f, (innerW - gridW) * 0.5f);
 		float gridY = y + head + Math.max(0f, (innerH - gridH) * 0.5f);
-		int shown = Math.min(8, Math.max(loadouts.size(), 8));
+		int shown = Math.min(cols * rows, Math.max(loadouts.size(), 1));
 		for (int i = 0; i < shown; i++) {
 			int col = i % cols;
 			int row = i / cols;
