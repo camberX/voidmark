@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.198", new String[]{
+			"World FPS is back: looking at a block no longer runs the glow shader, and combat no longer scans every nearby entity each tick for the hitmarker."
+		}),
 		new Entry("1.1.197", new String[]{
 			"Shop bump so auto-update can pull the latest build."
 		}),

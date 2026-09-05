@@ -21,6 +21,7 @@ import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
+import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -61,7 +62,9 @@ public final class Hitsound {
 			prune();
 		}
 		VoidmarkConfig config = VoidmarkConfig.get();
-		if (!wantArrow(config)) {
+		// Mixin onHitEntity already covers arrows for hitsound and hitmarker.
+		// This pass is only a backup when a hitsound arrow despawns first.
+		if (!config.hitsoundEnabled || !config.hitsoundArrows) {
 			return;
 		}
 		LocalPlayer player = client.player;
@@ -69,8 +72,12 @@ public final class Hitsound {
 			return;
 		}
 		AABB around = player.getBoundingBox().inflate(48.0);
-		for (Entity entity : player.level().getEntities(player, around, Hitsound::isArrow)) {
-			predictArrow(player, (AbstractArrow) entity);
+		for (AbstractArrow arrow : player.level().getEntities(
+			EntityTypeTest.forClass(AbstractArrow.class),
+			around,
+			candidate -> !candidate.isRemoved() && shotByLocalPlayer(candidate, player)
+		)) {
+			predictArrow(player, arrow);
 		}
 	}
 
@@ -196,10 +203,6 @@ public final class Hitsound {
 			return false;
 		}
 		return !(living instanceof Player other) || other.getUUID().version() != 4;
-	}
-
-	private static boolean isArrow(Entity entity) {
-		return entity instanceof AbstractArrow && !entity.isRemoved();
 	}
 
 	private static boolean shotByLocalPlayer(AbstractArrow arrow, LocalPlayer player) {
