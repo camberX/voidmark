@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.215", new String[]{
+			"The Music HUD reads Spotify progress from the live SMTC track every frame, the same way ForageKit does. YouTube Music is unchanged."
+		}),
 		new Entry("1.1.214", new String[]{
 			"Spotify now-playing uses the same SMTC helper and wall-clock bar as ForageKit. YouTube Music is unchanged."
 		}),

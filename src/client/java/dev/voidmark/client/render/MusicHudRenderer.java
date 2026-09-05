@@ -5,6 +5,7 @@ import dev.voidmark.client.config.VoidmarkConfig;
 import dev.voidmark.client.media.CoverArt;
 import dev.voidmark.client.media.MediaSession;
 import dev.voidmark.client.media.NowPlaying;
+import dev.voidmark.client.media.SpotifySmtc;
 import dev.voidmark.client.ui.Anim;
 import dev.voidmark.client.ui.HudEditorScreen;
 import dev.voidmark.client.ui.Theme;
@@ -52,7 +53,7 @@ public final class MusicHudRenderer {
 	}
 
 	public static float drawHeight() {
-		NowPlaying track = MediaSession.current();
+		NowPlaying track = resolveTrack();
 		boolean idle = !track.present() && !HudLayout.editorOpen();
 		if (idle && VoidmarkConfig.get().musicHideIdle) {
 			return 0;
@@ -97,6 +98,17 @@ public final class MusicHudRenderer {
 		return false;
 	}
 
+	private static NowPlaying resolveTrack() {
+		VoidmarkConfig config = VoidmarkConfig.get();
+		if (config.spotifyEnabled) {
+			NowPlaying spotify = SpotifySmtc.current();
+			if (spotify.present()) {
+				return spotify;
+			}
+		}
+		return MediaSession.current();
+	}
+
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.options.hideGui) {
@@ -110,7 +122,7 @@ public final class MusicHudRenderer {
 			reveal = 0f;
 			return;
 		}
-		NowPlaying track = MediaSession.current();
+		NowPlaying track = resolveTrack();
 		if (!track.present() && config.musicHideIdle && !HudLayout.editorOpen()) {
 			clearHits();
 			reveal = 0f;
@@ -181,7 +193,10 @@ public final class MusicHudRenderer {
 		GuiDraw.small(graphics, font, artist, textX, 15, Theme.MUTED);
 		GuiDraw.small(graphics, font, source, WIDTH - 8 - sourceW, 5, Theme.ACCENT);
 
-		String clock = track.clockLine();
+		SpotifySmtc.Track smtc = SpotifySmtc.live();
+		boolean forageClock = VoidmarkConfig.get().spotifyEnabled && smtc.active();
+		String clock = forageClock ? smtc.timeLabel() : track.clockLine();
+		float progress = forageClock ? smtc.progress() : track.progress();
 		float clockW = GuiDraw.smallWidth(font, clock);
 		if (clockW < 4f) {
 			clockW = GuiDraw.menuWidth(font, clock);
@@ -190,7 +205,7 @@ public final class MusicHudRenderer {
 		float barW = Math.max(24f, WIDTH - textX - clockW - 14);
 		float barY = 28;
 		GuiDraw.rounded(graphics, barX, barY, barW, 3, 1.5f, Theme.HUD_TRACK);
-		float filled = Math.max(live ? 2f : 0f, barW * track.progress());
+		float filled = Math.max(live ? 2f : 0f, barW * progress);
 		GuiDraw.rounded(graphics, barX, barY, filled, 3, 1.5f, Theme.ACCENT);
 		if (GuiDraw.smallWidth(font, clock) >= 4f) {
 			GuiDraw.small(graphics, font, clock, barX + barW + 5, barY - 3, Theme.TEXT);

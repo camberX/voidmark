@@ -23,11 +23,18 @@ public final class MediaSession {
 	}
 
 	public static NowPlaying current() {
+		NowPlaying spotify = SpotifySmtc.current();
+		if (spotify.present()) {
+			return spotify;
+		}
 		NowPlaying value = current;
 		return value == null || !value.present() ? NowPlaying.none() : value;
 	}
 
 	public static String hint() {
+		if (SpotifySmtc.current().present()) {
+			return "SPOTIFY";
+		}
 		return hint;
 	}
 

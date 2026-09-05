@@ -133,8 +133,7 @@ public record NowPlaying(
 			|| lower.equals("ytmd")
 			|| lower.equals("cider")
 			|| lower.equals("companion")
-			|| lower.equals("playerctl")
-			|| lower.equals("spotify");
+			|| lower.equals("playerctl");
 	}
 
 	private static long pickSourcePosition(long other, long base, boolean companion) {

@@ -85,11 +85,26 @@ public final class SpotifySmtc {
 			return Math.min(this.durationMs, this.positionMs + Math.max(0, elapsed));
 		}
 
+		public String durationLabel() {
+			return this.durationMs <= 0L ? "" : format(this.durationMs);
+		}
+
+		public String timeLabel() {
+			return format(this.displayPositionMs()) + " / " + format(this.durationMs);
+		}
+
 		public float progress() {
 			if (this.durationMs <= 0) {
 				return 0f;
 			}
 			return Math.max(0f, Math.min(1f, this.displayPositionMs() / (float) this.durationMs));
+		}
+
+		private static String format(long millis) {
+			long total = Math.max(0, millis) / 1000;
+			long minutes = total / 60;
+			long seconds = total % 60;
+			return minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
 		}
 	}
 
@@ -102,6 +117,15 @@ public final class SpotifySmtc {
 
 	public static NowPlaying current() {
 		return INSTANCE.asNowPlaying();
+	}
+
+	public static Track live() {
+		Track value = INSTANCE.track.get();
+		return value == null ? Track.NONE : value;
+	}
+
+	public static String identity() {
+		return INSTANCE.lastTrackKey;
 	}
 
 	private void tickEnabled(boolean enabled) {
@@ -140,11 +164,12 @@ public final class SpotifySmtc {
 
 	private NowPlaying asNowPlaying() {
 		Track value = this.track.get();
-		if (value == null || !value.active() || value.title() == null || value.title().isBlank()) {
+		if (value == null || !value.active()) {
 			return NowPlaying.none();
 		}
+		String title = value.title() == null || value.title().isBlank() ? "Unknown track" : value.title();
 		return new NowPlaying(
-			value.title(),
+			title,
 			value.artist() == null ? "" : value.artist(),
 			value.album() == null ? "" : value.album(),
 			"Spotify",
@@ -207,10 +232,14 @@ public final class SpotifySmtc {
 
 	private Path writeScript() throws Exception {
 		Path script = Path.of(System.getProperty("java.io.tmpdir"), "voidmark-nowplaying.ps1");
-		try (InputStream in = SpotifySmtc.class.getResourceAsStream("/windows_nowplaying.ps1")) {
-			if (in == null) {
-				throw new IllegalStateException("Spotify helper script is missing from the mod jar");
-			}
+		InputStream raw = SpotifySmtc.class.getResourceAsStream("/assets/voidmark/windows_nowplaying.ps1");
+		if (raw == null) {
+			raw = SpotifySmtc.class.getResourceAsStream("/windows_nowplaying.ps1");
+		}
+		if (raw == null) {
+			throw new IllegalStateException("Spotify helper script is missing from the mod jar");
+		}
+		try (InputStream in = raw) {
 			Files.write(script, in.readAllBytes());
 		}
 		return script;
