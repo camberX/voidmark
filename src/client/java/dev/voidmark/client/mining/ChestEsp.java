@@ -34,6 +34,7 @@ public final class ChestEsp {
 	private static final double RANGE_SQ = RANGE * RANGE;
 	private static final long CHEST_MS = 25_000L;
 	private static final long CRIT_MS = 1_200L;
+	private static final double BOX_RANGE = 2.5;
 	private static final int MAX_CHESTS = 16;
 	private static final int MAX_CRITS = 32;
 
@@ -181,6 +182,31 @@ public final class ChestEsp {
 		return critView;
 	}
 
+	public Mark chestAt(BlockPos pos) {
+		return pos == null ? null : chests.get(pos.asLong());
+	}
+
+	public Mark nearestBox(Mark chest) {
+		if (chest != null && chest.hasBox) {
+			return chest;
+		}
+		Mark best = null;
+		double bestDist = Double.MAX_VALUE;
+		synchronized (crits) {
+			for (Mark mark : crits) {
+				if (chest != null && !mark.near(chest.x, chest.y, chest.z, BOX_RANGE)) {
+					continue;
+				}
+				double dist = chest == null ? 0 : mark.distanceSq(chest.x, chest.y, chest.z);
+				if (dist < bestDist) {
+					bestDist = dist;
+					best = mark;
+				}
+			}
+		}
+		return best;
+	}
+
 	public Mark nearestChest(Vec3 from) {
 		Mark best = null;
 		double bestDist = Double.MAX_VALUE;
@@ -203,10 +229,16 @@ public final class ChestEsp {
 			return;
 		}
 		long now = System.currentTimeMillis();
+		Mark chest = nearestChest(new Vec3(x, y, z));
+		if (chest != null && chest.distanceSq(x, y, z) <= BOX_RANGE * BOX_RANGE) {
+			chest.placeBox(x, y, z, now);
+			dirty = true;
+			return;
+		}
 		synchronized (crits) {
 			for (Mark existing : crits) {
 				if (existing.near(x, y, z, 0.35)) {
-					existing.born = now;
+					existing.placeBox(x, y, z, now);
 					dirty = true;
 					return;
 				}
@@ -214,7 +246,9 @@ public final class ChestEsp {
 			while (crits.size() >= MAX_CRITS) {
 				crits.removeFirst();
 			}
-			crits.add(new Mark(BlockPos.containing(x, y, z), x, y, z, now));
+			Mark mark = new Mark(BlockPos.containing(x, y, z), x, y, z, now);
+			mark.placeBox(x, y, z, now);
+			crits.add(mark);
 		}
 		dirty = true;
 	}
@@ -291,6 +325,12 @@ public final class ChestEsp {
 		public final double y;
 		public final double z;
 		public long born;
+		public double boxX;
+		public double boxY;
+		public double boxZ;
+		public boolean hasBox;
+		public boolean moved;
+		public long boxAt;
 
 		private Mark(BlockPos pos, double x, double y, double z, long born) {
 			this.pos = pos;
@@ -300,11 +340,46 @@ public final class ChestEsp {
 			this.born = born;
 		}
 
+		public Vec3 box() {
+			return hasBox ? new Vec3(boxX, boxY, boxZ) : new Vec3(x, y, z);
+		}
+
+		private void placeBox(double nx, double ny, double nz, long now) {
+			if (hasBox && !nearBox(nx, ny, nz, 0.40)) {
+				moved = true;
+			}
+			boxX = nx;
+			boxY = ny;
+			boxZ = nz;
+			hasBox = true;
+			boxAt = now;
+			born = now;
+		}
+
+		public boolean consumeMove() {
+			if (!moved) {
+				return false;
+			}
+			moved = false;
+			return true;
+		}
+
 		private boolean near(double ox, double oy, double oz, double radius) {
+			return distanceSq(ox, oy, oz) <= radius * radius;
+		}
+
+		private boolean nearBox(double ox, double oy, double oz, double radius) {
+			double dx = boxX - ox;
+			double dy = boxY - oy;
+			double dz = boxZ - oz;
+			return dx * dx + dy * dy + dz * dz <= radius * radius;
+		}
+
+		private double distanceSq(double ox, double oy, double oz) {
 			double dx = x - ox;
 			double dy = y - oy;
 			double dz = z - oz;
-			return dx * dx + dy * dy + dz * dz <= radius * radius;
+			return dx * dx + dy * dy + dz * dz;
 		}
 	}
 }

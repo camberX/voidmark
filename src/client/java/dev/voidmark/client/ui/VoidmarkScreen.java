@@ -106,7 +106,7 @@ public class VoidmarkScreen extends Screen {
 		HITSOUND("Hitsound", 3),
 		MOB("Mob glow", 4),
 		BLOCK("Block outline", 2),
-		CHEST("Chest ESP", 3),
+		CHEST("Chest ESP", 4),
 		NODE_ESP("Node ESP", 5),
 		WATERMARK("Watermark", 4),
 		MUSIC("Music", 2),
@@ -1628,7 +1628,8 @@ public class VoidmarkScreen extends Screen {
 			case CHEST -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Tracers", config.chestEspTracers, v -> config.chestEspTracers = v);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Through walls", config.chestEspThroughWalls, v -> config.chestEspThroughWalls = v);
-				colorRow(graphics, font, ix, y, iw, mouseX, mouseY, "Color", config.chestEspRgb, PickerTarget.CHEST);
+				hint(graphics, font, ix, y, iw, "Bind Chest Aim in Controls");
+				colorRow(graphics, font, ix, y + ROW, iw, mouseX, mouseY, "Color", config.chestEspRgb, PickerTarget.CHEST);
 			}
 			case NODE_ESP -> {
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Outline", config.boxOutline, v -> config.boxOutline = v);
@@ -1890,7 +1891,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.1.220");
+			.orElse("1.1.221");
 	}
 
 	@Override

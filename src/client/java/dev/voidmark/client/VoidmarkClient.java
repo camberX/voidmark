@@ -22,6 +22,7 @@ import dev.voidmark.client.item.SkyblockRecipes;
 import dev.voidmark.client.media.MediaChat;
 import dev.voidmark.client.media.MediaSession;
 import dev.voidmark.client.media.SpotifySmtc;
+import dev.voidmark.client.mining.ChestAimer;
 import dev.voidmark.client.mining.ChestEsp;
 import dev.voidmark.client.mining.MiningTracker;
 import dev.voidmark.client.mining.TitaniumTracker;
@@ -72,6 +73,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 	private static KeyMapping openGui;
 	private static KeyMapping openLoadouts;
 	private static KeyMapping openWardrobe;
+	private static KeyMapping chestAim;
 	private static boolean itemAppearancesLoaded;
 
 	public static boolean loadoutsKey(KeyEvent event) {
@@ -124,6 +126,12 @@ public final class VoidmarkClient implements ClientModInitializer {
 			InputConstants.UNKNOWN.getValue(),
 			CATEGORY
 		));
+		chestAim = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+			"key.voidmark.chest_aim",
+			InputConstants.Type.KEYSYM,
+			InputConstants.UNKNOWN.getValue(),
+			CATEGORY
+		));
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
 			var root = ClientCommands.literal("voidmark").executes(context -> openScreen());
@@ -167,6 +175,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 
 		ClientTickEvents.START_CLIENT_TICK.register(client -> {
 			FarmKeys.tick(client);
+			ChestAimer.tick(client);
 			if (itemAppearancesLoaded) {
 				return;
 			}
@@ -206,6 +215,9 @@ public final class VoidmarkClient implements ClientModInitializer {
 					WardrobeCommands.open();
 				}
 			}
+			while (chestAim.consumeClick()) {
+				ChestAimer.toggle();
+			}
 
 			VoidmarkConfig running = VoidmarkConfig.get();
 			SpotifySmtc.tick(running.musicHudEnabled && running.spotifyEnabled);
@@ -226,6 +238,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 
 		ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
 			MobGlowRenderer.reset();
+			ChestAimer.stop();
 			ChestEsp.get().clear();
 		});
 
@@ -247,6 +260,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			MiningTracker.reset();
 			TitaniumTracker.get().clear();
 			ChestEsp.get().clear();
+			ChestAimer.stop();
 			FakeBan.reset();
 			MobGlowRenderer.reset();
 			LoadoutsScreen.resetPending();

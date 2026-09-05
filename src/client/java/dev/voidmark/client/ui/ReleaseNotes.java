@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.221", new String[]{
+			"Chest Aim (Controls) smoothly looks at each crit box on a nearby chest, waits for it to move, then goes to the next. Five locks is one pass; if the chest is still there it keeps going."
+		}),
 		new Entry("1.1.220", new String[]{
 			"Chest ESP marks newly spawned chests within 5 blocks in Dwarven Mines and Crystal Hollows from packets, with tracers and crit-particle boxes even if Sodium hides particles."
 		}),

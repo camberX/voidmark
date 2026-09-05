@@ -42,15 +42,15 @@ public final class ChestEspRenderer {
 			if (through) {
 				box.setAlwaysOnTop();
 			}
+			if (chest.hasBox) {
+				drawDot(chest.boxX, chest.boxY, chest.boxZ, critStyle, through);
+			}
 		}
 
 		List<ChestEsp.Mark> crits = ChestEsp.get().crits();
 		for (ChestEsp.Mark crit : crits) {
-			AABB cube = new AABB(crit.x, crit.y, crit.z, crit.x, crit.y, crit.z).inflate(0.11);
-			GizmoProperties box = Gizmos.cuboid(cube, critStyle);
-			if (through) {
-				box.setAlwaysOnTop();
-			}
+			Vec3 at = crit.hasBox ? crit.box() : new Vec3(crit.x, crit.y, crit.z);
+			drawDot(at.x, at.y, at.z, critStyle, through);
 		}
 
 		if (!config.chestEspTracers) {
@@ -66,6 +66,13 @@ public final class ChestEspRenderer {
 		GizmoProperties tracer = Gizmos.line(from, new Vec3(nearest.x, nearest.y, nearest.z), line, 2.0f);
 		if (through) {
 			tracer.setAlwaysOnTop();
+		}
+	}
+
+	private static void drawDot(double x, double y, double z, GizmoStyle style, boolean through) {
+		GizmoProperties box = Gizmos.cuboid(new AABB(x, y, z, x, y, z).inflate(0.11), style);
+		if (through) {
+			box.setAlwaysOnTop();
 		}
 	}
 }
