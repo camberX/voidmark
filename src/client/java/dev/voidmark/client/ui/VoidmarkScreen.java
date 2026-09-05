@@ -197,6 +197,8 @@ public class VoidmarkScreen extends Screen {
 		new SearchEntry("Watermark", Tab.OVERLAY, "Overlay"),
 		new SearchEntry("Music HUD", Tab.OVERLAY, "Overlay"),
 		new SearchEntry("Raw mats", Tab.OVERLAY, "Overlay"),
+		new SearchEntry("Pickup log", Tab.OVERLAY, "Overlay"),
+		new SearchEntry("Picked up items", Tab.OVERLAY, "Overlay"),
 		new SearchEntry("Enchanted materials", Tab.OVERLAY, "Overlay"),
 		new SearchEntry("Spotify", Tab.OVERLAY, "Music"),
 		new SearchEntry("YouTube Music", Tab.OVERLAY, "Music"),
@@ -1306,10 +1308,11 @@ public class VoidmarkScreen extends Screen {
 			}
 			case ESP -> drawMobsTab(graphics, font, mouseX, mouseY);
 			case OVERLAY -> {
-				float y = featureCard(graphics, font, left, top, col, cardHeight(4), "HUD");
+				float y = featureCard(graphics, font, left, top, col, cardHeight(5), "HUD");
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Watermark", config.watermarkEnabled, v -> config.watermarkEnabled = v, Feature.WATERMARK);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Music", config.musicHudEnabled, v -> config.musicHudEnabled = v, Feature.MUSIC);
 				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Raw mats", config.rawmatsHudEnabled, v -> config.rawmatsHudEnabled = v, Feature.RAWMATS);
+				y = toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Pickup log", config.pickupLogEnabled, v -> config.pickupLogEnabled = v);
 				toggle(graphics, font, ix, y, iw, mouseX, mouseY, "Inventory HUD", config.inventoryHudEnabled, v -> config.inventoryHudEnabled = v, Feature.INVENTORY);
 			}
 			case BARS -> {
@@ -1892,7 +1895,7 @@ public class VoidmarkScreen extends Screen {
 		return FabricLoader.getInstance()
 			.getModContainer("voidmark")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
-			.orElse("1.2.16");
+			.orElse("1.2.17");
 	}
 
 	@Override

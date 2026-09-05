@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.17", new String[]{
+			"Pickup log shows recently collected items and quantities in a movable HUD list, then fades them after five seconds."
+		}),
 		new Entry("1.2.16", new String[]{
 			"Chest Aim no longer wipes the next lock after a ding. A newly spawned box is aimed even if it sits near the last one."
 		}),

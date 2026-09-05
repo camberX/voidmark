@@ -68,6 +68,7 @@ public final class VoidmarkConfig {
 	public String spotifyAccessToken = "";
 	public long spotifyAccessExpiresAt = 0L;
 	public boolean rawmatsHudEnabled = false;
+	public boolean pickupLogEnabled = false;
 	public boolean miningHudEnabled = false;
 	public boolean miningAbilityAlert = false;
 	public boolean farmingYawPitch = false;
@@ -125,6 +126,7 @@ public final class VoidmarkConfig {
 	public float hudNodesScale = 1.0f;
 	public float hudMusicScale = 1.0f;
 	public float hudRawmatsScale = 1.0f;
+	public float hudPickupScale = 1.0f;
 	public float hudMiningScale = 1.0f;
 	public float hudInventoryX = -1f;
 	public float hudInventoryY = -1f;
@@ -136,6 +138,8 @@ public final class VoidmarkConfig {
 	public float hudMusicY = -1f;
 	public float hudRawmatsX = -1f;
 	public float hudRawmatsY = -1f;
+	public float hudPickupX = -1f;
+	public float hudPickupY = -1f;
 	public float hudMiningX = -1f;
 	public float hudMiningY = -1f;
 	public float menuX = -1f;
@@ -472,6 +476,7 @@ public final class VoidmarkConfig {
 				loaded.hudNodesScale = clampHudScale(loaded.hudNodesScale);
 				loaded.hudMusicScale = clampHudScale(loaded.hudMusicScale);
 				loaded.hudRawmatsScale = clampHudScale(loaded.hudRawmatsScale);
+				loaded.hudPickupScale = clampHudScale(loaded.hudPickupScale);
 				loaded.hudMiningScale = clampHudScale(loaded.hudMiningScale);
 				if (!json.has("farmingYawPitch")) {
 					loaded.farmingYawPitch = false;

@@ -23,6 +23,7 @@ public final class HudLayout {
 		NODES("Nodes"),
 		MUSIC("Music"),
 		RAWMATS("Raw mats"),
+		PICKUPS("Pickup log"),
 		MINING("Mining"),
 		HOTBAR("Hotbar"),
 		HEALTH("Health"),
@@ -145,6 +146,13 @@ public final class HudLayout {
 					x = placed(config.hudRawmatsX) ? config.hudRawmatsX : Math.max(MARGIN, guiW - w - MARGIN);
 					y = placed(config.hudRawmatsY) ? config.hudRawmatsY : MARGIN;
 				}
+				case PICKUPS -> {
+					x = placed(config.hudPickupX) ? config.hudPickupX : Math.max(MARGIN, guiW - w - MARGIN);
+					float below = config.rawmatsHudEnabled
+						? RawmatsHudRenderer.drawHeight() * scale(Id.RAWMATS) + 4
+						: 0f;
+					y = placed(config.hudPickupY) ? config.hudPickupY : MARGIN + below;
+				}
 				case MINING -> {
 					x = placed(config.hudMiningX) ? config.hudMiningX : MARGIN;
 					float below = WatermarkRenderer.occupiedHeight();
@@ -206,6 +214,10 @@ public final class HudLayout {
 				config.hudRawmatsX = x;
 				config.hudRawmatsY = y;
 			}
+			case PICKUPS -> {
+				config.hudPickupX = x;
+				config.hudPickupY = y;
+			}
 			case MINING -> {
 				config.hudMiningX = x;
 				config.hudMiningY = y;
@@ -227,6 +239,7 @@ public final class HudLayout {
 			case NODES -> VoidmarkConfig.clampHudScale(config.hudNodesScale);
 			case MUSIC -> VoidmarkConfig.clampHudScale(config.hudMusicScale);
 			case RAWMATS -> VoidmarkConfig.clampHudScale(config.hudRawmatsScale);
+			case PICKUPS -> VoidmarkConfig.clampHudScale(config.hudPickupScale);
 			case MINING -> VoidmarkConfig.clampHudScale(config.hudMiningScale);
 			default -> 1.0f;
 		};
@@ -247,6 +260,7 @@ public final class HudLayout {
 			case NODES -> config.hudNodesScale = value;
 			case MUSIC -> config.hudMusicScale = value;
 			case RAWMATS -> config.hudRawmatsScale = value;
+			case PICKUPS -> config.hudPickupScale = value;
 			case MINING -> config.hudMiningScale = value;
 			default -> {
 			}
@@ -283,6 +297,10 @@ public final class HudLayout {
 				config.hudRawmatsX = -1f;
 				config.hudRawmatsY = -1f;
 			}
+			case PICKUPS -> {
+				config.hudPickupX = -1f;
+				config.hudPickupY = -1f;
+			}
 			case MINING -> {
 				config.hudMiningX = -1f;
 				config.hudMiningY = -1f;
@@ -300,6 +318,7 @@ public final class HudLayout {
 			case NODES -> config.hudEnabled;
 			case MUSIC -> config.musicHudEnabled;
 			case RAWMATS -> config.rawmatsHudEnabled;
+			case PICKUPS -> config.pickupLogEnabled;
 			case MINING -> config.miningHudEnabled;
 			case HOTBAR -> config.hudHotbar;
 			case HEALTH -> config.hudHealth;
@@ -436,6 +455,7 @@ public final class HudLayout {
 			case NODES -> NodeHudRenderer.drawWidth() * scale;
 			case MUSIC -> MusicHudRenderer.drawWidth() * scale;
 			case RAWMATS -> RawmatsHudRenderer.drawWidth() * scale;
+			case PICKUPS -> PickupLogRenderer.drawWidth() * scale;
 			case MINING -> MiningHudRenderer.drawWidth() * scale;
 			case HOTBAR -> HotbarHudRenderer.drawWidth() * scale;
 			case HEALTH, HUNGER, ARMOR, AIR, MOUNT -> StatusHudRenderer.BAR_W * scale;
@@ -455,6 +475,7 @@ public final class HudLayout {
 			case NODES -> NodeHudRenderer.drawHeight() * scale;
 			case MUSIC -> MusicHudRenderer.drawHeight() * scale;
 			case RAWMATS -> RawmatsHudRenderer.drawHeight() * scale;
+			case PICKUPS -> PickupLogRenderer.drawHeight() * scale;
 			case MINING -> MiningHudRenderer.drawHeight() * scale;
 			case HOTBAR -> HotbarHudRenderer.HEIGHT * scale;
 			case HEALTH, HUNGER, ARMOR, AIR, MOUNT -> StatusHudRenderer.BAR_H * scale;

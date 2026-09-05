@@ -31,6 +31,7 @@ import dev.voidmark.client.render.InventoryHudRenderer;
 import dev.voidmark.client.render.MusicHudRenderer;
 import dev.voidmark.client.render.NametagRenderer;
 import dev.voidmark.client.render.NodeHudRenderer;
+import dev.voidmark.client.render.PickupLogRenderer;
 import dev.voidmark.client.render.RawmatsHudRenderer;
 import dev.voidmark.client.render.MiningHudRenderer;
 import dev.voidmark.client.render.MiningWorldRenderer;
@@ -102,6 +103,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 		WatermarkRenderer.init();
 		InventoryHudRenderer.init();
 		NodeHudRenderer.init();
+		PickupLogRenderer.init();
 		MusicHudRenderer.init();
 		RawmatsHudRenderer.init();
 		MiningHudRenderer.init();
@@ -243,6 +245,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			MobGlowRenderer.reset();
 			Hitsound.reset();
 			Hitmarker.reset();
+			PickupLogRenderer.clear();
 			FakeBan.onJoin();
 			SkyblockProfileApi.refresh();
 			ShopCape.onJoin();
@@ -252,6 +255,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			SkyblockLocation.reset();
 			Hitsound.reset();
 			Hitmarker.reset();
+			PickupLogRenderer.clear();
 			EnderNodeTracker.get().clear();
 			ConnectionPing.reset();
 			MiningTracker.reset();
