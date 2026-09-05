@@ -36,6 +36,7 @@ public final class LoadoutsCommands {
 			} catch (RuntimeException ignoredToo) {
 			}
 		}
+		LoadoutsScreen.allowReopen();
 		if (LoadoutsMenus.enabled()
 			&& LoadoutsScreen.hasCache()
 			&& !(client.screen instanceof LoadoutsScreen)) {
