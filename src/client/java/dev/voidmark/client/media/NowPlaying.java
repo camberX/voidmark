@@ -377,6 +377,13 @@ public record NowPlaying(
 		if (!present()) {
 			return 0L;
 		}
+		if ("spotify".equals(source)) {
+			if (!playing || durationMs <= 0L) {
+				return Math.max(0L, positionMs);
+			}
+			long elapsed = System.currentTimeMillis() - sampledAtNanos;
+			return Math.min(durationMs, Math.max(0L, positionMs) + Math.max(0L, elapsed));
+		}
 		long extra = 0L;
 		if (playing && sampledAtNanos > 0L) {
 			extra = Math.max(0L, (System.nanoTime() - sampledAtNanos) / 1_000_000L);
@@ -398,7 +405,7 @@ public record NowPlaying(
 
 	public float progress() {
 		if (durationMs <= 0L) {
-			return playing ? 0.08f : 0f;
+			return "spotify".equals(source) ? 0f : (playing ? 0.08f : 0f);
 		}
 		return Mth.clamp(displayPositionMs() / (float) durationMs, 0f, 1f);
 	}

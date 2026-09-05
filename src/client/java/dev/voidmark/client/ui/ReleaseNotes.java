@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.214", new String[]{
+			"Spotify now-playing uses the same SMTC helper and wall-clock bar as ForageKit. YouTube Music is unchanged."
+		}),
 		new Entry("1.1.213", new String[]{
 			"Spotify progress uses the first SMTC timestamp as an anchor and adds wall-clock time, so the bar moves every frame."
 		}),
