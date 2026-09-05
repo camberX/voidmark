@@ -73,7 +73,6 @@ public final class VoidmarkClient implements ClientModInitializer {
 	private static KeyMapping openGui;
 	private static KeyMapping openLoadouts;
 	private static KeyMapping openWardrobe;
-	private static KeyMapping chestAim;
 	private static boolean itemAppearancesLoaded;
 
 	public static boolean loadoutsKey(KeyEvent event) {
@@ -127,13 +126,6 @@ public final class VoidmarkClient implements ClientModInitializer {
 			InputConstants.UNKNOWN.getValue(),
 			CATEGORY
 		));
-		chestAim = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-			"key.voidmark.chest_aim",
-			InputConstants.Type.KEYSYM,
-			InputConstants.UNKNOWN.getValue(),
-			CATEGORY
-		));
-
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
 			var root = ClientCommands.literal("voidmark").executes(context -> openScreen());
 			root.then(ClientCommands.literal("toggle").executes(context -> {
@@ -216,10 +208,6 @@ public final class VoidmarkClient implements ClientModInitializer {
 					WardrobeCommands.open();
 				}
 			}
-			while (chestAim.consumeClick()) {
-				ChestAimer.toggle();
-			}
-
 			VoidmarkConfig running = VoidmarkConfig.get();
 			SpotifySmtc.tick(running.musicHudEnabled && running.spotifyEnabled);
 			SkyblockLocation.tick(client);

@@ -18,13 +18,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Looks at the current lock particles on a nearby treasure chest, holds until
- * Experience Gained, then looks at the newest remaining mark.
+ * Starts when the crosshair is near a lock box, then looks at each remaining
+ * mark until Experience Gained.
  */
 public final class ChestAimer {
 	private static final float TOLERANCE = 1f;
 	private static final int PASS = 5;
 	private static final double SAME = 0.28;
+	private static final double AIM_NEAR = 0.40;
 
 	private static boolean running;
 	private static boolean listening;
@@ -67,48 +68,41 @@ public final class ChestAimer {
 		}
 	}
 
-	public static void toggle() {
-		Minecraft client = Minecraft.getInstance();
-		if (running) {
-			stop(client, "Chest aim stopped");
-			return;
-		}
-		if (!ChestEsp.active() || client.player == null) {
-			tell(client, "Chest ESP is off, or you are not in Dwarven Mines / Crystal Hollows");
-			return;
-		}
-		listen(client);
-		if (!bindChest(client.player)) {
-			tell(client, "No chest box nearby");
-			return;
-		}
-		running = true;
-		waiting = false;
-		turning = false;
-		armed = false;
-		ding = false;
-		locked = null;
-		done.clear();
-		tries = 0;
-		tell(client, "Chest aim started · press again to stop");
-	}
-
 	public static void stop() {
 		stop(Minecraft.getInstance(), null);
 	}
 
 	public static void tick(Minecraft client) {
-		if (!running) {
-			return;
-		}
 		if (client.player == null || !ChestEsp.active()) {
-			stop(client, "Chest aim stopped");
+			if (running) {
+				stop(client, null);
+			}
 			return;
 		}
 		listen(client);
 		LocalPlayer player = client.player;
+		if (!running) {
+			ChestEsp.Mark aim = boxUnderCrosshair(player);
+			if (aim == null) {
+				return;
+			}
+			chest = ChestEsp.get().nearestChest(aim.box());
+			if (chest == null) {
+				return;
+			}
+			running = true;
+			waiting = false;
+			turning = false;
+			armed = false;
+			ding = false;
+			locked = null;
+			done.clear();
+			tries = 0;
+			beginTurn(player, aim);
+			return;
+		}
 		if (!bindChest(player)) {
-			stop(client, "Chest aim done");
+			stop(client, null);
 			return;
 		}
 		if (turning) {
@@ -189,6 +183,32 @@ public final class ChestAimer {
 
 	private static List<ChestEsp.Mark> marks() {
 		return ChestEsp.get().marksNear(chest);
+	}
+
+	private static ChestEsp.Mark boxUnderCrosshair(LocalPlayer player) {
+		ChestEsp.Mark best = null;
+		double bestMiss = AIM_NEAR;
+		for (ChestEsp.Mark found : ChestEsp.get().chests()) {
+			for (ChestEsp.Mark mark : ChestEsp.get().marksNear(found)) {
+				double miss = aimMiss(player, mark.box());
+				if (miss < bestMiss) {
+					bestMiss = miss;
+					best = mark;
+				}
+			}
+		}
+		return best;
+	}
+
+	private static double aimMiss(LocalPlayer player, Vec3 target) {
+		Vec3 eye = player.getEyePosition();
+		Vec3 look = player.getLookAngle();
+		Vec3 to = target.subtract(eye);
+		double along = to.dot(look);
+		if (along <= 0.15) {
+			return Double.MAX_VALUE;
+		}
+		return look.scale(along).add(eye).distanceTo(target);
 	}
 
 	private static ChestEsp.Mark pickClosest(LocalPlayer player) {

@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.10", new String[]{
+			"Chest Aim starts when your crosshair is near the first lock box. No keybind."
+		}),
 		new Entry("1.2.9", new String[]{
 			"Chest Aim never looks at a lock box it already went to."
 		}),
