@@ -4,6 +4,7 @@ import dev.voidmark.client.config.VoidmarkConfig;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -190,12 +191,42 @@ public final class ChestAimer {
 		listening = true;
 	}
 
+	public static void onChestGone(BlockPos pos) {
+		if (pos == null || chest == null || !pos.equals(chest.pos)) {
+			return;
+		}
+		resetLockCache();
+		chest = null;
+	}
+
 	private static boolean bindChest(LocalPlayer player) {
-		if (chest != null && ChestEsp.get().chestAt(chest.pos) != null) {
+		if (chest != null && ChestEsp.get().chestAt(chest.pos) == null) {
+			resetLockCache();
+			chest = null;
+		}
+		if (chest != null) {
 			return true;
 		}
 		chest = ChestEsp.get().nearestChest(player.position());
+		if (chest != null) {
+			resetLockCache();
+		}
 		return chest != null;
+	}
+
+	private static void resetLockCache() {
+		done.clear();
+		doneMarks.clear();
+		quietUntil = 0L;
+		dingAt = 0L;
+		arrivedAt = 0L;
+		tries = 0;
+		locked = null;
+		lastLook = null;
+		waiting = false;
+		turning = false;
+		armed = false;
+		ding = false;
 	}
 
 	private static void finishLock() {

@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.15", new String[]{
+			"Chest Aim forgets finished lock spots when that chest despawns, so the next chest is not treated as already done."
+		}),
 		new Entry("1.2.14", new String[]{
 			"Chest Aim is a hold bind again: it aims only while the key is held and stops when you let go."
 		}),

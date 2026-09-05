@@ -148,7 +148,11 @@ public final class ChestEsp {
 			if (!client.level.hasChunkAt(mark.pos)) {
 				return false;
 			}
-			return !isChest(client.level.getBlockState(mark.pos));
+			if (isChest(client.level.getBlockState(mark.pos))) {
+				return false;
+			}
+			ChestAimer.onChestGone(mark.pos);
+			return true;
 		});
 		synchronized (crits) {
 			crits.removeIf(mark -> now - mark.born > CRIT_MS);
@@ -157,6 +161,9 @@ public final class ChestEsp {
 	}
 
 	public void clear() {
+		for (Mark mark : chests.values()) {
+			ChestAimer.onChestGone(mark.pos);
+		}
 		chests.clear();
 		synchronized (crits) {
 			crits.clear();
@@ -289,6 +296,7 @@ public final class ChestEsp {
 			return;
 		}
 		if (chests.remove(pos.asLong()) != null) {
+			ChestAimer.onChestGone(pos);
 			dirty = true;
 		}
 	}
