@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.173", new String[]{
+			"Melee hitsounds wait for Minecraft's attack cooldown. Spam-clicks before the weapon is charged no longer ding."
+		}),
 		new Entry("1.1.172", new String[]{
 			"Shop download version is 1.1.172 so voidmark.cloud can show the new jar name after a git push."
 		}),

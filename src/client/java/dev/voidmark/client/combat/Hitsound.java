@@ -25,8 +25,10 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Plays a hitsound as soon as this client lands a melee swing or one of
- * its own arrows overlaps a mob. Other players' hits are ignored.
+ * Plays a hitsound as soon as this client lands a charged melee swing or one
+ * of its own arrows overlaps a mob. Other players' hits are ignored.
+ * Melee uses vanilla's attack-strength scale ({@code >= 0.9}, same as a
+ * charged hit) so spam-clicks during cooldown stay quiet.
  * Hypixel often reports mob health as 0, so we never gate on {@code isAlive()}.
  */
 public final class Hitsound {
@@ -34,6 +36,7 @@ public final class Hitsound {
 	private static final double ARROW_MARGIN = 0.6;
 	private static final int ARROW_DEBOUNCE = 6;
 	private static final int VANILLA_PING_TICKS = 20;
+	private static final float CHARGED_HIT = 0.9f;
 	private static final Long2IntOpenHashMap HITS = new Long2IntOpenHashMap();
 	private static final Int2IntOpenHashMap TARGETS = new Int2IntOpenHashMap();
 	private static int gameTick;
@@ -79,6 +82,9 @@ public final class Hitsound {
 			return;
 		}
 		if (!isMeleeTarget(target, player)) {
+			return;
+		}
+		if (player.getAttackStrengthScale(0.5f) < CHARGED_HIT) {
 			return;
 		}
 		play(config);
