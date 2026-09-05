@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.16", new String[]{
+			"Chest Aim no longer wipes the next lock after a ding. A newly spawned box is aimed even if it sits near the last one."
+		}),
 		new Entry("1.2.15", new String[]{
 			"Chest Aim forgets finished lock spots when that chest despawns, so the next chest is not treated as already done."
 		}),

@@ -236,11 +236,12 @@ public final class ChestAimer {
 		if (locked != null) {
 			remember(locked);
 			lastLook = locked.box();
+			ChestEsp.get().drop(locked);
+			ChestEsp.get().dropNear(locked.box(), SAME);
 		}
-		ChestEsp.get().dropMarks(chest);
 		locked = null;
 		dingAt = System.currentTimeMillis();
-		quietUntil = dingAt + 150L;
+		quietUntil = dingAt + 80L;
 		tries++;
 		if (tries >= PASS && chest != null && ChestEsp.get().chestAt(chest.pos) != null) {
 			tries = 0;
@@ -313,6 +314,9 @@ public final class ChestAimer {
 		if (doneMarks.contains(mark)) {
 			return true;
 		}
+		if (fresh(mark)) {
+			return false;
+		}
 		Vec3 at = mark.box();
 		for (Vec3 old : done) {
 			if (at.closerThan(old, SAME)) {
@@ -322,8 +326,15 @@ public final class ChestAimer {
 		return false;
 	}
 
+	private static boolean fresh(ChestEsp.Mark mark) {
+		return dingAt > 0L && mark.boxAt > dingAt;
+	}
+
 	private static boolean stale(ChestEsp.Mark mark) {
-		return dingAt > 0L && mark.boxAt <= dingAt;
+		if (dingAt <= 0L || mark.boxAt > dingAt) {
+			return false;
+		}
+		return lastLook != null && mark.box().closerThan(lastLook, SAME);
 	}
 
 	private static void remember(ChestEsp.Mark mark) {
