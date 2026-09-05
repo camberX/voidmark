@@ -24,13 +24,14 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Optional launch gate. When {@code autoUpdate} is on, Minecraft waits here
- * for voidmark.cloud. A newer jar replaces the one in mods, then a helper
- * relaunches this same command after the process exits.
+ * for voidmark.cloud. A newer jar replaces the one in mods, then a detached
+ * helper relaunches this same command after the process exits.
  */
 public final class AutoUpdate implements PreLaunchEntrypoint {
 	private static final String SHOP = "https://voidmark.cloud";
@@ -74,6 +75,10 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 			}
 			if (relaunch(current, applied)) {
 				log("Updated to " + remote.version + " at " + applied.dest.getFileName() + ". Relaunching.");
+				try {
+					Thread.sleep(400);
+				} catch (InterruptedException ignored) {
+				}
 			} else {
 				log("Updated to " + remote.version + " at " + applied.dest.getFileName() + ". Relaunch Minecraft.");
 			}
@@ -260,13 +265,13 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 	}
 
 	private static boolean relaunch(Path current, Applied applied) {
-		Launch launch = launchCommand(current, applied.dest, applied.locked);
-		if (launch == null) {
+		List<String> argv = launchCommand(current, applied.dest, applied.locked);
+		if (argv == null || argv.size() < 2) {
 			scheduleDelete(applied.locked);
 			return false;
 		}
 		try {
-			return windows() ? spawnWindows(launch, applied.locked) : spawnUnix(launch, applied.locked);
+			return windows() ? spawnWindows(argv, applied.locked) : spawnUnix(argv, applied.locked);
 		} catch (Exception exception) {
 			Voidmark.LOGGER.warn("Could not relaunch after update", exception);
 			scheduleDelete(applied.locked);
@@ -274,24 +279,26 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 		}
 	}
 
-	private static Launch launchCommand(Path current, Path dest, List<Path> locked) {
-		List<String> argv = linuxCmdline();
-		if (argv.size() < 2) {
-			argv = processHandleCommand();
+	private static List<String> launchCommand(Path current, Path dest, List<Path> locked) {
+		List<String> argv = List.of();
+		if (windows()) {
+			String raw = windowsCommandLine(ProcessHandle.current().pid());
+			if (raw != null && !raw.isBlank()) {
+				argv = splitWindowsCommandLine(raw);
+			}
+			if (argv.size() < 2) {
+				argv = processHandleCommand();
+			}
+		} else {
+			argv = linuxCmdline();
+			if (argv.size() < 2) {
+				argv = processHandleCommand();
+			}
 		}
 		if (argv.size() < 2) {
 			argv = reconstructCommand();
 		}
-		if (argv.size() >= 2) {
-			return new Launch(rewrite(argv, current, dest, locked), null);
-		}
-		if (windows()) {
-			String raw = windowsCommandLine(ProcessHandle.current().pid());
-			if (raw != null && !raw.isBlank()) {
-				return new Launch(List.of(), rewrite(raw, current, dest, locked));
-			}
-		}
-		return null;
+		return argv.size() < 2 ? null : rewrite(argv, current, dest, locked);
 	}
 
 	private static List<String> linuxCmdline() {
@@ -416,51 +423,92 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 		return rewritten;
 	}
 
-	private static boolean spawnWindows(Launch launch, List<Path> locked) throws Exception {
-		Path script = Files.createTempFile("voidmark-relaunch-", ".cmd");
-		String cwd = cwd();
-		StringBuilder body = new StringBuilder();
-		body.append("@echo off\r\n");
-		body.append("setlocal\r\n");
-		body.append(":wait\r\n");
-		body.append("timeout /t 1 /nobreak >nul\r\n");
-		body.append("tasklist /FI \"PID eq ").append(ProcessHandle.current().pid())
-			.append("\" 2>nul | find \"").append(ProcessHandle.current().pid()).append("\" >nul && goto wait\r\n");
-		for (Path path : locked) {
-			body.append("del /f /q ").append(cmdQuote(path.toString())).append(" 2>nul\r\n");
+	private static boolean spawnWindows(List<String> argv, List<Path> locked) throws Exception {
+		Path script = Path.of(cwd(), "voidmark-relaunch.ps1").toAbsolutePath().normalize();
+		writeWindowsHelper(script, argv, locked);
+		String child = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "
+			+ cmdQuote(script.toString());
+		if (wmiCreate(child, cwd())) {
+			log("Relaunch helper detached.");
+			return true;
 		}
-		body.append("cd /d ").append(cmdQuote(cwd)).append("\r\n");
-		body.append("start \"\" /D ").append(cmdQuote(cwd)).append(' ');
-		if (!launch.argv.isEmpty()) {
-			for (int i = 0; i < launch.argv.size(); i++) {
-				if (i > 0) {
-					body.append(' ');
-				}
-				body.append(cmdQuote(launch.argv.get(i)));
-			}
-		} else {
-			body.append(launch.raw);
+		if (wmicCreate(child, cwd())) {
+			log("Relaunch helper detached.");
+			return true;
 		}
-		body.append("\r\n");
-		body.append("del \"%~f0\"\r\n");
-		Files.writeString(script, body.toString(), StandardCharsets.UTF_8);
-		new ProcessBuilder("cmd", "/c", "start \"\" /min " + cmdQuote(script.toString()))
-			.redirectOutput(ProcessBuilder.Redirect.DISCARD)
-			.redirectError(ProcessBuilder.Redirect.DISCARD)
-			.start();
+		new ProcessBuilder(
+			"cmd.exe",
+			"/c",
+			"start \"VoidmarkUpdate\" /MIN " + child
+		).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+		log("Relaunch helper started.");
 		return true;
 	}
 
-	private static boolean spawnUnix(Launch launch, List<Path> locked) throws Exception {
-		if (launch.argv.isEmpty()) {
-			scheduleDelete(locked);
-			return false;
+	private static boolean spawnUnix(List<String> argv, List<Path> locked) throws Exception {
+		Path script = Path.of(cwd(), "voidmark-relaunch.sh").toAbsolutePath().normalize();
+		writeUnixHelper(script, argv, locked);
+		script.toFile().setExecutable(true, false);
+		if (start(List.of("setsid", "-f", "sh", script.toString()))) {
+			log("Relaunch helper detached.");
+			return true;
 		}
-		Path script = Files.createTempFile("voidmark-relaunch-", ".sh");
+		new ProcessBuilder("sh", "-c", "nohup sh " + shQuote(script.toString()) + " >/dev/null 2>&1 </dev/null &")
+			.redirectOutput(ProcessBuilder.Redirect.DISCARD)
+			.redirectError(ProcessBuilder.Redirect.DISCARD)
+			.start();
+		log("Relaunch helper started.");
+		return true;
+	}
+
+	private static void writeWindowsHelper(Path script, List<String> argv, List<Path> locked) throws Exception {
+		String cwd = cwd();
+		StringBuilder body = new StringBuilder();
+		body.append("$ErrorActionPreference = 'Continue'\r\n");
+		for (Map.Entry<String, String> env : System.getenv().entrySet()) {
+			if (env.getKey() == null || env.getKey().startsWith("=")) {
+				continue;
+			}
+			body.append("[Environment]::SetEnvironmentVariable(")
+				.append(psSingle(env.getKey())).append(", ")
+				.append(psSingle(env.getValue() == null ? "" : env.getValue()))
+				.append(", 'Process')\r\n");
+		}
+		body.append("Start-Sleep -Seconds 2\r\n");
+		body.append("Set-Location -LiteralPath ").append(psSingle(cwd)).append("\r\n");
+		for (Path path : locked) {
+			body.append("Remove-Item -LiteralPath ").append(psSingle(path.toString()))
+				.append(" -Force -ErrorAction SilentlyContinue\r\n");
+		}
+		body.append("$exe = ").append(psSingle(argv.getFirst())).append("\r\n");
+		body.append("$mcArgs = @(\r\n");
+		for (int i = 1; i < argv.size(); i++) {
+			body.append("  ").append(psSingle(argv.get(i)));
+			if (i + 1 < argv.size()) {
+				body.append(',');
+			}
+			body.append("\r\n");
+		}
+		body.append(")\r\n");
+		body.append("$logDir = ").append(psSingle(Path.of(cwd, "logs").toString())).append("\r\n");
+		body.append("New-Item -ItemType Directory -Force -Path $logDir | Out-Null\r\n");
+		body.append("Add-Content -LiteralPath (Join-Path $logDir 'voidmark-update.log') -Value ('relaunch ' + $exe)\r\n");
+		body.append("if ($mcArgs.Count -gt 0) { & $exe @mcArgs } else { & $exe }\r\n");
+		body.append("Remove-Item -LiteralPath ").append(psSingle(script.toString()))
+			.append(" -Force -ErrorAction SilentlyContinue\r\n");
+		byte[] bom = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+		byte[] text = body.toString().getBytes(StandardCharsets.UTF_8);
+		byte[] out = new byte[bom.length + text.length];
+		System.arraycopy(bom, 0, out, 0, bom.length);
+		System.arraycopy(text, 0, out, bom.length, text.length);
+		Files.write(script, out);
+	}
+
+	private static void writeUnixHelper(Path script, List<String> argv, List<Path> locked) throws Exception {
 		StringBuilder body = new StringBuilder();
 		body.append("#!/bin/sh\n");
-		body.append("while kill -0 ").append(ProcessHandle.current().pid())
-			.append(" 2>/dev/null; do sleep 0.15; done\n");
+		body.append("trap '' HUP\n");
+		body.append("sleep 1\n");
 		if (!locked.isEmpty()) {
 			body.append("rm -f");
 			for (Path path : locked) {
@@ -471,17 +519,107 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 		body.append("cd ").append(shQuote(cwd())).append('\n');
 		body.append("rm -f ").append(shQuote(script.toString())).append('\n');
 		body.append("exec");
-		for (String arg : launch.argv) {
+		for (String arg : argv) {
 			body.append(' ').append(shQuote(arg));
 		}
 		body.append('\n');
 		Files.writeString(script, body.toString(), StandardCharsets.UTF_8);
-		script.toFile().setExecutable(true, false);
-		new ProcessBuilder("sh", "-c", "nohup sh " + shQuote(script.toString()) + " >/dev/null 2>&1 &")
-			.redirectOutput(ProcessBuilder.Redirect.DISCARD)
-			.redirectError(ProcessBuilder.Redirect.DISCARD)
-			.start();
-		return true;
+	}
+
+	private static boolean wmiCreate(String commandLine, String directory) {
+		String ps = "$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine="
+			+ psSingle(commandLine) + "; CurrentDirectory=" + psSingle(directory)
+			+ "}; if ($null -eq $r -or $r.ReturnValue -ne 0) { exit 1 }";
+		try {
+			Process process = new ProcessBuilder("powershell.exe", "-NoProfile", "-Command", ps)
+				.redirectOutput(ProcessBuilder.Redirect.DISCARD)
+				.redirectError(ProcessBuilder.Redirect.DISCARD)
+				.start();
+			if (!process.waitFor(8, TimeUnit.SECONDS)) {
+				process.destroyForcibly();
+				return false;
+			}
+			return process.exitValue() == 0;
+		} catch (Exception ignored) {
+			return false;
+		}
+	}
+
+	private static boolean wmicCreate(String commandLine, String directory) {
+		try {
+			Process process = new ProcessBuilder(
+				"wmic",
+				"process",
+				"call",
+				"create",
+				commandLine + "," + directory
+			).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+			if (!process.waitFor(8, TimeUnit.SECONDS)) {
+				process.destroyForcibly();
+				return false;
+			}
+			return process.exitValue() == 0;
+		} catch (Exception ignored) {
+			return false;
+		}
+	}
+
+	private static boolean start(List<String> command) {
+		try {
+			Process process = new ProcessBuilder(command)
+				.redirectOutput(ProcessBuilder.Redirect.DISCARD)
+				.redirectError(ProcessBuilder.Redirect.DISCARD)
+				.start();
+			if (process.waitFor(400, TimeUnit.MILLISECONDS)) {
+				return process.exitValue() == 0;
+			}
+			return true;
+		} catch (Exception ignored) {
+			return false;
+		}
+	}
+
+	private static List<String> splitWindowsCommandLine(String command) {
+		List<String> args = new ArrayList<>();
+		StringBuilder cur = new StringBuilder();
+		boolean inQuotes = false;
+		int slashes = 0;
+		for (int i = 0; i < command.length(); i++) {
+			char c = command.charAt(i);
+			if (c == '\\') {
+				slashes++;
+				continue;
+			}
+			if (c == '"') {
+				cur.append("\\".repeat(slashes / 2));
+				if (slashes % 2 == 0) {
+					inQuotes = !inQuotes;
+				} else {
+					cur.append('"');
+				}
+				slashes = 0;
+				continue;
+			}
+			if (slashes > 0) {
+				cur.append("\\".repeat(slashes));
+				slashes = 0;
+			}
+			if (!inQuotes && (c == ' ' || c == '\t')) {
+				if (cur.length() > 0) {
+					args.add(cur.toString());
+					cur.setLength(0);
+				}
+			} else {
+				cur.append(c);
+			}
+		}
+		if (slashes > 0) {
+			cur.append("\\".repeat(slashes));
+		}
+		if (cur.length() > 0) {
+			args.add(cur.toString());
+		}
+		return args;
 	}
 
 	private static void scheduleDelete(List<Path> paths) {
@@ -529,6 +667,10 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 		return "'" + value.replace("'", "'\\''") + "'";
 	}
 
+	private static String psSingle(String value) {
+		return "'" + value.replace("'", "''") + "'";
+	}
+
 	private static int compare(String left, String right) {
 		int[] a = parts(left);
 		int[] b = parts(right);
@@ -574,8 +716,5 @@ public final class AutoUpdate implements PreLaunchEntrypoint {
 	}
 
 	private record Applied(Path dest, List<Path> locked) {
-	}
-
-	private record Launch(List<String> argv, String raw) {
 	}
 }

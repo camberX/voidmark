@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.187", new String[]{
+			"Auto update actually relaunches Minecraft after it swaps the jar. The last build exited cleanly and never started the new process."
+		}),
 		new Entry("1.1.186", new String[]{
 			"Theme has a Menu stars toggle. Turn it off to hide the drifting stars in the click GUI, loadouts, and wardrobe."
 		}),
