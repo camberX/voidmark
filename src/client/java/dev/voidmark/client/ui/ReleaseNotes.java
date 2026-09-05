@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.1.185", new String[]{
+			"Auto update replaces the jar and relaunches Minecraft on its own, so you do not have to open the launcher again."
+		}),
 		new Entry("1.1.184", new String[]{
 			"The vanilla black block outline stays off while Voidmark's glow outline is on, so you only see the custom rim."
 		}),
