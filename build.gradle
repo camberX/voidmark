@@ -96,7 +96,6 @@ tasks.register("syncWebMod") {
 			}
 		}
 		new File(destDir, versionedName).bytes = jarFile.bytes
-		new File(layout.projectDirectory.asFile, versionedName).bytes = jarFile.bytes
 		def spotifyId = (project.findProperty("spotify_client_id") ?: "").toString().trim()
 		def meta = [
 			version  : project.version.toString(),
