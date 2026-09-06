@@ -11,11 +11,15 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
- * Short CoD-style X on the crosshair after a Voidmark-confirmed hit.
- * Size follows {@code hitmarkerScale}; it only fades alpha, not color.
+ * Short CoD-style X on the vanilla crosshair after a Voidmark-confirmed hit.
+ * Arms are anti-aliased strokes so they stay smooth and sit on the 15x15
+ * crosshair sprite center. Size follows {@code hitmarkerScale}; it only
+ * fades alpha, not color.
  */
 public final class Hitmarker {
 	private static final long DURATION_NS = 280_000_000L;
+	private static final int CROSSHAIR = 15;
+	private static final float INV_SQRT2 = 0.70710677f;
 
 	private Hitmarker() {
 	}
@@ -55,16 +59,16 @@ public final class Hitmarker {
 		float scale = VoidmarkConfig.clampHudScale(config.hitmarkerScale);
 		int ink = Theme.withAlpha(0x000000, Math.round(255 * t));
 		int fill = Theme.withAlpha(0xFFFFFF, Math.round(255 * t));
-		float cx = graphics.guiWidth() * 0.5f;
-		float cy = graphics.guiHeight() * 0.5f;
+		float cx = (graphics.guiWidth() - CROSSHAIR) / 2 + CROSSHAIR * 0.5f;
+		float cy = (graphics.guiHeight() - CROSSHAIR) / 2 + CROSSHAIR * 0.5f;
 		float inner = 5f * scale;
-		float len = 6f * scale;
+		float outer = inner + 6f * scale;
 		float stroke = Math.max(0.7f, 0.85f * scale);
 		float rim = Math.max(0.4f, 0.45f * scale);
-		arm(graphics, cx, cy, 1, 1, inner, len, stroke, rim, ink, fill);
-		arm(graphics, cx, cy, -1, 1, inner, len, stroke, rim, ink, fill);
-		arm(graphics, cx, cy, 1, -1, inner, len, stroke, rim, ink, fill);
-		arm(graphics, cx, cy, -1, -1, inner, len, stroke, rim, ink, fill);
+		arm(graphics, cx, cy, 1, 1, inner, outer, stroke, rim, ink, fill);
+		arm(graphics, cx, cy, -1, 1, inner, outer, stroke, rim, ink, fill);
+		arm(graphics, cx, cy, 1, -1, inner, outer, stroke, rim, ink, fill);
+		arm(graphics, cx, cy, -1, -1, inner, outer, stroke, rim, ink, fill);
 	}
 
 	private static void arm(
@@ -74,28 +78,19 @@ public final class Hitmarker {
 		int sx,
 		int sy,
 		float inner,
-		float len,
+		float outer,
 		float stroke,
 		float rim,
 		int ink,
 		int fill
 	) {
-		int steps = Math.max(4, Math.round(len + rim * 2f));
-		float inkSize = stroke + rim * 2f;
-		float inkHalf = inkSize * 0.5f;
-		float fillHalf = stroke * 0.5f;
-		for (int i = 0; i < steps; i++) {
-			float u = inner + len * (i / (float) Math.max(1, steps - 1));
-			float x = cx + sx * u;
-			float y = cy + sy * u;
-			GuiDraw.fill(graphics, x - inkHalf, y - inkHalf, inkSize, inkSize, ink);
-		}
-		int innerSteps = Math.max(4, Math.round(len));
-		for (int i = 0; i < innerSteps; i++) {
-			float u = inner + len * (i / (float) Math.max(1, innerSteps - 1));
-			float x = cx + sx * u;
-			float y = cy + sy * u;
-			GuiDraw.fill(graphics, x - fillHalf, y - fillHalf, stroke, stroke, fill);
-		}
+		float ux = sx * INV_SQRT2;
+		float uy = sy * INV_SQRT2;
+		float x0 = cx + ux * inner;
+		float y0 = cy + uy * inner;
+		float x1 = cx + ux * outer;
+		float y1 = cy + uy * outer;
+		GuiDraw.stroke(graphics, x0, y0, x1, y1, stroke + rim * 2f, ink);
+		GuiDraw.stroke(graphics, x0, y0, x1, y1, stroke, fill);
 	}
 }

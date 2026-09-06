@@ -18,8 +18,11 @@ import java.util.Locale;
 
 public final class GuiDraw {
 	private static final Identifier CIRCLE = Voidmark.id("textures/gui/circle.png");
+	private static final Identifier STROKE = Voidmark.id("textures/gui/stroke.png");
 	private static final int CIRCLE_TEX = 64;
 	private static final int CIRCLE_HALF = 32;
+	private static final int STROKE_TEX_W = 64;
+	private static final int STROKE_TEX_H = 16;
 
 	private GuiDraw() {
 	}
@@ -150,6 +153,56 @@ public final class GuiDraw {
 		}
 		if (radius <= 1.05f) {
 			fill(graphics, cx - radius, cy - radius, radius * 2f, radius * 2f, color);
+			return;
+		}
+		float d = radius * 2f;
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(cx - radius, cy - radius);
+		graphics.pose().scale(d, d);
+		graphics.blit(RenderPipelines.GUI_TEXTURED, CIRCLE, 0, 0, 0f, 0f, 1, 1, CIRCLE_TEX, CIRCLE_TEX, CIRCLE_TEX, CIRCLE_TEX, color);
+		graphics.pose().popMatrix();
+	}
+
+	/** Anti-aliased round-cap stroke, like a NanoVG line. */
+	public static void stroke(GuiGraphicsExtractor graphics, float x0, float y0, float x1, float y1, float width, int color) {
+		if (width <= 0f || (color >>> 24) < 2) {
+			return;
+		}
+		float dx = x1 - x0;
+		float dy = y1 - y0;
+		float len = (float) Math.hypot(dx, dy);
+		float half = width * 0.5f;
+		if (len < 1.0E-4f) {
+			dot(graphics, x0, y0, half, color);
+			return;
+		}
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x0, y0);
+		graphics.pose().rotate((float) Math.atan2(dy, dx));
+		graphics.pose().translate(0f, -half);
+		graphics.pose().scale(len, width);
+		graphics.blit(
+			RenderPipelines.GUI_TEXTURED,
+			STROKE,
+			0,
+			0,
+			0f,
+			0f,
+			1,
+			1,
+			STROKE_TEX_W,
+			STROKE_TEX_H,
+			STROKE_TEX_W,
+			STROKE_TEX_H,
+			color
+		);
+		graphics.pose().popMatrix();
+		dot(graphics, x0, y0, half, color);
+		dot(graphics, x1, y1, half, color);
+	}
+
+	private static void dot(GuiGraphicsExtractor graphics, float cx, float cy, float radius, int color) {
+		if (radius <= 0f || (color >>> 24) < 2) {
 			return;
 		}
 		float d = radius * 2f;
