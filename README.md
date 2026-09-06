@@ -1,107 +1,114 @@
 # Voidmark
 
-Fabric 26.1.2 QoL for Hypixel Skyblock. Marks **Ender Nodes** on the End Island, tints the world and skybox, and stretches aspect ratio. The config menu is a compact NEVERLOSE-style click GUI (`/voidmark`): a dark frosted-blue sidebar over the blurred world, a near-black content pane with animated starfield particles, rounded chrome, Nunito Sans, and icon-font glyphs. It floats in the center of the screen instead of filling it. The Minecraft title screen is replaced with a matching Voidmark menu: a full-screen starfield, taller Singleplayer / Multiplayer / Realms buttons, and the same pane chrome.
+A client-side Fabric mod for Minecraft 26.1.2 focused on Hypixel SkyBlock quality-of-life features and visual customization.
 
-Ender Nodes look like purple stained clay (magenta terracotta on modern versions) and spit portal-colored dust. Voidmark scans loaded chunks, listens for those particles, then draws through-wall boxes, an outline, and a tracer to the nearest node.
+Voidmark includes Ender Node highlighting, mining and farming tools, configurable HUD elements, custom menus, entity ESP, capes, media controls, and a compact in-game settings interface.
 
-## Install
+## Requirements
 
-1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for **Minecraft 26.1.2**.
-2. Drop [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2) into `mods`.
-3. Download the current jar from [voidmark.cloud](https://voidmark.cloud) (`Download Voidmark`) and put it in `mods`. That link pulls the latest jar from [camberX/voidmark](https://github.com/camberX/voidmark) after each `./gradlew build` + `git push`. Or build this project yourself and use `build/libs/voidmark-*.jar`. Delete any older `voidmark-*.jar` in that folder first — a truncated zip (`zip END header not found`) makes Fabric refuse to start even if a good jar is also there.
-4. Launch the Fabric 26.1.2 profile.
+- Minecraft 26.1.2
+- Java 25
+- [Fabric Loader](https://fabricmc.net/use/installer/)
+- [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=26.1.2)
 
-Java **25** is required.
+## Installation
 
-## Use
+1. Install Fabric Loader for Minecraft 26.1.2.
+2. Add Fabric API to your `mods` folder.
+3. Download Voidmark from [voidmark.cloud](https://voidmark.cloud) and place the JAR in the same folder.
+4. Remove older `voidmark-*.jar` files, then launch the Fabric profile.
 
-- The Minecraft **title screen** is replaced with a Voidmark menu: starry sky background, VOIDMARK title, and taller Singleplayer / Multiplayer / Realms / Options / Quit buttons in the same pane style as the click GUI. Language, Accessibility, and credits stay as text links at the bottom. That same chrome continues onto the **world list**, **server list**, **options**, pause menu, Realms, language, accessibility, and the rest of the out-of-world menus: starfield instead of dirt, pane buttons, restyled lists, sliders, and text fields. Inventory and chat stay vanilla.
-- `/loadouts` (also `/loadout`, `/ld`, `/vm loadouts`) asks Hypixel for the loadouts chest, then Voidmark draws its own menu instead of the vanilla 54-slot grid. The slots on the right are Hypixel's 3-wide loadout grid; the left shows a rotatable 3D player wearing that loadout's armor and a 3D pet when Hypixel includes one. Press **1-9** to equip that slot and close. Bind **Open Loadouts** in Controls → Voidmark (unbound by default) to send `/loadouts` without typing. Clicks are sent through the real chest screen — same packet as a vanilla slot click. Turn it off with **Loadouts menu** on the Menus tab.
-- `/vm edit` or `/voidmark edit` opens the item id window. It shows the item you are holding, with its `minecraft:` id or Skyblock `sb:` id in a text box and a large preview above it. Typing another id reskins that item on your client: hand, hotbar, and inventory show the new look. Worn armor is unchanged. The server still has the real item. Vanilla ids look like `minecraft:diamond_sword`. Skyblock ids look like `sb:HYPERION`, or just the name (`Hyperion`). Tab or click a suggestion to fill it. Type the original id again to clear the reskin.
-- `/vm rawmats sb:HYPERION` (or `/voidmark rawmats`, or `/vm rawmats` while holding the item) expands that Skyblock craft and shows a HUD with item icons, have/need counts, and a live progress bar per ingredient. **Materials** (Overlay tab cog, or click Raw/Enchanted on the HUD with chat open) picks **Raw** (Iron Ingot) or **Enchanted** (Enchanted Iron). Higher-tier stacks still count toward that compact (Refined Mithril counts as Enchanted Mithril); the row shows **Used in** the actual recipe ingredient so you can see what the craft takes. Inventory, armor, and the held cursor stack are counted live. Ender Chest and backpacks start from your Skyblock profile (`hypixel.odtheking.com`) when you join a server and whenever you run `/vm rawmats` — including items sitting inside backpacks stored in the Ender Chest, and both the current Hypixel `inventory.*` payload and older member-level NBT. Moving items in or out of an open bag or Ender Chest updates that snapshot so the same stack is not counted twice. `/vm rawmats refresh` pulls storage again; `/vm rawmats raw` / `/vm rawmats enchanted` switch the mode; `/vm rawmats clear` hides the tracker.
-- The **Music HUD** (Overlay tab) shows the song that is playing in Spotify or YouTube Music: cover art, title, artist, source, a progress bar, and elapsed/duration on the right of the bar (`1:23/3:45`). Pause freezes the bar; scrubbing updates it when the player reports a real timestamp. YouTube Music in a browser often has no live clock — use [th-ch YouTube Music](https://github.com/th-ch/youtube-music) with **Plugins → API Server** on port **26538** (the plugin default) for position, artist, and album art. If the plugin’s Authorization strategy is “Authorize at first request”, click **Allow** when YouTube Music asks for Voidmark; or set Authorization to **None**. A custom port goes in `voidmark.json` as `musicApiPort`. YouTube Music Desktop (port 9863, 1.x `/query`) still works. When the track changes, chat shows a styled `VOIDMARK | NOW PLAYING` line with the title and artist. Open Minecraft chat (`T`) and hover the music HUD to slide out **previous / play-pause / next**. You can also type `.np` `.play` `.pause` `.skip` `.prev` in chat (those stay client-side) or `/vm music`. On Windows it reads Spotify / YouTube Music window titles and local companion APIs. Media keys go through the Windows key API, not a shell. Linux uses `playerctl` metadata and `mpris:artUrl`.
-- **ESP** (ESP tab) highlights every loaded entity of the types you pick, including other players. Scroll the full vanilla list (or type in the list search) and click rows to select them; click a selected row again to drop it. Matching entities get a **silhouette outline** with a shader gradient that fades outward from the model — not boxes, and not Minecraft’s sobel glow. You are never outlined. `/vm esp Frozen Blaze` (or any other nametag substring) glows every mob whose nametag contains that text, including Hypixel hologram armor stands, text displays, and the living mob under them. Run it again with another word to glow more than one filter at once. Active filters sit in **Nametag ESP** on the ESP tab, each with an **x** to remove it. `/vm esp clear` drops them all; `/vm esp clear seer` drops one. A plate is bound to the mob standing under it, so `/vm esp seer` does not glow nearby Obsidian Defenders. Walk up to one named copy in the current world; Voidmark remembers that mob's type and armor and glows the rest at render distance until you change worlds. Mobs that already have vanilla GLOWING (slayers, the glowing effect) keep Minecraft’s outline instead of ESP. **Block outline** (on by default) puts that same glow on the block you are looking at, around the vanilla selection wire. Color and opacity sit on the cog next to Block outline. **Nametags** sit on the same Glow card.
-- **Mining** (Mining tab) shows a compact HUD with commission progress from the tab list and your pickaxe ability cooldown. Each job has a bar and a percent colored from red (just started) through gold to accent (done). Use a pickaxe ability and the HUD counts down (120s for Mining Speed Boost, 60s for Pickobulus) until chat says it is ready. **Ability alert** (cog next to Mining HUD, on by default) flashes a centered **READY** banner when chat contains `Pickobulus is now available!` or `Mining Speed Boost is now available!`. **Titanium ESP** turns on only while an unfinished tab commission contains `Titanium`: it marks polished diorite (Hypixel’s Titanium ore) through walls, merging neighboring ores into one box. A job like `Rampart's Quarry Titanium` only highlights veins in that named region; `Titanium Miner` highlights every vein in range. Drag the panel in the HUD editor.
-- **Farming** (Farming tab) shows **Yaw / Pitch** just to the right of the crosshair while you hold an item whose lore contains `FARMING TOOL`. Hide it with F1 or the toggle. **Scale** is on the cog.
+You can also build the mod yourself and use the JAR generated in `build/libs`.
 
-- Right Shift is the default keybind (Controls → Voidmark). Press it again to close (the menu eases out).
-- `/voidmark toggle` flips node markers without opening the menu.
-- `/vm farmkeys` (or `/vm fk`) swaps the Attack/Destroy and Jump bindings, makes the swapped Attack/Destroy key toggle held attack, and lowers sensitivity to Minecraft's minimum. Run it again to restore your exact bindings and sensitivity.
-- Toolbar **HUD** opens the HUD editor: drag any overlay (inventory, watermark, nodes, music, raw mats, mining) and every custom vanilla HUD piece (hotbar, bars, scoreboard, boss, effects, held item). They snap to screen axes and to each other; hold **Shift** to move freely. Click a panel, then drag the **Scale** bar or scroll the mouse wheel (50%–200%). **Reset** on the Bars tab restores default positions.
-- A cog next to a feature toggle opens that feature’s subsettings in a side window.
-- The toolbar gear opens **Theme**: **Accent**, **Pane** color, pane **Opacity**, **Font** (Minecraft, bundled Nunito, or any installed TrueType family — applied to every menu and HUD label except the watermark VOIDMARK logo and the VOIDMARK Dev nametag). Minecraft is drawn at Nunito's body/small/title sizes so it does not sit oversized next to those fonts. **Scale** (100% / 90% / 75% / 50%), **HUD** opacity for overlay panes, **Menu stars** for the click GUI, and **HUD stars**. Theme and feature panes stay more opaque than the main window so the text stays readable. Animation toggle is there too. **Auto update** (off by default) makes the next launch wait on voidmark.cloud; if a newer jar is published it replaces the one in `mods` and Minecraft exits so you can relaunch.
-- The bell opens **What’s new**: a versioned changelog. An accent dot on the bell means there are notes you have not opened yet.
-- Search (`Ctrl+F` or the magnifier) jumps to a setting.
-- **Bars** (Bars tab) restyles vanilla HUD layers in the same pane look as the click GUI. Compact pieces (hotbar, health, hunger, armor, air, experience, mount health, boss bar, status effects, held item) have no accent rail. Overlay panes (music, nodes, mining, raw mats, inventory) and the scoreboard have no rail either — only the watermark keeps one. Each piece has its own switch. Turning one on hides that vanilla layer so they do not stack. Turn a switch off to get the original Minecraft HUD back. Drag and scale each piece in the HUD editor. The inventory HUD on Overlay is a separate overlay, not the hotbar replacement.
-- **Inventory HUD** (Overlay tab cog) draws your armor, storage, and hotbar on-screen. Hotbar, armor/offhand, and the `n/41` count can each be toggled there. Move and scale it in the HUD editor. It reads the live inventory every frame. Hide it with F1; it also hides while a chest or the vanilla inventory is open.
-- **Pickup log** (Overlay tab) shows items added to your inventory and their actual net quantities in a movable HUD list. This includes ground pickups and rewards that spawn directly in inventory. Repeated additions merge, slot moves do not count, and entries fade after five seconds.
-- Click your **skull or name** in the sidebar for a 3D rotatable preview of your skin with nick and custom cape. The model fills the You card, follows the menu scale, and is drawn without armor or held items. A vanilla Minecraft nametag sits above the head. The Cape card stays locked until your UUID is on the shop list. Then paste a PNG URL, click **Local file...**, or **Create cape...** to crop any photo (PNG or JPEG) onto the 10×16 cape face: drag to pan, scroll to zoom, then Apply. The crop is baked into a vanilla cape atlas and published so everyone sees the same cut. **Refresh capes** (everyone can use it, even if the card is locked) pulls the latest shop capes and head tags for nearby players, at most once every 5 minutes. Other Voidmark users also pick them up when they join a world. Vanilla **64×32** (and 128×64, 256×128, …) cape templates skip the cropper and are used as-is. **Nick** replaces your username in chat, tab, the scoreboard, and nametags. `&6` `&l` `&r` (and the rest of the legacy codes) work in the input; the preview under it is what other HUD text will look like.
-- **Nametags** (ESP tab cog) default to Voidmark-styled name plates in the Minecraft font that keep drawing past vanilla’s 64-block cutoff (range 64–256m). The Theme font picker does not apply to player names, distance, or head tags — Unicode in those plates uses vanilla so it actually draws, and Hypixel `§` color codes stay colors instead of leftover digits. **Style** on that cog switches to **Vanilla** chrome (Minecraft’s background box) while keeping the same range, Size slider (50–200%), Opacity, optional distance text, through-walls, and distance scaling. **Own nametag** is its own switch on ESP (off in first person either way) and shows your plate in F5; **VOIDMARK Dev** only draws when that is on. UUID v2 entities (Hypixel NPCs) are skipped; only UUID v4 players get a plate. The Dev line uses the menu font and sits in the same plate as the name. Vanilla Minecraft tags are hidden while Voidmark nametags are on so they do not stack. Your nick replaces your own name in F5.
+## Features
 
-### Visuals → World
+### SkyBlock
 
-Recolors terrain toward a color you pick. Strength goes from a light wash to a full client-style paint. **Mode** (World tint cog) picks how: **Shader** (default) paints in Sodium's chunk shader, so fullbright cannot cancel it; **Lightmap** is the older lighting wash. Lightmap mode shows a reminder that **fullbright must be off** or the wash will not appear. Skybox and fog cogs can match the world color or use their own. Aspect chips are on the Aspect cog.
+- Ender Node boxes, outlines, tracers, particles, and a nearby-node HUD
+- Custom Loadouts and Wardrobe menus with 3D equipment previews
+- Mining commission progress and pickaxe ability cooldowns
+- Titanium ESP that follows active commission locations
+- Raw material tracking for SkyBlock recipes and storage
+- Farming yaw and pitch display while holding a Farming Tool
+- Farm Keys mode for swapping controls, toggling attack, and lowering sensitivity
+- Chest ESP with configurable range, color, and aim assistance
 
-### Visuals → Combat
+### Visuals and ESP
 
-**Hitsound** plays a short clip when **you** land a hit that would register: left-click on a mob or hologram after the weapon charge and hit delay are ready, or **your** arrow overlapping a mob. Spam-clicks during that delay stay quiet. **Hitmarker** (same Combat card) flashes a white CoD-style X with a black outline on the crosshair; **Marker** on Mix sets its size. Other players' hits do not ding. Hypixel often syncs mob health as 0, so Voidmark does not wait for the client to think the mob is alive. Real players (UUID v4) are skipped; Hypixel NPCs still count. **Melee** and **Arrows** are separate switches; volume and pitch are on the cog. Turning Enable on plays a preview. The delayed vanilla arrow ping is muted if Voidmark already predicted that shot.
+- World, skybox, and fog tinting
+- Custom aspect ratios
+- Entity and nametag-based ESP
+- Configurable block outlines and player nametags
+- Hitsounds and hitmarkers for melee and ranged attacks
+- Client-side item appearance overrides
+- Custom capes and nicknames
 
-### Visuals → ESP
+### HUD and interface
 
-Click one or more types in the scrollable list of every living vanilla type plus players. Click a selected row again to deselect it. Matching entities are drawn into the outline buffer as a silhouette, then a custom post shader blurs that mask and keeps only the outside so you get a clean rim plus an outward gradient. `/vm esp <text>` does the same for nametags that contain that word; you can add several. They show under **Nametag ESP** with an **x** beside each one. After you see one named copy in this world, Voidmark remembers that mob's type and armor and glows the rest at render distance, even before their hologram plate draws. Changing worlds forgets that look so you have to see one named copy again. A nametag only counts for the mob under it, so Seers and Obsidian Defenders do not share a look. Entities that already glow in vanilla are left on Minecraft’s sobel outline. **Block outline** applies the same glow to the block under your crosshair; its color and opacity are on the Block outline cog. Through-walls, radius, opacity, and color for mobs are on the Mob glow cog. The radius slider is how far the halo reaches; the edge stays the glow color instead of fading to black.
+- Movable and scalable HUD editor
+- Watermark, inventory, music, mining, node, raw-material, and pickup overlays
+- Restyled hotbar, health, armor, hunger, experience, scoreboard, and other vanilla HUD elements
+- Pickup log for inventory gains, including direct rewards
+- Custom title screen and consistent menu styling
+- Configurable colors, fonts, opacity, scale, and animations
 
-### Skyblock → Nodes
+## Controls and commands
 
-Markers only run in Skyblock by default. Enable **Force enable** on the Nodes cog to test in singleplayer with magenta terracotta. **Node HUD** and **Node ESP** (boxes, tracers, fill, color) are on this page. Status (Hypixel / Skyblock / The End, FPS, ping) is on the Status tab. **Loadouts menu** and **Wardrobe menu** (Menus tab, on by default) replace Hypixel's chests with Voidmark windows; clicks still go through those chests. Wardrobe shows a 3D model for each armor set.
+The default menu key is **Right Shift**. Keybinds can be changed under **Controls → Voidmark**.
 
-### Skyblock → Mining
-
-Commission lines come from the Skyblock tab list (`Commissions:` widget) in the Dwarven Mines, Crystal Hollows, Glacite, and the other mining islands. Turn on Player List Info in SkyBlock Menu → Settings → Personal → User Interface if the widget is missing. The compact HUD lists each job with a progress bar and percent, plus the pickaxe ability timer. Ability ready uses the Hypixel chat lines `Pickobulus is now available!` and `Mining Speed Boost is now available!`. Titanium ESP uses that same widget: if a job name contains Titanium and is not Done, polished diorite in range is outlined, and neighboring ores merge into one box. Location jobs (`Lava Springs Titanium`, `Cliffside Veins Titanium`, `Rampart's Quarry Titanium`, `Upper Mines Titanium`, `Royal Mines Titanium`) only outline veins in that SkyHanni-mapped region. Neighbouring zones (Far Reserve, Goblin Burrows, The Mist, the Village, the Forge) are excluded so they cannot steal an adjacent job. `Titanium Miner` outlines every vein in range.
-
-### Skyblock → Farming
-
-**Yaw / Pitch** (on by default) draws your look angles next to the crosshair while the held item's lore contains `FARMING TOOL` (color codes ignored). It hides with F1 and while a menu is open. Scale sits on the cog.
-
-## Settings
-
-| Tab | What it does |
+| Command | Description |
 | --- | --- |
-| World | World tint, skybox, fog, aspect, hitsound — extra options on each cog |
-| ESP | Mob list, nametag ESP filters, glow, block outline, nametags |
-| Overlay | Watermark / music / raw mats / inventory HUDs |
-| Bars | Custom vanilla HUD: hotbar, bars, scoreboard, boss, effects, held item |
-| Nodes | Ender node markers, node HUD, custom loadouts menu, and live Hypixel/Skyblock status |
-| Mining | Compact commission HUD, pickaxe cooldown, Titanium ESP |
-| Farming | Yaw / Pitch next to the crosshair on Farming Tools |
+| `/voidmark` or `/vm` | Open the Voidmark menu |
+| `/voidmark toggle` | Toggle Ender Node markers |
+| `/vm edit` | Open the held-item appearance editor |
+| `/vm loadouts` | Open the custom Loadouts menu |
+| `/vm wardrobe` | Open the custom Wardrobe menu |
+| `/vm rawmats [item]` | Track raw materials for a SkyBlock item |
+| `/vm rawmats refresh` | Refresh profile storage data |
+| `/vm rawmats clear` | Hide the material tracker |
+| `/vm esp <name>` | Add a nametag ESP filter |
+| `/vm esp clear [name]` | Remove nametag ESP filters |
+| `/vm farmkeys` or `/vm fk` | Toggle farming controls |
+| `/vm music` | Show music integration status |
 
-Config is saved to `.minecraft/config/voidmark.json`, including click-GUI position and the last tab you had open.
+Music controls are also available through `.np`, `.play`, `.pause`, `.skip`, and `.prev`. These messages are handled locally and are not sent to the server.
 
-## Cape shop
+## Configuration
 
-Custom capes for Voidmark users. Message **@evilkitten911** on Discord with a Minecraft username; you whitelist that name or UUID on the cape desk. They crop a photo with **Create cape** in Voidmark (or you do it on the cape desk). Other Voidmark clients fetch `/capes/{uuid}.png`. Changing the cape in the menu overwrites that file; others pick it up the next time they join a world, or when they click **Refresh capes** (once every 5 minutes). Players can change their own cape once per 24 hours unless **Upload bypass** is checked on the admin list. Admin cape uploads skip that limit. If a UUID is not on the list, the in-game Cape card stays locked. The shop still answers `uuid not whitelisted` if someone bypasses the lock. **Head tag** on the admin list is custom text above their nametag for Voidmark users (`&6` `&l` and the rest of the nick color codes). It refreshes on the same join or refresh.
+Open the menu to configure individual features and their settings. The toolbar HUD button opens the layout editor, where overlays can be dragged and scaled.
 
-The mod always talks to `https://voidmark.cloud`. That host is not a config option. Hosting notes are in **[web/CLOUDFLARE.md](web/CLOUDFLARE.md)**.
+Settings are saved in:
 
-Capes only show for Voidmark users.
+```text
+.minecraft/config/voidmark.json
+```
 
-Local testing only:
+## Building from source
+
+Clone the repository and run:
+
+```bash
+./gradlew build
+```
+
+Java 25 is required. The built JAR is written to `build/libs`, and the website release files are synchronized under `web/public/mod`.
+
+To launch a development client:
+
+```bash
+./gradlew runClient
+```
+
+## Website and cape service
+
+The `web` directory contains the Voidmark download site and cape service. Local development can be started with:
 
 ```bash
 node web/server.mjs
 ```
 
-- Site: `http://127.0.0.1:43150` (override with `VOIDMARK_CAPE_PORT`). Public shop is `/`, including a download of the latest jar at `/download`. Admin is `/admin`. `/manage` is only served after that login. Desk APIs also require that login cookie, so a copied panel cannot whitelist, tag, or publish.
-- After they message on Discord, open `/admin`, enter `VOIDMARK_CAPE_ADMIN` (default `change-me`), and add their username or UUID.
-- Keep `web/data/whitelist.json` off git.
+The local site runs at `http://127.0.0.1:43150` by default. See [web/CLOUDFLARE.md](web/CLOUDFLARE.md) for deployment instructions.
 
-Developer builds stamp a small **DEV** tag on the watermark next to VOIDMARK.
+## License
 
-## Develop
-
-```bash
-# Java 25
-./gradlew build
-# copies the jar to web/public/mod/ and writes latest.json
-# git push to the public GitHub repo; voidmark.cloud/download picks it up
-./gradlew runClient
-```
+Voidmark is released under the [CC0 1.0 Universal](LICENSE) public-domain dedication.
