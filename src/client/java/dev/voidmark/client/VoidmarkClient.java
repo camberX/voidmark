@@ -224,6 +224,7 @@ public final class VoidmarkClient implements ClientModInitializer {
 			LoadoutsScreen.tickSwap(client);
 			WardrobeScreen.tickSwap(client);
 			Hitsound.tick(client);
+			PickupLogRenderer.tick(client);
 			EnderNodeTracker.get().tick(client);
 			ConnectionPing.tick(client);
 			RawmatsTracker.tick(client);

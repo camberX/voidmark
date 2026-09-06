@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.24", new String[]{
+			"Pickup log now uses actual inventory gains, so direct rewards count, ground pickups count once, slot moves do not count, and quantities are correct."
+		}),
 		new Entry("1.2.23", new String[]{
 			"On Skyblock, hitsound and hitmarker wait follow tab Attack Speed: melee rounds 10 / (1 + AS/100) ticks per mob. Off Skyblock the wait stays 1 tick."
 		}),

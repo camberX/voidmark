@@ -2,6 +2,7 @@ package dev.voidmark.client.render;
 
 import dev.voidmark.Voidmark;
 import dev.voidmark.client.config.VoidmarkConfig;
+import dev.voidmark.client.item.ItemIds;
 import dev.voidmark.client.ui.Theme;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
@@ -10,11 +11,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Recent items collected by the local player. */
 public final class PickupLogRenderer {
@@ -26,6 +30,9 @@ public final class PickupLogRenderer {
 	private static final float HEAD = 13f;
 	private static final float ROW = 18f;
 	private static final List<Entry> ENTRIES = new ArrayList<>();
+	private static Map<String, InventoryTotal> inventory = Map.of();
+	private static int playerId = Integer.MIN_VALUE;
+	private static boolean inventoryReady;
 
 	private PickupLogRenderer() {
 	}
@@ -60,8 +67,29 @@ public final class PickupLogRenderer {
 		}
 	}
 
+	public static void tick(Minecraft client) {
+		if (client == null || client.player == null) {
+			resetInventory();
+			return;
+		}
+		Map<String, InventoryTotal> current = inventory(client.player.getInventory());
+		if (inventoryReady && playerId == client.player.getId()) {
+			for (Map.Entry<String, InventoryTotal> row : current.entrySet()) {
+				InventoryTotal before = inventory.get(row.getKey());
+				int gained = row.getValue().amount - (before == null ? 0 : before.amount);
+				if (gained > 0 && VoidmarkConfig.get().pickupLogEnabled) {
+					add(row.getValue().stack, gained);
+				}
+			}
+		}
+		inventory = current;
+		playerId = client.player.getId();
+		inventoryReady = true;
+	}
+
 	public static void clear() {
 		ENTRIES.clear();
+		resetInventory();
 	}
 
 	public static float drawWidth() {
@@ -158,6 +186,29 @@ public final class PickupLogRenderer {
 		ENTRIES.removeIf(entry -> now - entry.time >= LIFE_NS);
 	}
 
+	private static Map<String, InventoryTotal> inventory(Inventory source) {
+		Map<String, InventoryTotal> totals = new LinkedHashMap<>();
+		for (ItemStack stack : source.getNonEquipmentItems()) {
+			if (stack == null || stack.isEmpty()) {
+				continue;
+			}
+			String key = ItemIds.idOf(stack) + '\u0000' + stack.getHoverName().getString();
+			InventoryTotal total = totals.get(key);
+			if (total == null) {
+				totals.put(key, new InventoryTotal(stack.copyWithCount(1), stack.getCount()));
+			} else {
+				total.amount += stack.getCount();
+			}
+		}
+		return totals;
+	}
+
+	private static void resetInventory() {
+		inventory = Map.of();
+		playerId = Integer.MIN_VALUE;
+		inventoryReady = false;
+	}
+
 	private static final class Entry {
 		private final ItemStack stack;
 		private final Component name;
@@ -169,6 +220,16 @@ public final class PickupLogRenderer {
 			this.name = name;
 			this.amount = amount;
 			this.time = time;
+		}
+	}
+
+	private static final class InventoryTotal {
+		private final ItemStack stack;
+		private int amount;
+
+		private InventoryTotal(ItemStack stack, int amount) {
+			this.stack = stack;
+			this.amount = amount;
 		}
 	}
 }
