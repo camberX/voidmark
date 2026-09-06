@@ -28,16 +28,16 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Plays a hitsound as soon as this client lands a melee swing or one of its
  * own arrows overlaps a mob. Other players' hits are ignored.
- * Melee and arrows use a 1-tick delay per entity, not a global cooldown or
- * a nearby-mob stamp. The 1.9 weapon charge bar and hurt-time are ignored.
- * Hypixel often reports mob health as 0, so we never gate on {@code isAlive()}.
+ * Melee and arrows wait per entity using Skyblock attack speed when on
+ * Skyblock, otherwise 1 tick. Nearby mobs are not stamped. The 1.9 weapon
+ * charge bar and hurt-time are ignored. Hypixel often reports mob health as
+ * 0, so we never gate on {@code isAlive()}.
  */
 public final class Hitsound {
 	private static final SoundEvent SOUND = SoundEvent.createVariableRangeEvent(Voidmark.id("hit"));
 	private static final double ARROW_MARGIN = 0.6;
 	private static final int ARROW_PAIR = 2;
 	private static final int VANILLA_PING_TICKS = 20;
-	private static final int ENTITY_DELAY = 1;
 	private static final Long2IntOpenHashMap ARROWS = new Long2IntOpenHashMap();
 	private static final Int2IntOpenHashMap LAST = new Int2IntOpenHashMap();
 	private static int gameTick;
@@ -51,10 +51,12 @@ public final class Hitsound {
 		LAST.clear();
 		gameTick = 0;
 		lastVanillaSuppressTick = Integer.MIN_VALUE;
+		AttackSpeed.reset();
 	}
 
 	public static void tick(Minecraft client) {
 		gameTick++;
+		AttackSpeed.tick(client);
 		if ((gameTick & 31) == 0) {
 			prune();
 		}
@@ -90,7 +92,7 @@ public final class Hitsound {
 		if (player == null || attacker != player || target == null || player.isSpectator()) {
 			return;
 		}
-		if (!isMeleeTarget(target, player) || !entityReady(target.getId())) {
+		if (!isMeleeTarget(target, player) || !entityReady(target.getId(), AttackSpeed.meleeDelay())) {
 			return;
 		}
 		stampEntity(target.getId());
@@ -154,9 +156,9 @@ public final class Hitsound {
 		return config.hitmarkerEnabled || config.hitsoundEnabled && config.hitsoundArrows;
 	}
 
-	private static boolean entityReady(int entityId) {
+	private static boolean entityReady(int entityId, int delay) {
 		int last = LAST.get(entityId);
-		return last == 0 || gameTick - last >= ENTITY_DELAY;
+		return last == 0 || gameTick - last >= delay;
 	}
 
 	private static void land(VoidmarkConfig config, boolean sound, boolean mark) {
@@ -215,7 +217,7 @@ public final class Hitsound {
 	}
 
 	private static boolean markArrow(int arrowId, int entityId) {
-		if (!entityReady(entityId)) {
+		if (!entityReady(entityId, AttackSpeed.arrowDelay())) {
 			return false;
 		}
 		long key = ((long) arrowId << 32) ^ (entityId & 0xFFFFFFFFL);
