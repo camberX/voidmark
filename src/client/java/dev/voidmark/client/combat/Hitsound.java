@@ -28,19 +28,18 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Plays a hitsound as soon as this client lands a melee swing or one of its
  * own arrows overlaps a mob. Other players' hits are ignored.
- * Melee uses a 1-tick per-target delay, not the 1.9 weapon charge bar or
- * hurt-time. Hypixel often reports mob health as 0, so we never gate on
- * {@code isAlive()}.
+ * Melee and arrows use a 1-tick delay per entity, not a global cooldown or
+ * a nearby-mob stamp. The 1.9 weapon charge bar and hurt-time are ignored.
+ * Hypixel often reports mob health as 0, so we never gate on {@code isAlive()}.
  */
 public final class Hitsound {
 	private static final SoundEvent SOUND = SoundEvent.createVariableRangeEvent(Voidmark.id("hit"));
 	private static final double ARROW_MARGIN = 0.6;
-	private static final int ARROW_DEBOUNCE = 6;
+	private static final int ARROW_PAIR = 2;
 	private static final int VANILLA_PING_TICKS = 20;
-	private static final int MELEE_DELAY = 1;
-	private static final Long2IntOpenHashMap HITS = new Long2IntOpenHashMap();
-	private static final Int2IntOpenHashMap TARGETS = new Int2IntOpenHashMap();
-	private static final Int2IntOpenHashMap MELEE = new Int2IntOpenHashMap();
+	private static final int ENTITY_DELAY = 1;
+	private static final Long2IntOpenHashMap ARROWS = new Long2IntOpenHashMap();
+	private static final Int2IntOpenHashMap LAST = new Int2IntOpenHashMap();
 	private static int gameTick;
 	private static int lastVanillaSuppressTick = Integer.MIN_VALUE;
 
@@ -48,9 +47,8 @@ public final class Hitsound {
 	}
 
 	public static void reset() {
-		HITS.clear();
-		TARGETS.clear();
-		MELEE.clear();
+		ARROWS.clear();
+		LAST.clear();
 		gameTick = 0;
 		lastVanillaSuppressTick = Integer.MIN_VALUE;
 	}
@@ -92,12 +90,11 @@ public final class Hitsound {
 		if (player == null || attacker != player || target == null || player.isSpectator()) {
 			return;
 		}
-		if (!isMeleeTarget(target, player) || !meleeReady(target)) {
+		if (!isMeleeTarget(target, player) || !entityReady(target.getId())) {
 			return;
 		}
-		MELEE.put(target.getId(), gameTick);
+		stampEntity(target.getId());
 		land(config, sound, mark);
-		stampNearby(player, target);
 	}
 
 	public static void onArrowHit(AbstractArrow arrow, Entity target) {
@@ -109,7 +106,7 @@ public final class Hitsound {
 		if (player == null || !shotByLocalPlayer(arrow, player) || !isArrowTarget(target, player)) {
 			return;
 		}
-		if (markHit(arrow.getId(), target.getId())) {
+		if (markArrow(arrow.getId(), target.getId())) {
 			land(config, config.hitsoundEnabled && config.hitsoundArrows, config.hitmarkerEnabled);
 		}
 	}
@@ -145,7 +142,7 @@ public final class Hitsound {
 		for (Entity other : player.level().getEntities(arrow, search, entity -> isArrowTarget(entity, player))) {
 			AABB hitbox = other.getBoundingBox().inflate(ARROW_MARGIN);
 			if (hitbox.contains(from) || hitbox.contains(to) || hitbox.clip(from, to).isPresent()) {
-				if (markHit(arrow.getId(), other.getId())) {
+				if (markArrow(arrow.getId(), other.getId())) {
 					VoidmarkConfig config = VoidmarkConfig.get();
 					land(config, config.hitsoundEnabled && config.hitsoundArrows, config.hitmarkerEnabled);
 				}
@@ -157,9 +154,9 @@ public final class Hitsound {
 		return config.hitmarkerEnabled || config.hitsoundEnabled && config.hitsoundArrows;
 	}
 
-	private static boolean meleeReady(Entity target) {
-		int last = MELEE.get(target.getId());
-		return last == 0 || gameTick - last >= MELEE_DELAY;
+	private static boolean entityReady(int entityId) {
+		int last = LAST.get(entityId);
+		return last == 0 || gameTick - last >= ENTITY_DELAY;
 	}
 
 	private static void land(VoidmarkConfig config, boolean sound, boolean mark) {
@@ -212,38 +209,22 @@ public final class Hitsound {
 		return vel.normalize().dot(player.getLookAngle()) > 0.75;
 	}
 
-	private static boolean recentTarget(int entityId) {
-		int last = TARGETS.get(entityId);
-		return last != 0 && gameTick - last < ARROW_DEBOUNCE;
-	}
-
-	private static void stampNearby(LocalPlayer player, Entity target) {
-		stampTarget(target.getId());
-		if (player.level() == null) {
-			return;
-		}
-		AABB box = target.getBoundingBox().inflate(2.5, 3.5, 2.5);
-		for (Entity other : player.level().getEntities(target, box, entity -> entity instanceof LivingEntity)) {
-			stampTarget(other.getId());
-		}
-	}
-
-	private static void stampTarget(int entityId) {
-		TARGETS.put(entityId, gameTick);
+	private static void stampEntity(int entityId) {
+		LAST.put(entityId, gameTick);
 		lastVanillaSuppressTick = gameTick;
 	}
 
-	private static boolean markHit(int a, int b) {
-		if (recentTarget(b)) {
+	private static boolean markArrow(int arrowId, int entityId) {
+		if (!entityReady(entityId)) {
 			return false;
 		}
-		long key = ((long) a << 32) ^ (b & 0xFFFFFFFFL);
-		int last = HITS.get(key);
-		if (last != 0 && gameTick - last < ARROW_DEBOUNCE) {
+		long key = ((long) arrowId << 32) ^ (entityId & 0xFFFFFFFFL);
+		int last = ARROWS.get(key);
+		if (last != 0 && gameTick - last < ARROW_PAIR) {
 			return false;
 		}
-		HITS.put(key, gameTick);
-		stampTarget(b);
+		ARROWS.put(key, gameTick);
+		stampEntity(entityId);
 		return true;
 	}
 
@@ -287,14 +268,11 @@ public final class Hitsound {
 	}
 
 	private static void prune() {
-		if (!HITS.isEmpty()) {
-			HITS.long2IntEntrySet().removeIf(entry -> gameTick - entry.getIntValue() > 40);
+		if (!ARROWS.isEmpty()) {
+			ARROWS.long2IntEntrySet().removeIf(entry -> gameTick - entry.getIntValue() > 40);
 		}
-		if (!TARGETS.isEmpty()) {
-			TARGETS.int2IntEntrySet().removeIf(entry -> gameTick - entry.getIntValue() > 40);
-		}
-		if (!MELEE.isEmpty()) {
-			MELEE.int2IntEntrySet().removeIf(entry -> gameTick - entry.getIntValue() > 40);
+		if (!LAST.isEmpty()) {
+			LAST.int2IntEntrySet().removeIf(entry -> gameTick - entry.getIntValue() > 40);
 		}
 	}
 }
