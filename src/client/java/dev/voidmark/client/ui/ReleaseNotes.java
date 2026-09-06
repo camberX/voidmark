@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.19", new String[]{
+			"Melee hitsound and hitmarker wait 3 ticks between hits on the same target."
+		}),
 		new Entry("1.2.18", new String[]{
 			"The hitmarker X is thinner.",
 			"Melee hitsound and hitmarker use the 1.8 10-tick hit delay instead of the 1.9 weapon charge."
