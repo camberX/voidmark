@@ -8,6 +8,10 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.18", new String[]{
+			"The hitmarker X is thinner.",
+			"Melee hitsound and hitmarker use the 1.8 10-tick hit delay instead of the 1.9 weapon charge."
+		}),
 		new Entry("1.2.17", new String[]{
 			"Pickup log shows recently collected items and quantities in a movable HUD list, then fades them after five seconds."
 		}),

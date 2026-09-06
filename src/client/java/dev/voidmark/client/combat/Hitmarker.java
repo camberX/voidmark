@@ -59,8 +59,8 @@ public final class Hitmarker {
 		float cy = graphics.guiHeight() * 0.5f;
 		float inner = 5f * scale;
 		float len = 6f * scale;
-		float stroke = Math.max(1.2f, 1.6f * scale);
-		float rim = Math.max(0.8f, 0.9f * scale);
+		float stroke = Math.max(0.7f, 0.85f * scale);
+		float rim = Math.max(0.4f, 0.45f * scale);
 		arm(graphics, cx, cy, 1, 1, inner, len, stroke, rim, ink, fill);
 		arm(graphics, cx, cy, -1, 1, inner, len, stroke, rim, ink, fill);
 		arm(graphics, cx, cy, 1, -1, inner, len, stroke, rim, ink, fill);

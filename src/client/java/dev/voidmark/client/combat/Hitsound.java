@@ -26,19 +26,18 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Plays a hitsound as soon as this client lands a charged melee swing or one
- * of its own arrows overlaps a mob. Other players' hits are ignored.
- * Melee waits for vanilla charge ({@code >= 0.9}), the item's attack delay,
- * and the target's hurt-time so spam-clicks during hit delay stay quiet.
- * Hypixel often reports mob health as 0, so we never gate on {@code isAlive()}.
+ * Plays a hitsound as soon as this client lands a melee swing or one of its
+ * own arrows overlaps a mob. Other players' hits are ignored.
+ * Melee uses the 1.8 10-tick hit delay and the target's hurt-time, not the
+ * 1.9 weapon charge bar. Hypixel often reports mob health as 0, so we never
+ * gate on {@code isAlive()}.
  */
 public final class Hitsound {
 	private static final SoundEvent SOUND = SoundEvent.createVariableRangeEvent(Voidmark.id("hit"));
 	private static final double ARROW_MARGIN = 0.6;
 	private static final int ARROW_DEBOUNCE = 6;
 	private static final int VANILLA_PING_TICKS = 20;
-	private static final float CHARGED_HIT = 0.9f;
-	private static final int MIN_MELEE_DELAY = 10;
+	private static final int MELEE_DELAY = 10;
 	private static final Long2IntOpenHashMap HITS = new Long2IntOpenHashMap();
 	private static final Int2IntOpenHashMap TARGETS = new Int2IntOpenHashMap();
 	private static final Int2IntOpenHashMap MELEE = new Int2IntOpenHashMap();
@@ -159,18 +158,11 @@ public final class Hitsound {
 	}
 
 	private static boolean meleeReady(LocalPlayer player, Entity target) {
-		if (player.cannotAttackWithItem(player.getWeaponItem(), 0)) {
-			return false;
-		}
-		if (player.getAttackStrengthScale(0.0f) < CHARGED_HIT) {
-			return false;
-		}
 		if (target instanceof LivingEntity living && living.hurtTime > 0) {
 			return false;
 		}
 		int last = MELEE.get(target.getId());
-		int wait = Math.max(MIN_MELEE_DELAY, Math.round(player.getCurrentItemAttackStrengthDelay()));
-		return last == 0 || gameTick - last >= wait;
+		return last == 0 || gameTick - last >= MELEE_DELAY;
 	}
 
 	private static void land(VoidmarkConfig config, boolean sound, boolean mark) {
