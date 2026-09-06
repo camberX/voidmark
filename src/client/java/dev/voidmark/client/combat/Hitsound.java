@@ -28,16 +28,16 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Plays a hitsound as soon as this client lands a melee swing or one of its
  * own arrows overlaps a mob. Other players' hits are ignored.
- * Melee uses a 3-tick hit delay and the target's hurt-time, not the
- * 1.9 weapon charge bar. Hypixel often reports mob health as 0, so we never
- * gate on {@code isAlive()}.
+ * Melee uses a 1-tick per-target delay, not the 1.9 weapon charge bar or
+ * hurt-time. Hypixel often reports mob health as 0, so we never gate on
+ * {@code isAlive()}.
  */
 public final class Hitsound {
 	private static final SoundEvent SOUND = SoundEvent.createVariableRangeEvent(Voidmark.id("hit"));
 	private static final double ARROW_MARGIN = 0.6;
 	private static final int ARROW_DEBOUNCE = 6;
 	private static final int VANILLA_PING_TICKS = 20;
-	private static final int MELEE_DELAY = 3;
+	private static final int MELEE_DELAY = 1;
 	private static final Long2IntOpenHashMap HITS = new Long2IntOpenHashMap();
 	private static final Int2IntOpenHashMap TARGETS = new Int2IntOpenHashMap();
 	private static final Int2IntOpenHashMap MELEE = new Int2IntOpenHashMap();
@@ -92,7 +92,7 @@ public final class Hitsound {
 		if (player == null || attacker != player || target == null || player.isSpectator()) {
 			return;
 		}
-		if (!isMeleeTarget(target, player) || !meleeReady(player, target)) {
+		if (!isMeleeTarget(target, player) || !meleeReady(target)) {
 			return;
 		}
 		MELEE.put(target.getId(), gameTick);
@@ -157,10 +157,7 @@ public final class Hitsound {
 		return config.hitmarkerEnabled || config.hitsoundEnabled && config.hitsoundArrows;
 	}
 
-	private static boolean meleeReady(LocalPlayer player, Entity target) {
-		if (target instanceof LivingEntity living && living.hurtTime > 0) {
-			return false;
-		}
+	private static boolean meleeReady(Entity target) {
 		int last = MELEE.get(target.getId());
 		return last == 0 || gameTick - last >= MELEE_DELAY;
 	}

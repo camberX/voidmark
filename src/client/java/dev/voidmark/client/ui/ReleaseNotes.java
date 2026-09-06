@@ -8,6 +8,9 @@ public final class ReleaseNotes {
 	}
 
 	public static final Entry[] ENTRIES = {
+		new Entry("1.2.21", new String[]{
+			"Melee hitsound and hitmarker wait 1 tick between hits on the same target and no longer wait for hurt-time."
+		}),
 		new Entry("1.2.20", new String[]{
 			"The hitmarker is a smooth stroke on the vanilla crosshair center instead of stepped squares."
 		}),
